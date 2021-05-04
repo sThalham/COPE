@@ -1,0 +1,11 @@
+<launch>
+  <node name="PyraPose" pkg="PyraPose" type="pyrapose_node.py" output="screen">    
+    <param name="model_path" value="/stefan/ycbv_vis05_ov075_BA_95.h5" />
+    <param name="meshes_path" value="/stefan/ycbv_models/models" />
+    <param name="image_topic" value="/hsrb/head_rgbd_sensor/rgb/image_raw" />
+    <param name="detection_threshold" value="0.5" type="double" />
+    <param name="icp_threshold" value="0.15" type="double" />
+    <param name="service_call" value="/PyraPose/return_poses" />
+    <param name="node_type" value="service" type="string" />
+  </node>
+</launch>
