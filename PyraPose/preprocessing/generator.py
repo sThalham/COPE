@@ -28,7 +28,6 @@ from ..utils.anchors import (
     anchors_for_shape,
     guess_shapes
 )
-from ..utils.config import parse_anchor_parameters
 from ..utils.image import (
     TransformParameters,
     adjust_transform_for_image,
@@ -335,21 +334,17 @@ class Generator(keras.utils.Sequence):
 
         return image_batch
 
-    def generate_anchors(self, image_shape):
-        anchor_params = None
-        if self.config and 'anchor_parameters' in self.config:
-            anchor_params = parse_anchor_parameters(self.config)
-        return anchors_for_shape(image_shape, anchor_params=anchor_params, shapes_callback=self.compute_shapes)
+    #def generate_anchors(self, image_shape):
+    #    anchor_params = None
+    #    if self.config and 'anchor_parameters' in self.config:
+    #        anchor_params = parse_anchor_parameters(self.config)
+    #    return anchors_for_shape(image_shape, anchor_params=anchor_params, shapes_callback=self.compute_shapes)
 
     def compute_targets(self, image_group, annotations_group):
         """ Compute target outputs for the network using images and their annotations.
         """
-        # get the max image shape
-        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(3))
-        anchors   = self.generate_anchors(max_shape)
 
         batches = self.compute_anchor_targets(
-            anchors,
             image_group,
             annotations_group,
             self.num_classes()

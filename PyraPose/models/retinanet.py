@@ -2,64 +2,14 @@ import keras
 import tensorflow as tf
 from .. import initializers
 from .. import layers
-from ..utils.anchors import AnchorParameters
 from . import assert_training_model
 
 
 def default_classification_model(
     num_classes,
-    num_anchors,
     pyramid_feature_size=256,
     prior_probability=0.01,
     classification_feature_size=256,
-    name='classification_submodel'
-):
-    options = {
-        'kernel_size' : 3,
-        'strides'     : 1,
-        'padding'     : 'same',
-    }
-
-    if keras.backend.image_data_format() == 'channels_first':
-        inputs  = keras.layers.Input(shape=(pyramid_feature_size, None, None))
-    else:
-        inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
-
-    outputs = inputs
-    for i in range(4):
-        outputs = keras.layers.Conv2D(
-        #outputs = keras.layers.SeparableConv2D(
-            filters=classification_feature_size,
-            activation='relu',
-            #name='pyramid_classification_{}'.format(i),
-            kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
-            bias_initializer='zeros',
-            **options
-        )(outputs)
-
-    outputs = keras.layers.Conv2D(
-        filters=num_classes * num_anchors,
-        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
-        bias_initializer=initializers.PriorProbability(probability=prior_probability),
-        #name='pyramid_classification',
-        **options
-    )(outputs)
-
-    # reshape output and apply sigmoid
-    if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1))(outputs) #, name='pyramid_classification_permute'
-    outputs = keras.layers.Reshape((-1, num_classes))(outputs) # , name='pyramid_classification_reshape'
-    outputs = keras.layers.Activation('sigmoid')(outputs) # , name='pyramid_classification_sigmoid'
-
-    return keras.models.Model(inputs=inputs, outputs=outputs) #, name=name)
-
-
-def default_mask_model(
-    num_classes,
-    pyramid_feature_size=256,
-    prior_probability=0.01,
-    classification_feature_size=256,
-    name='classification_submodel'
 ):
     options = {
         'kernel_size' : 3,
@@ -82,7 +32,7 @@ def default_mask_model(
             **options
         )(outputs)
 
-    outputs = keras.layers.Conv2D(
+    labels = keras.layers.Conv2D(
         filters=num_classes,
         kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
         bias_initializer=initializers.PriorProbability(probability=prior_probability),
@@ -91,14 +41,27 @@ def default_mask_model(
 
     # reshape output and apply sigmoid
     if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1))(outputs) #, name='pyramid_classification_permute'
-    outputs = keras.layers.Reshape((-1, num_classes))(outputs) # , name='pyramid_classification_reshape'
-    outputs = keras.layers.Activation('sigmoid')(outputs) # , name='pyramid_classification_sigmoid'
+        labels = keras.layers.Permute((2, 3, 1))(labels)
+    labels = keras.layers.Reshape((-1, num_classes))(labels)
+    labels = keras.layers.Activation('sigmoid')(labels)
 
-    return keras.models.Model(inputs=inputs, outputs=outputs, name='mask')
+    centerness = keras.layers.Conv2D(
+        filters=1,
+        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        bias_initializer=initializers.PriorProbability(probability=prior_probability),
+        **options
+    )(outputs)
+
+    # reshape output and apply sigmoid
+    if keras.backend.image_data_format() == 'channels_first':
+        centerness = keras.layers.Permute((2, 3, 1))(centerness)
+    centerness = keras.layers.Reshape((-1, num_classes))(centerness)
+    centerness = keras.layers.Activation('sigmoid')(centerness)
+
+    return keras.models.Model(inputs=inputs, outputs=labels), keras.models.Model(inputs=inputs, outputs=centerness)
 
 
-def default_3Dregression_model(num_values, num_anchors, pyramid_feature_size=256, regression_feature_size=512, name='3Dregression_submodel'):
+def default_regression_model(num_values, pyramid_feature_size=256, regression_feature_size=512):
     options = {
         'kernel_size'        : 3,
         'strides'            : 1,
@@ -116,82 +79,25 @@ def default_3Dregression_model(num_values, num_anchors, pyramid_feature_size=256
     outputs = inputs
     for i in range(4):
         outputs = keras.layers.Conv2D(
-        #outputs = keras.layers.SeparableConv2D(
             filters=regression_feature_size,
             activation='relu',
-            #name='pyramid_regression3D_{}'.format(i),
             **options
         )(outputs)
 
-    outputs = keras.layers.Conv2D(num_anchors * num_values, **options)(outputs) #, name='pyramid_regression3D'
+    outputs = keras.layers.Conv2D(num_values, **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1))(outputs) # , name='pyramid_regression3D_permute'
-    outputs = keras.layers.Reshape((-1, num_values))(outputs) # , name='pyramid_regression3D_reshape'
+        outputs = keras.layers.Permute((2, 3, 1))(outputs)
+    outputs = keras.layers.Reshape((-1, num_values))(outputs)
 
-    return keras.models.Model(inputs=inputs, outputs=outputs) #, name=name)
-
-
-def __create_pyramid_features(C3, C4, C5, feature_size=256):
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C5)
-    P5_upsampled = layers.UpsampleLike()([P5, C4])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P5_con')(P5)
-
-    # add P5 elementwise to C4
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C4)
-    P4 = keras.layers.Add()([P5_upsampled, P4])
-    P4_upsampled = layers.UpsampleLike()([P4, C3])
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P4_con')(P4)
-
-    # add P4 elementwise to C3
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3)
-    P3 = keras.layers.Add()([P4_upsampled, P3])
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P3_con')(P3)
-
-    # "P6 is obtained via a 3x3 stride-2 conv on C5"
-    P6 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, padding='same', name='P6_con')(C5)
-
-    # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
-    P7 = keras.layers.Activation('relu')(P6)
-    P7 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, padding='same', name='P7_con')(P7)
-
-    return [P3, P4, P5, P6, P7]
+    return keras.models.Model(inputs=inputs, outputs=outputs)
 
 
-def __create_FPN(C3, C4, C5, feature_size=256):
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C5)
-    P5_upsampled = layers.UpsampleLike()([P5, C4])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P5_con')(P5)
-
-    # add P5 elementwise to C4
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C4)
-    P4 = keras.layers.Add()([P5_upsampled, P4])
-    P4_upsampled = layers.UpsampleLike()([P4, C3])
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P4_con')(P4)
-
-    # add P4 elementwise to C3
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3)
-    P3 = keras.layers.Add()([P4_upsampled, P3])
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P3_con')(P3)
-
-    return [P3, P4, P5]
-
-
-#def __create_sparceFPN(P3, P4, P5, feature_size=256):
-def __create_sparceFPN(C3_R, C4_R, C5_R, feature_size=256):
-
-    # only from here for FPN-fusion test 3
-    #C3 = keras.layers.Add()([C3_R, C3_D])
-    #C4 = keras.layers.Add()([C4_R, C4_D])
-    #C5 = keras.layers.Add()([C5_R, C5_D])
-
-    #P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same')(C3)
-    #P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same')(C4)
-    #P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same')(C5)
+def __create_sparceFPN(C3, C4, C5, feature_size=256):
     
     # 3x3 conv for test 4
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3_R)
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C4_R)
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C5_R)
+    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3)
+    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C4)
+    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C5)
 
     P5_upsampled = layers.UpsampleLike()([P5, P4])
     P4_upsampled = layers.UpsampleLike()([P4, P3])
@@ -214,122 +120,61 @@ def __create_sparceFPN(C3_R, C4_R, C5_R, feature_size=256):
     return [P3, P4, P5]
 
 
-def default_submodels(num_classes, num_anchors):
-    return [
-        ('3Dbox', default_3Dregression_model(16, num_anchors)),
-        ('cls', default_classification_model(num_classes, num_anchors))
-    ]
-
-
-def __build_model_pyramid(name, model, features):
-    return keras.layers.Concatenate(axis=1, name=name)([model(f) for f in features])
-
-
-def __build_pyramid(models, features):
-    return [__build_model_pyramid(n, m, features) for n, m in models]
-
-
-def __build_anchors(anchor_parameters, features):
-    anchors = [
-        layers.Anchors(
-            size=anchor_parameters.sizes[i],
-            stride=anchor_parameters.strides[i],
-            ratios=anchor_parameters.ratios,
-            scales=anchor_parameters.scales,
-            name='anchors_{}'.format(i)
-        )(f) for i, f in enumerate(features)
-    ]
-
-    return keras.layers.Concatenate(axis=1, name='anchors')(anchors)
-
-
-def __build_anchors_pnp(anchor_parameters, features):
-    anchors = [
-        layers.Anchors(
-            size=anchor_parameters.sizes[i],
-            stride=anchor_parameters.strides[i],
-            ratios=anchor_parameters.ratios,
-            scales=anchor_parameters.scales,
-            name='anchors_pnp_{}'.format(i)
-        )(f) for i, f in enumerate(features)
-    ]
-
-    return keras.layers.Concatenate(axis=1, name='anchors_pnp')(anchors)
-
-
 def retinanet(
     inputs,
     backbone_layers,
     num_classes,
-    num_anchors             = None,
     create_pyramid_features = __create_sparceFPN,
-    submodels               = None,
     name                    = 'retinanet'
 ):
-
-    if num_anchors is None:
-        num_anchors = AnchorParameters.default.num_anchors()
-
-    if submodels is None:
-
-        submodels = default_submodels(num_classes, num_anchors)
-        #submodels_2 = default_submodels_2(num_classes, num_anchors)
-
-    #mask_head = default_mask_decoder(num_classes=num_classes, num_anchors=num_anchors)
-    mask_head = default_mask_model(num_classes=num_classes)
+    regression_branch = default_regression_model(16)
+    location_branch = default_classification_model(num_classes)
 
     b1, b2, b3 = backbone_layers
 
-    # feature fusion
-    #C3 = keras.layers.Add()([b1, b4])
-    #C4 = keras.layers.Add()([b2, b5])
-    #C5 = keras.layers.Add()([b3, b6])
-
-    #P3 = keras.layers.Conv2D(256, kernel_size=3, strides=1, padding='same')(C3)
-    #P4 = keras.layers.Conv2D(256, kernel_size=3, strides=1, padding='same')(C4)
-    #P5 = keras.layers.Conv2D(256, kernel_size=3, strides=1, padding='same')(C5)
-
-    #features = create_pyramid_features(P3, P4, P5)
     features = create_pyramid_features(b1, b2, b3)
-    pyramids = __build_pyramid(submodels, features)
+    pyramids = []
+    regression_P3 = regression_branch(features[0])
+    regression_P4 = regression_branch(features[1])
+    regression_P5 = regression_branch(features[2])
 
-    masks = mask_head(features[0])
-    pyramids.append(masks)
+    location_P3 = location_branch[0](features[0])
+    location_P4 = location_branch[0](features[1])
+    location_P5 = location_branch[0](features[2])
+
+    center_P3 = location_branch[1](features[0])
+    center_P4 = location_branch[1](features[1])
+    center_P5 = location_branch[1](features[2])
+
+    pyramids.append(keras.layers.Concatenate(axis=1, name='reg')([regression_P3, regression_P4, regression_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='conf')([center_P3, center_P4, center_P5]))
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
 def retinanet_bbox(
     model                 = None,
-    nms                   = True,
-    class_specific_filter = True,
     name                  = 'retinanet-bbox',
     anchor_params         = None,
     **kwargs
 ):
 
-    # if no anchor parameters are passed, use default values
-    if anchor_params is None:
-        anchor_params = AnchorParameters.default
-
     # create RetinaNet model
     if model is None:
-        model = retinanet(num_anchors=anchor_params.num_anchors(), **kwargs)
+        model = retinanet(**kwargs)
     else:
         assert_training_model(model)
 
     # compute the anchors
-    #features = [model.get_layer(p_name).output for p_name in ['P3_con', 'P4_con', 'P5_con', 'P6_con', 'P7_con']]
-    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
-    anchors = __build_anchors(anchor_params, features)
+    #features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    #anchors = __build_anchors(anchor_params, features)
 
-    regression3D = model.outputs[0]
+    regression = model.outputs[0]
     classification = model.outputs[1]
-    mask = model.outputs[2]
-    #other = model.outputs[3:]
+    centers = model.outputs[2]
 
-    boxes3D = layers.RegressBoxes3D(name='boxes3D')([anchors, regression3D])
+    #boxes3D = layers.RegressBoxes3D(name='boxes3D')([anchors, regression])
 
     # construct the model
-    #return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, mask], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[regression, classification, centers], name=name)

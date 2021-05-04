@@ -39,7 +39,6 @@ from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
 from ..utils.anchors import make_shapes_callback
-from ..utils.config import read_config_file, parse_anchor_parameters
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
 from ..utils.transform import random_transform_generator
@@ -73,30 +72,26 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
 
     modifier = freeze_model if freeze_backbone else None
 
-    # load anchor parameters, or pass None (so that defaults will be used)
-    anchor_params = None
-    num_anchors   = None
-
     # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
     # optionally wrap in a parallel model
     if multi_gpu > 1:
         from keras.utils import multi_gpu_model
         with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+            model = model_with_weights(backbone_retinanet(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = multi_gpu_model(model, gpus=multi_gpu)
     else:
-        model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+        model          = model_with_weights(backbone_retinanet(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
     # make prediction model
-    prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
+    prediction_model = retinanet_bbox(model=model)
 
     # compile model
     training_model.compile(
         loss={
-            '3Dbox'        : losses.orthogonal_l1(),
+            'reg'        : losses.smooth_l1(),
             'cls'          : losses.focal(),
-            'mask'          : losses.focal(),
+            'conf'          : losses.cross(),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -106,23 +101,6 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
 
 def create_callbacks(model, training_model, prediction_model, validation_generator, args):
     callbacks = []
-
-    tensorboard_callback = None
-
-    if args.evaluation and validation_generator:
-        if args.dataset_type == 'coco':
-            from ..callbacks.coco import CocoEval
-
-            # use prediction model for evaluation
-            evaluation = CocoEval(validation_generator, tensorboard=tensorboard_callback)
-        elif args.dataset_type == 'linemod':
-            from ..callbacks.linemod import LinemodEval
-            evaluation = LinemodEval(validation_generator, tensorboard=tensorboard_callback)
-
-        else:
-            evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
-        evaluation = RedirectModel(evaluation, prediction_model)
-        callbacks.append(evaluation)
 
         # save the model
     if args.snapshots:
@@ -170,10 +148,8 @@ def create_generators(args, preprocess_image):
     }
 
     transform_generator = random_transform_generator(
-            min_translation=(-0.2, -0.2),
-            max_translation=(0.2, 0.2),
-            min_scaling=(0.8, 0.8),
-            max_scaling=(1.2, 1.2),
+            min_scaling=(0.9, 0.9),
+            max_scaling=(1.1, 1.1),
         )
 
     if args.dataset_type == 'ycbv':
@@ -337,10 +313,7 @@ def main(args=None):
         print('Loading model, this may take a second...')
         model            = models.load_model(args.snapshot, backbone_name=args.backbone)
         training_model   = model
-        anchor_params    = None
-        if args.config and 'anchor_parameters' in args.config:
-            anchor_params = parse_anchor_parameters(args.config)
-        prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
+        prediction_model = retinanet_bbox(model=model)
     else:
         weights = args.weights
         # default to imagenet if nothing else is specified

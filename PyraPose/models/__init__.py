@@ -77,7 +77,7 @@ def convert_model(model, nms=True, class_specific_filter=True, anchor_params=Non
 
 
 def assert_training_model(model):
-    assert (all(output in model.output_names for output in ['3Dbox', 'cls', 'mask'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['reg', 'cls', 'conf'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
     #assert (all(output in model.output_names for output in ['out_reshape_0', 'out_reshape_1', 'out_reshape_2'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
