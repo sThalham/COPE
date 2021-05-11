@@ -72,8 +72,9 @@ def anchor_targets_bbox(
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
+        #anchors_spec = np.empty((0, ), dtype=np.int32)
         anchors_spec = []
-        locations_spec = np.empty((2, 0))
+        locations_spec = np.empty((0, 2))
         print('locations_spec shape init: ', locations_spec.shape)
         for idx, pose in enumerate(annotations['poses']):
 
@@ -83,22 +84,20 @@ def anchor_targets_bbox(
             for resx in range(len(image_shapes)):
                 mask_flat = np.asarray(Image.fromarray(mask).resize((image_shapes[resx][1], image_shapes[resx][0]), Image.NEAREST))
                 locations_level = np.where(mask_flat == int(mask_id))
-                locations_level = np.concatenate([locations_level[0], locations_level[1]], axis=1)
-                print('locations_level: ', locations_level.shape)
+                locations_level = np.concatenate([locations_level[0][:, np.newaxis], locations_level[1][:, np.newaxis]], axis=1)
                 locations_spec = np.concatenate([locations_spec, locations_level], axis=0)
 
                 mask_flat = mask_flat.flatten()
                 anchors_pyramid = np.where(mask_flat == int(mask_id))
                 anchors_spec.append(anchors_pyramid[0])
 
-            print('locations_spec post: ', locations_spec.shape)
-
+            anchors_spec = np.concatenate(anchors_spec, axis=0)
             if len(anchors_spec) > 1:
                 labels_batch[index, anchors_spec, -1] = 1
                 regression_batch[index, anchors_spec, -1] = 1
                 center_batch[index, anchors_spec, -1] = 1
 
-                mask_batch[index, anchors_spec, cls] = 1
+                #mask_batch[index, anchors_spec, cls] = 1
 
             rot = tf3d.quaternions.quat2mat(pose[3:])
             rot = np.asarray(rot, dtype=np.float32)
