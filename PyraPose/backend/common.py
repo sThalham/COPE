@@ -22,36 +22,65 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
     return pred_boxes
 
 
-def box3D_transform_inv(boxes, deltas, mean=None, std=None):
+def box3D_transform_inv(regression, locations, mean=None, std=None):
+    """
+    regression: shape: (batch_size, location_shapes, 16+1)
+    locations_shapes = P3_shape + P4_shape + P5_shape = (16+4+1)*P5_shape
+    P3 shape: 60x80
+    P4 shape: 30x40
+    P5 shape: 15x20
+    """
+    # batch_size = regression[0].shape[0]
+    # location_shapes = regression[0].shape[1]
+    # level_shape = [[60, 80], [30, 40], [15, 20]]
+    # level_scale = [8, 16, 32]
+    #
+    # import numpy as np
+    #
+    # locations = np.zeros((batch_size, location_shapes, 2))
+    #
+    # for batch in range(batch_size):
+    #     counter = 0
+    #     for level in range(3):
+    #         for x in range(level_shape[level][0]):
+    #             for y in range(level_shape[level][1]):
+    #                 locations[batch, counter] = [x, y] * level_scale[level] + level_scale[level]/2
+    #                 counter += 1
 
     if mean is None:
         mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     if std is None:
-        std = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+        #std = [580, 580,  580,  580,  580,  580,  580,  580,  580,  580,  580,  580,  580,  580,  580,  580] #5200
+        std = [750, 750,  750,  750,  750,  750,  750,  750,  750,  750,  750, 750,  750,  750,  750, 750] #5200
 
-    boxes_exp = boxes
-
-    width  = boxes_exp[:, :, 2] - boxes_exp[:, :, 0]
-    height = boxes_exp[:, :, 3] - boxes_exp[:, :, 1]
-
-    x1 = boxes_exp[:, :, 0] + (deltas[:, :, 0] * std[0] + mean[0]) * width
-    y1 = boxes_exp[:, :, 1] + (deltas[:, :, 1] * std[1] + mean[1]) * height
-    x2 = boxes_exp[:, :, 2] + (deltas[:, :, 2] * std[2] + mean[2]) * width
-    y2 = boxes_exp[:, :, 3] + (deltas[:, :, 3] * std[3] + mean[3]) * height
-    x3 = boxes_exp[:, :, 0] + (deltas[:, :, 4] * std[4] + mean[4]) * width
-    y3 = boxes_exp[:, :, 1] + (deltas[:, :, 5] * std[5] + mean[5]) * height
-    x4 = boxes_exp[:, :, 2] + (deltas[:, :, 6] * std[6] + mean[6]) * width
-    y4 = boxes_exp[:, :, 3] + (deltas[:, :, 7] * std[7] + mean[7]) * height
-    x5 = boxes_exp[:, :, 0] + (deltas[:, :, 8] * std[8] + mean[8]) * width
-    y5 = boxes_exp[:, :, 1] + (deltas[:, :, 9] * std[9] + mean[9]) * height
-    x6 = boxes_exp[:, :, 2] + (deltas[:, :, 10] * std[10] + mean[10]) * width
-    y6 = boxes_exp[:, :, 3] + (deltas[:, :, 11] * std[11] + mean[11]) * height
-    x7 = boxes_exp[:, :, 0] + (deltas[:, :, 12] * std[12] + mean[12]) * width
-    y7 = boxes_exp[:, :, 1] + (deltas[:, :, 13] * std[13] + mean[13]) * height
-    x8 = boxes_exp[:, :, 2] + (deltas[:, :, 14] * std[14] + mean[14]) * width
-    y8 = boxes_exp[:, :, 3] + (deltas[:, :, 15] * std[15] + mean[15]) * height
+    x1 = locations[:, 0] + (regression[:, :, 0] * std[0] + mean[0])
+    y1 = locations[:, 1] + (regression[:, :, 1] * std[1] + mean[1])
+    x2 = locations[:, 0] + (regression[:, :, 2] * std[2] + mean[2])
+    y2 = locations[:, 1] + (regression[:, :, 3] * std[3] + mean[3])
+    x3 = locations[:, 0] + (regression[:, :, 4] * std[4] + mean[4])
+    y3 = locations[:, 1] + (regression[:, :, 5] * std[5] + mean[5])
+    x4 = locations[:, 0] + (regression[:, :, 6] * std[6] + mean[6])
+    y4 = locations[:, 1] + (regression[:, :, 7] * std[7] + mean[7])
+    x5 = locations[:, 0] + (regression[:, :, 8] * std[8] + mean[8])
+    y5 = locations[:, 1] + (regression[:, :, 9] * std[9] + mean[9])
+    x6 = locations[:, 0] + (regression[:, :, 10] * std[10] + mean[10])
+    y6 = locations[:, 1] + (regression[:, :, 11] * std[11] + mean[11])
+    x7 = locations[:, 0] + (regression[:, :, 12] * std[12] + mean[12])
+    y7 = locations[:, 1] + (regression[:, :, 13] * std[13] + mean[13])
+    x8 = locations[:, 0] + (regression[:, :, 14] * std[14] + mean[14])
+    y8 = locations[:, 1] + (regression[:, :, 15] * std[15] + mean[15])
 
     pred_boxes = keras.backend.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+
+    # h = regression[0].shape[0]
+    # w = regression[0].shape[1]
+    # x = np.ones((8, h, w)) * np.arange(w)
+    # y = (np.ones((8, w, h)) * np.arange(h)).T
+    # for i in range(0, 8):
+    #     x[i] = x[i] - (regression[:, :, i*2] * std[i*2] + mean[i*2])
+    #     y[i] = y[i] - (regression[:, :, i*2 + 1] * std[i*2 + 1] + mean[i*2 + 1])
+    #
+    # pred_boxes = keras.backend.stack([x[0], y[0], x[1], y[1], x[2], y[2], x[3], y[3], x[4], y[4], x[5], y[5], x[6], y[6], x[7], y[7]], axis=2)
 
     return pred_boxes
 
