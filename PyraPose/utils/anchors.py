@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import math
 
 import numpy as np
 import keras
@@ -60,9 +61,9 @@ def anchor_targets_bbox(
     image_shapes = guess_shapes(image_group[0].shape[:2], pyramid_levels)
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
 
-    labels_batch      = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
-    center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
+    labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -72,45 +73,57 @@ def anchor_targets_bbox(
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
-        anchors_spec = []
-        locations_spec = np.empty((2, 0))
-        print('locations_spec shape init: ', locations_spec.shape)
+        #anchors_spec = np.empty((0, ), dtype=np.int32)
+        # print('locations_spec shape init: ', locations_spec.shape)
         for idx, pose in enumerate(annotations['poses']):
+            locations_spec = np.empty((0, 2))
+            level_factors = [8, 16, 32]
+            locations_factor = np.empty((0, 1))
+            anchors_spec = []
 
             # mask part
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             for resx in range(len(image_shapes)):
-                mask_flat = np.asarray(Image.fromarray(mask).resize((image_shapes[resx][1], image_shapes[resx][0]), Image.NEAREST))
-                locations_level = np.where(mask_flat == int(mask_id))
-                locations_level = np.concatenate([locations_level[0], locations_level[1]], axis=1)
-                print('locations_level: ', locations_level.shape)
+                mask_resx = np.asarray(Image.fromarray(mask).resize((image_shapes[resx][1], image_shapes[resx][0]), Image.NEAREST))
+                locations_level = np.where(mask_resx == int(mask_id))
+                # locations_level = np.stack((locations_level[0], locations_level[1]), axis=1)
+                locations_level = np.concatenate([locations_level[0][:, np.newaxis], locations_level[1][:, np.newaxis]], axis=1)
                 locations_spec = np.concatenate([locations_spec, locations_level], axis=0)
+                locations_factor = np.concatenate([locations_factor, np.full((locations_level.shape[0], 1), level_factors[resx])])
 
-                mask_flat = mask_flat.flatten()
+                mask_flat = mask_resx.flatten()
                 anchors_pyramid = np.where(mask_flat == int(mask_id))
                 anchors_spec.append(anchors_pyramid[0])
 
-            print('locations_spec post: ', locations_spec.shape)
+            anchors_spec_con = np.concatenate(anchors_spec, axis=0)
 
-            if len(anchors_spec) > 1:
-                labels_batch[index, anchors_spec, -1] = 1
-                regression_batch[index, anchors_spec, -1] = 1
-                center_batch[index, anchors_spec, -1] = 1
+            # anchors_spec_flattened = anchors_spec
+            # imagepixels0 = int(image_shapes[0][1] * image_shapes[0][0])
+            # imagepixels1 = int(image_shapes[1][1] * image_shapes[1][0])
+            # anchors_spec_flattened[1] = anchors_spec_flattened[1] + imagepixels0
+            # anchors_spec_flattened[2] = anchors_spec_flattened[2] + imagepixels1 + imagepixels0
+            # anchors_spec_flattened = np.concatenate(anchors_spec_flattened)
+            # anchors_spec_flattened = anchors_spec_flattened.astype(int)
 
-                mask_batch[index, anchors_spec, cls] = 1
+            if len(anchors_spec_con) > 1:
+                labels_batch[index, anchors_spec_con, -1] = 1
+                labels_batch[index, anchors_spec_con, cls] = 1
+                regression_batch[index, anchors_spec_con, -1] = 1
+                center_batch[index, anchors_spec_con, -1] = 1
+                # mask_batch[index, anchors_spec_con, cls] = 1
 
-            rot = tf3d.quaternions.quat2mat(pose[3:])
-            rot = np.asarray(rot, dtype=np.float32)
-            tra = pose[:3]
-            tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
-            tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
-            box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
-                                cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
-            box3D = np.reshape(box3D, (16))
-            calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
+                rot = tf3d.quaternions.quat2mat(pose[3:])
+                rot = np.asarray(rot, dtype=np.float32)
+                tra = pose[:3]
+                tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
+                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+                box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
+                                           cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
+                box3D = np.reshape(box3D, (16))
+                calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-            regression[index, anchors_spec, :-1], centers[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                regression_batch[index, anchors_spec_con, :-1], center_batch[index, anchors_spec_con, :-1] = box3D_transform(box3D, locations_spec, locations_factor) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
             '''
             # debug
@@ -362,13 +375,27 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
     return anchors
 
 
-def box3D_transform(box, locations, mean=None, std=None):
+def centerness_factor(a, b):
+    return math.sqrt(min(a, b) / max(a, b))
+
+
+def centerness_scaling(a):
+    pos_idx = np.where(a > 0)
+    neg_idx = np.where(a < 0)
+    a[pos_idx] = np.exp(a[pos_idx])
+    a[neg_idx] = -np.exp(-a[neg_idx])
+    return a
+
+
+def box3D_transform(box, locations, locations_factor, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
     if mean is None:
-        mean = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    # if std is None:
+    #     std = np.full(16, 580)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
     if std is None:
-        std = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
+        std = np.full(16, 750)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -379,6 +406,9 @@ def box3D_transform(box, locations, mean=None, std=None):
         std = np.array(std)
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+    #locations = locations * locations_factor + locations_factor/2  # Print anchors in PyraPose um zu checken; plus because locations can contain [0, 0] -> must be positive
+    locations = locations + locations_factor/2
 
     targets_dx1 = locations[:, 0] - box[0]
     targets_dy1 = locations[:, 1] - box[1]
@@ -397,21 +427,38 @@ def box3D_transform(box, locations, mean=None, std=None):
     targets_dx8 = locations[:, 0] - box[14]
     targets_dy8 = locations[:, 1] - box[15]
 
-    targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8))
-    targets = targets.T
+    targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
 
+    # targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8))
+    # targets = targets.T
     targets = (targets - mean) / std
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
 
     ############################
     # here goes centerness calculation
-    targets_x = np.stack(
-        (targets_dx1, targets_dx2, targets_dx3, targets_dx4, targets_dx5, targets_dx6, targets_dx7, targets_dx8))
-    targets_y = np.stack(
-        (targets_dy1, targets_dy2, targets_dy3, targets_dy4, targets_dy5, targets_dy6, targets_dy7, targets_dy8))
-    print('targets_x: ', targets_x.shape)
 
-    return targets, centers
+    targets_x = np.stack((targets_dx1, targets_dx2, targets_dx3, targets_dx4, targets_dx5, targets_dx6, targets_dx7, targets_dx8))
+    targets_y = np.stack((targets_dy1, targets_dy2, targets_dy3, targets_dy4, targets_dy5, targets_dy6, targets_dy7, targets_dy8))
+    targets_x = centerness_scaling(targets_x)  # Scale distances
+    targets_y = centerness_scaling(targets_y)  # Scale distances
+
+    vfactor = np.vectorize(centerness_factor)
+
+    # Calculate factors of diagonally opposite points
+    # To do that create permutated array
+    # calculate centerness for pairs 0-6 1-7 4-2 5-3
+
+    permutation = np.array([6, 7, 4, 5, 0, 1, 2, 3])
+    idx = np.empty_like(permutation)
+    idx[permutation] = np.arange(len(permutation))
+    targets_x_perm = targets_x[idx, :]
+    targets_y_perm = targets_y[idx, :]
+
+    centerX = vfactor(np.abs(targets_x[0:4, :]), np.abs(np.roll(targets_x_perm[0:4, :], 2, axis=0)))
+    centerY = vfactor(np.abs(targets_y[0:4, :]), np.abs(np.roll(targets_y_perm[0:4, :], 2, axis=0)))
+    centerness = np.prod(centerX * centerY)
+
+    return targets, centerness
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):

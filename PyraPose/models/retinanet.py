@@ -45,23 +45,24 @@ def default_classification_model(
     labels = keras.layers.Reshape((-1, num_classes))(labels)
     labels = keras.layers.Activation('sigmoid')(labels)
 
-    centerness = keras.layers.Conv2D(
-        filters=1,
-        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
-        bias_initializer=initializers.PriorProbability(probability=prior_probability),
-        **options
-    )(outputs)
+    # centerness = keras.layers.Conv2D(
+    #     filters=1,
+    #     kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+    #     bias_initializer=initializers.PriorProbability(probability=prior_probability),
+    #     **options
+    # )(outputs)
+    #
+    # # reshape output and apply sigmoid
+    # if keras.backend.image_data_format() == 'channels_first':
+    #     centerness = keras.layers.Permute((2, 3, 1))(centerness)
+    # centerness = keras.layers.Reshape((-1, 1))(centerness) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
+    # centerness = keras.layers.Activation('sigmoid')(centerness)
 
-    # reshape output and apply sigmoid
-    if keras.backend.image_data_format() == 'channels_first':
-        centerness = keras.layers.Permute((2, 3, 1))(centerness)
-    centerness = keras.layers.Reshape((-1, num_classes))(centerness)
-    centerness = keras.layers.Activation('sigmoid')(centerness)
-
-    return keras.models.Model(inputs=inputs, outputs=labels), keras.models.Model(inputs=inputs, outputs=centerness)
+    # return keras.models.Model(inputs=inputs, outputs=labels), keras.models.Model(inputs=inputs, outputs=centerness)
+    return keras.models.Model(inputs=inputs, outputs=labels)
 
 
-def default_regression_model(num_values, pyramid_feature_size=256, regression_feature_size=512):
+def default_regression_model(num_values, pyramid_feature_size=256, prior_probability=0.01, regression_feature_size=512):
     options = {
         'kernel_size'        : 3,
         'strides'            : 1,
@@ -69,6 +70,12 @@ def default_regression_model(num_values, pyramid_feature_size=256, regression_fe
         'kernel_initializer' : keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer'   : 'zeros',
         'kernel_regularizer' : keras.regularizers.l2(0.001),
+    }
+
+    options_centerness = {
+        'kernel_size' : 3,
+        'strides'     : 1,
+        'padding'     : 'same',
     }
 
     if keras.backend.image_data_format() == 'channels_first':
@@ -84,12 +91,26 @@ def default_regression_model(num_values, pyramid_feature_size=256, regression_fe
             **options
         )(outputs)
 
-    outputs = keras.layers.Conv2D(num_values, **options)(outputs)
+    regress = keras.layers.Conv2D(num_values, **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1))(outputs)
-    outputs = keras.layers.Reshape((-1, num_values))(outputs)
+        regress = keras.layers.Permute((2, 3, 1))(regress)
+    regress = keras.layers.Reshape((-1, num_values))(regress)
 
-    return keras.models.Model(inputs=inputs, outputs=outputs)
+    centerness = keras.layers.Conv2D(
+        filters=1,
+        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        bias_initializer=initializers.PriorProbability(probability=prior_probability),
+        **options_centerness
+    )(outputs)
+
+    # reshape output and apply sigmoid
+    if keras.backend.image_data_format() == 'channels_first':
+        centerness = keras.layers.Permute((2, 3, 1))(centerness)
+    centerness = keras.layers.Reshape((-1, 1))(centerness) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
+    centerness = keras.layers.Activation('sigmoid')(centerness)
+
+    #return keras.models.Model(inputs=inputs, outputs=regress)
+    return keras.models.Model(inputs=inputs, outputs=regress), keras.models.Model(inputs=inputs, outputs=centerness)
 
 
 def __create_sparceFPN(C3, C4, C5, feature_size=256):
@@ -134,17 +155,17 @@ def retinanet(
 
     features = create_pyramid_features(b1, b2, b3)
     pyramids = []
-    regression_P3 = regression_branch(features[0])
-    regression_P4 = regression_branch(features[1])
-    regression_P5 = regression_branch(features[2])
+    regression_P3 = regression_branch[0](features[0])
+    regression_P4 = regression_branch[0](features[1])
+    regression_P5 = regression_branch[0](features[2])
 
-    location_P3 = location_branch[0](features[0])
-    location_P4 = location_branch[0](features[1])
-    location_P5 = location_branch[0](features[2])
+    location_P3 = location_branch(features[0])
+    location_P4 = location_branch(features[1])
+    location_P5 = location_branch(features[2])
 
-    center_P3 = location_branch[1](features[0])
-    center_P4 = location_branch[1](features[1])
-    center_P5 = location_branch[1](features[2])
+    center_P3 = regression_branch[1](features[0])
+    center_P4 = regression_branch[1](features[1])
+    center_P5 = regression_branch[1](features[2])
 
     pyramids.append(keras.layers.Concatenate(axis=1, name='reg')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
@@ -152,6 +173,16 @@ def retinanet(
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
+def __build_locations(features):
+    strides = [8, 16, 32]
+    locations = [
+        layers.Locations(
+            stride=strides[i],
+            name='locations_{}'.format(i)
+        )(f) for i, f in enumerate(features)
+    ]
+
+    return keras.layers.Concatenate(axis=1, name='locations')(locations)
 
 def retinanet_bbox(
     model                 = None,
@@ -167,14 +198,15 @@ def retinanet_bbox(
         assert_training_model(model)
 
     # compute the anchors
-    #features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
-    #anchors = __build_anchors(anchor_params, features)
+    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    locations = __build_locations(features)
 
     regression = model.outputs[0]
     classification = model.outputs[1]
     centers = model.outputs[2]
 
-    #boxes3D = layers.RegressBoxes3D(name='boxes3D')([anchors, regression])
+    boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
 
     # construct the model
-    return keras.models.Model(inputs=model.inputs, outputs=[regression, classification, centers], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[regression, classification, centers], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, centers], name=name)
