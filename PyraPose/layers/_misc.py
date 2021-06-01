@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import keras
-from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denormalization
+from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv
 from ..utils import anchors as utils_anchors
 
 import numpy as np
@@ -51,8 +51,8 @@ class Locations(keras.layers.Layer):
             #anchors = shift(features_shape[1:3], self.stride, self.anchors)
         print("shape: ", shape)
 
-        shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
-        shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
+        shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()))# + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
+        shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()))# + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
 
         shift_x, shift_y = meshgrid(shift_x, shift_y)
         shift_x = keras.backend.reshape(shift_x, [-1])
@@ -63,9 +63,15 @@ class Locations(keras.layers.Layer):
             shift_y
         ], axis=0)
 
-        locations = shifts
+        shifts = keras.backend.transpose(shifts)
+        k = keras.backend.shape(shifts)[0]
 
-        return locations
+        #shifts = keras.backend.reshape(shifts, [1, k, 2]) + keras.backend.cast(keras.backend.reshape(shifts, [k, 1, 2]), keras.backend.floatx())
+        shifts = keras.backend.cast(keras.backend.reshape(shifts, [1, k, 2]), keras.backend.floatx())
+        shifted_anchors = keras.backend.reshape(shifts, [k, 2])
+        anchors = keras.backend.tile(keras.backend.expand_dims(shifted_anchors, axis=0), (features_shape[0], 1, 1))
+
+        return shifts
 
     def compute_output_shape(self, input_shape):
         print("compute_output_shape")
@@ -75,11 +81,11 @@ class Locations(keras.layers.Layer):
             else:
                 total = np.prod(input_shape[1:3])
             print("Total: ", total)
-            print("return: ", (input_shape[0], total, 4))
+            print("return: ", (input_shape[0], total, 2))
 
-            return (input_shape[0], total, 4)
+            return (input_shape[0], total, 2)
         else:
-            return (input_shape[0], None, 4)
+            return (input_shape[0], None, 2)
 
     def get_config(self):
         config = super(Locations, self).get_config()
@@ -244,7 +250,7 @@ class RegressBoxes3D(keras.layers.Layer):
         if mean is None:
             mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         if std is None:
-            std = np.full(16, 5200)  # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+            std = np.full(16, 750)  # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -269,53 +275,6 @@ class RegressBoxes3D(keras.layers.Layer):
 
     def get_config(self):
         config = super(RegressBoxes3D, self).get_config()
-        config.update({
-            'mean': self.mean.tolist(),
-            'std' : self.std.tolist(),
-        })
-
-        return config
-
-
-class DenormBoxes3D(keras.layers.Layer):
-    """ Keras layer for applying regression values to boxes.
-    """
-
-    def __init__(self, mean=None, std=None, *args, **kwargs):
-        """ Initializer for the RegressBoxes layer.
-
-        Args
-            mean: The mean value of the regression values which was used for normalization.
-            std: The standard value of the regression values which was used for normalization.
-        """
-        if mean is None:
-            mean = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        if std is None:
-            std = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
-
-        if isinstance(mean, (list, tuple)):
-            mean = np.array(mean)
-        elif not isinstance(mean, np.ndarray):
-            raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
-
-        if isinstance(std, (list, tuple)):
-            std = np.array(std)
-        elif not isinstance(std, np.ndarray):
-            raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
-
-        self.mean = mean
-        self.std  = std
-        super(DenormBoxes3D, self).__init__(*args, **kwargs)
-
-    def call(self, inputs, **kwargs):
-        anchors, regression = inputs
-        return box3D_denormalization(anchors, regression, mean=self.mean, std=self.std)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[1]
-
-    def get_config(self):
-        config = super(DenormBoxes3D, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
             'std' : self.std.tolist(),

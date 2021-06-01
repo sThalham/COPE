@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-import keras
+from tensorflow import keras
 
 
 class Backbone(object):
@@ -29,7 +29,6 @@ class Backbone(object):
             '_msle'           : losses.weighted_msle(),
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
-            'DenormBoxes3D'   : layers.DenormBoxes3D(),
         }
 
         self.backbone = backbone

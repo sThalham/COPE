@@ -200,6 +200,7 @@ def retinanet_bbox(
     # compute the anchors
     features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
     locations = __build_locations(features)
+    print('locations: ', locations)
 
     regression = model.outputs[0]
     classification = model.outputs[1]
