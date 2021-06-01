@@ -32,7 +32,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import models
-from ..utils.config import read_config_file, parse_anchor_parameters
+#from ..utils.config import read_config_file, parse_anchor_parameters
 from ..utils.eval import evaluate
 from ..utils.keras_version import check_keras_version
 
@@ -65,7 +65,7 @@ def create_generator(args):
 
         validation_generator = LinemodGenerator(
             args.linemod_path,
-            'val',
+            'train', #'val',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config
@@ -164,6 +164,8 @@ def main(args=None):
         args = sys.argv[1:]
     args = parse_args(args)
 
+    print("Args ", args)
+
     # make sure keras is the minimum required version
     check_keras_version()
 
@@ -222,7 +224,9 @@ def main(args=None):
     # start evaluation
 
     if args.dataset_type == 'linemod':
-        from ..utils.linemod_eval import evaluate_linemod
+        #from ..utils.linemod_eval import evaluate_linemod
+        from ..utils.index_eval import evaluate_linemod
+
         evaluate_linemod(generator, model, args.score_threshold)
 
     elif args.dataset_type == 'occlusion':

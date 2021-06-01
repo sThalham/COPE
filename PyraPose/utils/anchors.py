@@ -20,6 +20,7 @@ import keras
 import transforms3d as tf3d
 import cv2
 from PIL import Image
+import math
 
 from ..utils.compute_overlap import compute_overlap
 
@@ -89,7 +90,7 @@ def anchor_targets_bbox(
                 locations_level = np.where(mask_resx == int(mask_id))
                 # locations_level = np.stack((locations_level[0], locations_level[1]), axis=1)
                 locations_level = np.concatenate([locations_level[0][:, np.newaxis], locations_level[1][:, np.newaxis]], axis=1)
-                locations_spec = np.concatenate([locations_spec, locations_level], axis=0)
+                locations_spec = np.concatenate([locations_spec, locations_level * level_factors[resx]], axis=0)
                 locations_factor = np.concatenate([locations_factor, np.full((locations_level.shape[0], 1), level_factors[resx])])
 
                 mask_flat = mask_resx.flatten()
@@ -376,19 +377,39 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
 
 
 def centerness_factor(a, b):
-    return math.sqrt(min(a, b) / max(a, b))
-
+    a_abs = abs(a)
+    b_abs = abs(b)
+    return math.sqrt(min(a_abs, b_abs) / max(a_abs, b_abs))
 
 def centerness_scaling(a):
-    pos_idx = np.where(a > 0)
-    neg_idx = np.where(a < 0)
-    a[pos_idx] = np.exp(a[pos_idx])
-    a[neg_idx] = -np.exp(-a[neg_idx])
-    return a
 
+    b = np.zeros_like(a)
+
+    pos_idx = np.where(a >= 0)
+    neg_idx = np.where(a < 0)
+
+    """
+    An Overflow sometimes occurs on the calculation of the scales of the negative values. Therefore, a factor is being multiplied to avoid this situation 
+    Message: 
+    RuntimeWarning: overflow encountered in exp
+    b[neg_idx] = -np.exp(-a[neg_idx])
+    """
+    factor = 2
+    b[pos_idx] = np.exp(a[pos_idx] / factor)
+    b[neg_idx] = -np.exp(-a[neg_idx] / factor)
+
+    return b
+#
+# def convertResolution(locations, locations_level):
+#     locations += 1  # min has to be 1
+#     new_locations = (locations - 2**locations_level - 1)//(2**locations_level)
+#     new_locations -= 1  # min has to be 0
+#     return new_locations
 
 def box3D_transform(box, locations, locations_factor, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
+
+    np.seterr(invalid='raise')
 
     if mean is None:
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
@@ -403,12 +424,15 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
         raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
 
     if isinstance(std, (list, tuple)):
-        std = np.array(std)
+        std = np.array(std) 
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
     #locations = locations * locations_factor + locations_factor/2  # Print anchors in PyraPose um zu checken; plus because locations can contain [0, 0] -> must be positive
     locations = locations + locations_factor/2
+    print(box.shape)
+    print(locations.shape)
+    print(locations_factor.shape)
 
     targets_dx1 = locations[:, 0] - box[0]
     targets_dy1 = locations[:, 1] - box[1]
@@ -431,7 +455,11 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
 
     # targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8))
     # targets = targets.T
+    if math.nan in targets:
+        print("NaN detected")
     targets = (targets - mean) / std
+    if math.nan in targets:
+        print("NaN detected")
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
 
     ############################
@@ -439,8 +467,11 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
 
     targets_x = np.stack((targets_dx1, targets_dx2, targets_dx3, targets_dx4, targets_dx5, targets_dx6, targets_dx7, targets_dx8))
     targets_y = np.stack((targets_dy1, targets_dy2, targets_dy3, targets_dy4, targets_dy5, targets_dy6, targets_dy7, targets_dy8))
-    targets_x = centerness_scaling(targets_x)  # Scale distances
-    targets_y = centerness_scaling(targets_y)  # Scale distances
+    targets_x_scaled = centerness_scaling(targets_x)  # Scale distances
+    targets_y_scaled = centerness_scaling(targets_y)  # Scale distances
+
+    if math.nan in targets_y_scaled or math.nan in targets_x_scaled:
+        print("NaN detected")
 
     vfactor = np.vectorize(centerness_factor)
 
@@ -448,15 +479,22 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
     # To do that create permutated array
     # calculate centerness for pairs 0-6 1-7 4-2 5-3
 
-    permutation = np.array([6, 7, 4, 5, 0, 1, 2, 3])
+    permutation = np.array([6, 7, 5, 4, 3, 2, 0, 1])
+    # permutation = np.array([6, 7, 4, 5, 0, 1, 2, 3])
     idx = np.empty_like(permutation)
     idx[permutation] = np.arange(len(permutation))
-    targets_x_perm = targets_x[idx, :]
-    targets_y_perm = targets_y[idx, :]
+    targets_x_scaled_perm = targets_x_scaled[idx, :]
+    targets_y_scaled_perm = targets_y_scaled[idx, :]
 
-    centerX = vfactor(np.abs(targets_x[0:4, :]), np.abs(np.roll(targets_x_perm[0:4, :], 2, axis=0)))
-    centerY = vfactor(np.abs(targets_y[0:4, :]), np.abs(np.roll(targets_y_perm[0:4, :], 2, axis=0)))
-    centerness = np.prod(centerX * centerY)
+    try:
+        centerX = vfactor(np.abs(targets_x_scaled[0:4, :]), np.abs(np.roll(targets_x_scaled_perm[0:4, :], 2, axis=0)))
+        centerY = vfactor(np.abs(targets_y_scaled[0:4, :]), np.abs(np.roll(targets_y_scaled_perm[0:4, :], 2, axis=0)))
+        centerness = np.prod(centerX * centerY)
+    except RuntimeWarning:
+        print("targets_x: ", targets_x)
+        print("centerX: ", centerX)
+        print("centerY: ", centerY)
+        print("centerness: ", centerness)
 
     return targets, centerness
 
