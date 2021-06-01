@@ -16,6 +16,7 @@ limitations under the License.
 
 #from pycocotools.cocoeval import COCOeval
 
+import os
 import numpy as np
 import transforms3d as tf3d
 import copy
@@ -148,19 +149,14 @@ def toPix_array(translation):
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
 
-def load_pcd(cat):
-    # load meshes
-    #mesh_path ="/RGBDPose/Meshes/linemod_13/"
-    mesh_path = "/home/stefan/data/Meshes/Meshes_color_invert/InDex/"
-    #mesh_path = "/home/sthalham/data/Meshes/linemod_13/"
-    ply_path = mesh_path + cat + '.ply'
-
-    #ply_path = '/home/bernhard/Documents/index_RV/index_RV/InDex/01.ply'
+def load_pcd(data_path, cat):
+    ply_path = os.path.join(data_path, 'meshes', cat + '.ply')
 
     print(ply_path)
 
     print('try loading')
     model_vsd = ply_loader.load_ply(ply_path)
+    print('bop done')
     pcd_model = open3d.PointCloud()
     print('loading success')
     pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
@@ -220,15 +216,9 @@ def boxoverlap(a, b):
     return ovlap
 
 
-def evaluate_linemod(generator, model, threshold=0.05):
-    threshold = 0.5
+def evaluate_linemod(generator, model, data_path, threshold=0.5):
 
-    #mesh_info = '/RGBDPose/Meshes/linemod_13/models_info.yml'
-    mesh_info = '/home/stefan/data/Meshes/Meshes_color_invert/InDex/models_info.yml'
-    #mesh_info = '/home/sthalham/data/Meshes/linemod_13/models_info.yml'
-
-    #mesh_info = '/home/bernhard/Documents/index_RV/index_RV/InDex/models_info.yml'
-
+    mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
 
@@ -251,19 +241,19 @@ def evaluate_linemod(generator, model, threshold=0.05):
         threeD_boxes[int(key), :, :] = three_box_solo
         model_dia[int(key)] = value['diameter'] * fac
 
-    pc1, mv1, mv1_mm = load_pcd('01')
-    pc2, mv2, mv2_mm = load_pcd('02')
-    pc4, mv4, mv4_mm = load_pcd('04')
-    pc5, mv5, mv5_mm = load_pcd('05')
-    pc6, mv6, mv6_mm = load_pcd('06')
-    pc8, mv8, mv8_mm = load_pcd('08')
-    pc9, mv9, mv9_mm = load_pcd('09')
-    pc10, mv10, mv10_mm = load_pcd('10')
-    pc11, mv11, mv11_mm = load_pcd('11')
-    pc12, mv12, mv12_mm = load_pcd('12')
-    pc13, mv13, mv13_mm = load_pcd('13')
-    pc14, mv14, mv14_mm = load_pcd('14')
-    pc15, mv15, mv15_mm = load_pcd('15')
+    #pc1, mv1, mv1_mm = load_pcd(data_path, '01')
+    #pc2, mv2, mv2_mm = load_pcd('02')
+    #pc4, mv4, mv4_mm = load_pcd('04')
+    #pc5, mv5, mv5_mm = load_pcd('05')
+    #pc6, mv6, mv6_mm = load_pcd('06')
+    #pc8, mv8, mv8_mm = load_pcd('08')
+    #pc9, mv9, mv9_mm = load_pcd('09')
+    #pc10, mv10, mv10_mm = load_pcd('10')
+    #pc11, mv11, mv11_mm = load_pcd('11')
+    #pc12, mv12, mv12_mm = load_pcd('12')
+    #pc13, mv13, mv13_mm = load_pcd('13')
+    #pc14, mv14, mv14_mm = load_pcd('14')
+    #pc15, mv15, mv15_mm = load_pcd('15')
 
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
@@ -387,6 +377,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
 
             # print(cls)
 
+            '''
             if cls == 1:
                 model_vsd = mv1
                 model_vsd_mm = mv1_mm
@@ -426,6 +417,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
             elif cls == 15:
                 model_vsd = mv15
                 model_vsd_mm = mv15_mm
+            '''
 
             k_hyp = len(cls_indices[0])
             ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))

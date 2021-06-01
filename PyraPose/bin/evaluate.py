@@ -227,7 +227,7 @@ def main(args=None):
         #from ..utils.linemod_eval import evaluate_linemod
         from ..utils.index_eval import evaluate_linemod
 
-        evaluate_linemod(generator, model, args.score_threshold)
+        evaluate_linemod(generator, model, args.linemod_path, args.score_threshold)
 
     elif args.dataset_type == 'occlusion':
         from ..utils.occlusion_eval import evaluate_occlusion
