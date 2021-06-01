@@ -75,7 +75,7 @@ def anchor_targets_bbox(
 
         calculated_boxes = np.empty((0, 16))
         #anchors_spec = np.empty((0, ), dtype=np.int32)
-        # print('locations_spec shape init: ', locations_spec.shape)
+
         for idx, pose in enumerate(annotations['poses']):
             locations_spec = np.empty((0, 2))
             level_factors = [8, 16, 32]
@@ -125,6 +125,7 @@ def anchor_targets_bbox(
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
                 regression_batch[index, anchors_spec_con, :-1], center_batch[index, anchors_spec_con, :-1] = box3D_transform(box3D, locations_spec, locations_factor) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+
 
             '''
             # debug
