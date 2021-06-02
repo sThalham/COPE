@@ -402,6 +402,10 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
     return anchors
 
 
+def calc_centerness(coords):
+    centers = np.sum(coords)
+
+
 def centerness_factor(a, b):
     a_abs = abs(a)
     b_abs = abs(b)
@@ -477,13 +481,17 @@ def box3D_transform(box, locations, mean=None, std=None):
     targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
 
     # targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8))
-    targets = targets.T
-    if math.nan in targets:
-        print("NaN detected")
+    #targets = targets.T
+    #if math.nan in targets:
+    #    print("NaN detected")
     targets = (targets - mean) / std
-    if math.nan in targets:
-        print("NaN detected")
+    #if math.nan in targets:
+    #    print("NaN detected")
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
+
+    print(targets.shape)
+
+    np.apply_along_axis(calc_centerness, 1, targets)
 
     ############################
     # here goes centerness calculation

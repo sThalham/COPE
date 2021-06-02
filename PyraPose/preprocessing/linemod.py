@@ -67,6 +67,7 @@ class LinemodGenerator(Generator):
         self.load_classes()
 
         self.TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
+        self.sphere_diameters = np.ndarray((16), dtype=np.float32)
 
         for key, value in yaml.load(open(self.mesh_info)).items():
             x_minus = value['min_x']
@@ -84,6 +85,7 @@ class LinemodGenerator(Generator):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             self.TDboxes[int(key), :, :] = three_box_solo
+            self.sphere_diameters[int(key)] = value['diameter']
 
         super(LinemodGenerator, self).__init__(**kwargs)
 
@@ -221,7 +223,7 @@ class LinemodGenerator(Generator):
         # mask = None
         mask = cv2.imread(path, -1)
 
-        annotations     = {'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
+        annotations     = {'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
 
         for idx, a in enumerate(anns):
             if self.set_name == 'train':
@@ -267,6 +269,7 @@ class LinemodGenerator(Generator):
             #    objID = objID
             threeDbox = self.TDboxes[objID, :, :]
             annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
+            annotations['diameters'] = np.concatenate([annotations['segmentations'], [self.diameters[objID]]], axis=0)
             annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
                 self.fx,
                 self.fy,
