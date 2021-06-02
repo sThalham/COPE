@@ -69,6 +69,7 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
+        image_locations = locations_for_shape(image.shape)
         # w/o mask
         mask = annotations['mask'][0]
         # w/o mask
@@ -311,6 +312,48 @@ def anchors_for_shape(
     return all_anchors
 
 
+def locations_for_shape(
+    image_shape,
+    pyramid_levels=None,
+    shapes_callback=None,
+):
+    """ Generators anchors for a given shape.
+
+    Args
+        image_shape: The shape of the image.
+        pyramid_levels: List of ints representing which pyramids to use (defaults to [3, 4, 5, 6, 7]).
+        shapes_callback: Function to call for getting the shape of the image at different pyramid levels.
+
+    Returns
+        np.array of shape (N, 4) containing the (x1, y1, x2, y2) coordinates for the anchors.
+    """
+
+    if pyramid_levels is None:
+        pyramid_levels = [3, 4, 5]
+
+    if shapes_callback is None:
+        shapes_callback = guess_shapes
+    image_shapes = shapes_callback(image_shape, pyramid_levels)
+
+    # compute anchors over all pyramid levels
+    all_locations = np.zeros((0, 2))
+    for idx, p in enumerate(image_shapes):
+        ny, nx = p
+        sy = image_shape[0] / ny
+        sx = image_shape[1] / nx
+
+        y = np.linspace(0, image_shape[0]-sy, num=ny) + sy/2
+        x = np.linspace(0, image_shape[1]-sx, num=nx) + sx/2
+
+        xv, yv = np.meshgrid(x, y)
+
+        locations_level = np.concatenate([xv.flatten()[:, np.newaxis], yv.flatten()[:, np.newaxis]], axis=1)
+
+        all_locations     = np.append(all_locations, locations_level, axis=0)
+
+    return all_locations
+
+
 def shift(shape, stride, anchors):
     """ Produce shifted anchors based on shape of the map and stride size.
 
@@ -431,9 +474,9 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
 
     #locations = locations * locations_factor + locations_factor/2  # Print anchors in PyraPose um zu checken; plus because locations can contain [0, 0] -> must be positive
     locations = locations + locations_factor/2
-    print(box.shape)
-    print(locations.shape)
-    print(locations_factor.shape)
+    #print(box.shape)
+    #print(locations.shape)
+    #print(locations_factor.shape)
 
     targets_dx1 = locations[:, 0] - box[0]
     targets_dy1 = locations[:, 1] - box[1]
