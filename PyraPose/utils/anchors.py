@@ -61,6 +61,7 @@ def anchor_targets_bbox(
     pyramid_levels = [3, 4, 5]
     image_shapes = guess_shapes(image_group[0].shape[:2], pyramid_levels)
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
+    location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
@@ -75,45 +76,25 @@ def anchor_targets_bbox(
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
-        #anchors_spec = np.empty((0, ), dtype=np.int32)
 
         for idx, pose in enumerate(annotations['poses']):
-            locations_spec = np.empty((0, 2))
-            level_factors = [8, 16, 32]
-            locations_factor = np.empty((0, 1))
-            anchors_spec = []
 
-            # mask part
+            locations_positive = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
-            for resx in range(len(image_shapes)):
-                mask_resx = np.asarray(Image.fromarray(mask).resize((image_shapes[resx][1], image_shapes[resx][0]), Image.NEAREST))
-                locations_level = np.where(mask_resx == int(mask_id))
-                # locations_level = np.stack((locations_level[0], locations_level[1]), axis=1)
-                locations_level = np.concatenate([locations_level[0][:, np.newaxis], locations_level[1][:, np.newaxis]], axis=1)
-                locations_spec = np.concatenate([locations_spec, locations_level * level_factors[resx]], axis=0)
-                locations_factor = np.concatenate([locations_factor, np.full((locations_level.shape[0], 1), level_factors[resx])])
+            for jdx, resx in enumerate(image_shapes):
+                mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
+                mask_flat = mask_level.flatten()
+                locations_level = np.where(mask_flat == int(mask_id))[0] + location_offset[jdx]
+                locations_positive.append(locations_level)
 
-                mask_flat = mask_resx.flatten()
-                anchors_pyramid = np.where(mask_flat == int(mask_id))
-                anchors_spec.append(anchors_pyramid[0])
+            locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
-            anchors_spec_con = np.concatenate(anchors_spec, axis=0)
-
-            # anchors_spec_flattened = anchors_spec
-            # imagepixels0 = int(image_shapes[0][1] * image_shapes[0][0])
-            # imagepixels1 = int(image_shapes[1][1] * image_shapes[1][0])
-            # anchors_spec_flattened[1] = anchors_spec_flattened[1] + imagepixels0
-            # anchors_spec_flattened[2] = anchors_spec_flattened[2] + imagepixels1 + imagepixels0
-            # anchors_spec_flattened = np.concatenate(anchors_spec_flattened)
-            # anchors_spec_flattened = anchors_spec_flattened.astype(int)
-
-            if len(anchors_spec_con) > 1:
-                labels_batch[index, anchors_spec_con, -1] = 1
-                labels_batch[index, anchors_spec_con, cls] = 1
-                regression_batch[index, anchors_spec_con, -1] = 1
-                center_batch[index, anchors_spec_con, -1] = 1
-                # mask_batch[index, anchors_spec_con, cls] = 1
+            if locations_positive_obj.shape[0] > 1:
+                labels_batch[index, locations_positive_obj, -1] = 1
+                labels_batch[index, locations_positive_obj, cls] = 1
+                regression_batch[index, locations_positive_obj, -1] = 1
+                center_batch[index, locations_positive_obj, -1] = 1
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -125,7 +106,8 @@ def anchor_targets_bbox(
                 box3D = np.reshape(box3D, (16))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                regression_batch[index, anchors_spec_con, :-1], center_batch[index, anchors_spec_con, :-1] = box3D_transform(box3D, locations_spec, locations_factor) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :]) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+
 
 
             '''
@@ -425,6 +407,7 @@ def centerness_factor(a, b):
     b_abs = abs(b)
     return math.sqrt(min(a_abs, b_abs) / max(a_abs, b_abs))
 
+
 def centerness_scaling(a):
 
     b = np.zeros_like(a)
@@ -450,17 +433,16 @@ def centerness_scaling(a):
 #     new_locations -= 1  # min has to be 0
 #     return new_locations
 
-def box3D_transform(box, locations, locations_factor, mean=None, std=None):
+
+def box3D_transform(box, locations, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
     np.seterr(invalid='raise')
 
     if mean is None:
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-    # if std is None:
-    #     std = np.full(16, 580)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
     if std is None:
-        std = np.full(16, 750)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        std = np.full(16, 150)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -472,11 +454,8 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
-    #locations = locations * locations_factor + locations_factor/2  # Print anchors in PyraPose um zu checken; plus because locations can contain [0, 0] -> must be positive
-    locations = locations + locations_factor/2
     #print(box.shape)
     #print(locations.shape)
-    #print(locations_factor.shape)
 
     targets_dx1 = locations[:, 0] - box[0]
     targets_dy1 = locations[:, 1] - box[1]
@@ -498,7 +477,7 @@ def box3D_transform(box, locations, locations_factor, mean=None, std=None):
     targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
 
     # targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8))
-    # targets = targets.T
+    targets = targets.T
     if math.nan in targets:
         print("NaN detected")
     targets = (targets - mean) / std
