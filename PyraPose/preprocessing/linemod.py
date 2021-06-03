@@ -269,7 +269,7 @@ class LinemodGenerator(Generator):
             #    objID = objID
             threeDbox = self.TDboxes[objID, :, :]
             annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
-            annotations['diameters'] = np.concatenate([annotations['segmentations'], [self.diameters[objID]]], axis=0)
+            annotations['diameters'] = np.concatenate([annotations['diameters'], [self.sphere_diameters[objID]]], axis=0)
             annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
                 self.fx,
                 self.fy,

@@ -82,6 +82,7 @@ def anchor_targets_bbox(
             locations_positive = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
+            obj_diameter = annotations['diameters'][idx]
             for jdx, resx in enumerate(image_shapes):
                 mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
                 mask_flat = mask_level.flatten()
@@ -106,7 +107,10 @@ def anchor_targets_bbox(
                 box3D = np.reshape(box3D, (16))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :]) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                # project object diameter
+                proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
+
+                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
 
 
@@ -402,10 +406,6 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
     return anchors
 
 
-def calc_centerness(coords):
-    centers = np.sum(coords)
-
-
 def centerness_factor(a, b):
     a_abs = abs(a)
     b_abs = abs(b)
@@ -438,7 +438,7 @@ def centerness_scaling(a):
 #     return new_locations
 
 
-def box3D_transform(box, locations, mean=None, std=None):
+def box3D_transform(box, locations, diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
     np.seterr(invalid='raise')
@@ -489,10 +489,15 @@ def box3D_transform(box, locations, mean=None, std=None):
     #    print("NaN detected")
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
 
-    print(targets.shape)
+    x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
+    y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
+    centerness = (x_sum + y_sum) / diameter
 
-    np.apply_along_axis(calc_centerness, 1, targets)
+    centerness = (centerness - np.nanmin(centerness))
+    centerness = 1.0 - (centerness * (1/np.nanmax(centerness)))
 
+
+    '''
     ############################
     # here goes centerness calculation
 
@@ -526,8 +531,9 @@ def box3D_transform(box, locations, mean=None, std=None):
         print("centerX: ", centerX)
         print("centerY: ", centerY)
         print("centerness: ", centerness)
+    '''
 
-    return targets, centerness
+    return targets, centerness[:, np.newaxis]
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):

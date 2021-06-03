@@ -117,7 +117,7 @@ def focal_mask(alpha=0.25, gamma=2.0):
     return _focal_mask
 
 
-def cross(weight=50.0):
+def cross(weight=1.0):
 
     def _cross(y_true, y_pred):
         labels         = y_true[:, :, :-1]
