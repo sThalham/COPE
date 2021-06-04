@@ -247,8 +247,8 @@ def weighted_mse(weight=60.0):
     def _wMSE(y_true, y_pred):
 
         regression        = y_pred
-        regression_target = y_true[:, :, :, :-1]
-        anchor_state      = y_true[:, :, :, -1]
+        regression_target = y_true[:, :, :-1]
+        anchor_state      = y_true[:, :, -1]
 
         # somethings fucky here
         #### filter out "ignore" anchors

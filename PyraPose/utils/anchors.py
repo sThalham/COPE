@@ -489,12 +489,26 @@ def box3D_transform(box, locations, diameter, mean=None, std=None):
     #    print("NaN detected")
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
 
+    #print('box: ', box)
+    #print('diameter: ', diameter)
+
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    centerness = (x_sum + y_sum) / diameter
-
-    centerness = (centerness - np.nanmin(centerness))
-    centerness = 1.0 - (centerness * (1/np.nanmax(centerness)))
+    centerness = (x_sum + y_sum) / (diameter * 0.01) 
+    #print('np.nanmin: ', np.nanmin(centerness))
+    #print('centern. pre: ', centerness)
+    centerness = np.exp(-centerness)
+    #print('center. exp: ', centerness)
+    #centerness = (centerness - np.nanmin(centerness))
+    #print('np.nanmax: ', 1/np.nanmax(centerness))
+    #if not np.isfinite((1/np.nanmax(centerness))):
+    #    print('min: ', np.nanmin(centerness))
+    #    print('targets: ', targets)
+    #    print('diameter: ', diameter)
+    #    print('centerness: ', centerness)
+    #    print('max: ', np.nanmax(centerness))
+    #print('centern. post: ', centerness)
+    #centerness = 1.0 - (centerness * (1/np.nanmax(centerness)))
 
 
     '''
