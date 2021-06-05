@@ -65,7 +65,7 @@ def create_generator(args):
 
         validation_generator = LinemodGenerator(
             args.linemod_path,
-            'train', #'val',
+            'val',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config
@@ -166,9 +166,6 @@ def main(args=None):
 
     print("Args ", args)
 
-    # make sure keras is the minimum required version
-    check_keras_version()
-
     # optionally choose specific GPU
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -178,17 +175,8 @@ def main(args=None):
     if args.save_path is not None and not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
 
-    # optionally load config parameters
-    if args.config:
-        args.config = read_config_file(args.config)
-
     # create the generator
     generator = create_generator(args)
-
-    # optionally load anchor parameters
-    anchor_params = None
-    if args.config and 'anchor_parameters' in args.config:
-        anchor_params = parse_anchor_parameters(args.config)
 
     # load the model
     print('Loading model, this may take a second...')
@@ -212,11 +200,10 @@ def main(args=None):
     #filter4 = model.layers[355].get_weights()[0]
     #filter5 = model.layers[355].get_weights()[0]
 
+    print(model.summary())
     # optionally convert the model
     if args.convert_model:
-        model = models.convert_model(model, anchor_params=anchor_params)
-
-
+        model = models.convert_model(model)
 
     # print model summary
     print(model.summary())
@@ -224,8 +211,8 @@ def main(args=None):
     # start evaluation
 
     if args.dataset_type == 'linemod':
-        #from ..utils.linemod_eval import evaluate_linemod
-        from ..utils.index_eval import evaluate_linemod
+        from ..utils.linemod_eval import evaluate_linemod
+        #from ..utils.index_eval import evaluate_linemod
 
         evaluate_linemod(generator, model, args.linemod_path, args.score_threshold)
 

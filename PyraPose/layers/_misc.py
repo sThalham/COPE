@@ -29,12 +29,6 @@ class Locations(keras.layers.Layer):
         """ Initializer for an Locations layer.
         """
         self.stride = stride
-        # self.locations     = keras.backend.variable(utils_anchors.generate_anchors(
-        #     base_size=size,
-        #     ratios=ratios,
-        #     scales=scales,
-        # ))
-
         super(Locations, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
@@ -51,8 +45,8 @@ class Locations(keras.layers.Layer):
             #anchors = shift(features_shape[1:3], self.stride, self.anchors)
         print("shape: ", shape)
 
-        shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()))# + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
-        shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()))# + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
+        shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
+        shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
 
         shift_x, shift_y = meshgrid(shift_x, shift_y)
         shift_x = keras.backend.reshape(shift_x, [-1])
@@ -74,7 +68,6 @@ class Locations(keras.layers.Layer):
         return shifts
 
     def compute_output_shape(self, input_shape):
-        print("compute_output_shape")
         if None not in input_shape[1:]:
             if keras.backend.image_data_format() == 'channels_first':
                 total = np.prod(input_shape[2:4])
@@ -89,8 +82,7 @@ class Locations(keras.layers.Layer):
 
     def get_config(self):
         config = super(Locations, self).get_config()
-        config.update({
-        })
+        #config.update({})
 
         return config
 
@@ -250,7 +242,7 @@ class RegressBoxes3D(keras.layers.Layer):
         if mean is None:
             mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         if std is None:
-            std = np.full(16, 750)  # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+            std = np.full(16, 150)  # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)

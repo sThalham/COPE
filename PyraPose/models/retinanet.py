@@ -176,18 +176,14 @@ def retinanet(
 def __build_locations(features):
     strides = [8, 16, 32]
     locations = [
-        layers.Locations(
-            stride=strides[i],
-            name='locations_{}'.format(i)
-        )(f) for i, f in enumerate(features)
+        layers.Locations(stride=strides[i], name='locations_{}'.format(i))(f) for i, f in enumerate(features)
     ]
 
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
 
 def retinanet_bbox(
     model                 = None,
-    name                  = 'retinanet-bbox',
-    anchor_params         = None,
+    name                  = 'pyrapose',
     **kwargs
 ):
 
@@ -200,7 +196,6 @@ def retinanet_bbox(
     # compute the anchors
     features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
     locations = __build_locations(features)
-    print('locations: ', locations)
 
     regression = model.outputs[0]
     classification = model.outputs[1]

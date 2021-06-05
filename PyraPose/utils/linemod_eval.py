@@ -16,6 +16,7 @@ limitations under the License.
 
 #from pycocotools.cocoeval import COCOeval
 
+import os
 import numpy as np
 import transforms3d as tf3d
 import copy
@@ -147,13 +148,10 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-
-def load_pcd(cat):
+'''
+def load_pcd(data_path, cat):
     # load meshes
-    #mesh_path ="/RGBDPose/Meshes/linemod_13/"
-    mesh_path = "/home/stefan/data/Meshes/linemod_13/"
-    #mesh_path = "/home/sthalham/data/Meshes/linemod_13/"
-    ply_path = mesh_path + 'obj_' + cat + '.ply'
+    ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
     model_vsd = ply_loader.load_ply(ply_path)
     pcd_model = open3d.PointCloud()
     pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
@@ -163,6 +161,23 @@ def load_pcd(cat):
     model_vsd_mm = copy.deepcopy(model_vsd)
     model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
     #pcd_model = open3d.read_point_cloud(ply_path)
+
+    return pcd_model, model_vsd, model_vsd_mm
+'''
+
+def load_pcd(data_path, cat):
+    # load meshes
+    ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
+    model_vsd = ply_loader.load_ply(ply_path)
+    pcd_model = open3d.geometry.PointCloud()
+    pcd_model.points = open3d.utility.Vector3dVector(model_vsd['pts'])
+    pcd_model.estimate_normals(search_param=open3d.geometry.KDTreeSearchParamHybrid(
+        radius=0.1, max_nn=30))
+    # open3d.draw_geometries([pcd_model])
+    model_vsd_mm = copy.deepcopy(model_vsd)
+    model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
+    #pcd_model = open3d.read_point_cloud(ply_path)
+    #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
 
@@ -213,13 +228,9 @@ def boxoverlap(a, b):
     return ovlap
 
 
-def evaluate_linemod(generator, model, threshold=0.05):
-    threshold = 0.5
+def evaluate_linemod(generator, model, data_path, threshold=0.5):
 
-    #mesh_info = '/RGBDPose/Meshes/linemod_13/models_info.yml'
-    mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
-    #mesh_info = '/home/sthalham/data/Meshes/linemod_13/models_info.yml'
-
+    mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
 
@@ -242,19 +253,19 @@ def evaluate_linemod(generator, model, threshold=0.05):
         threeD_boxes[int(key), :, :] = three_box_solo
         model_dia[int(key)] = value['diameter'] * fac
 
-    pc1, mv1, mv1_mm = load_pcd('01')
-    pc2, mv2, mv2_mm = load_pcd('02')
-    pc4, mv4, mv4_mm = load_pcd('04')
-    pc5, mv5, mv5_mm = load_pcd('05')
-    pc6, mv6, mv6_mm = load_pcd('06')
-    pc8, mv8, mv8_mm = load_pcd('08')
-    pc9, mv9, mv9_mm = load_pcd('09')
-    pc10, mv10, mv10_mm = load_pcd('10')
-    pc11, mv11, mv11_mm = load_pcd('11')
-    pc12, mv12, mv12_mm = load_pcd('12')
-    pc13, mv13, mv13_mm = load_pcd('13')
-    pc14, mv14, mv14_mm = load_pcd('14')
-    pc15, mv15, mv15_mm = load_pcd('15')
+    pc1, mv1, mv1_mm = load_pcd(data_path,'01')
+    pc2, mv2, mv2_mm = load_pcd(data_path,'02')
+    pc4, mv4, mv4_mm = load_pcd(data_path,'04')
+    pc5, mv5, mv5_mm = load_pcd(data_path,'05')
+    pc6, mv6, mv6_mm = load_pcd(data_path,'06')
+    pc8, mv8, mv8_mm = load_pcd(data_path,'08')
+    pc9, mv9, mv9_mm = load_pcd(data_path,'09')
+    pc10, mv10, mv10_mm = load_pcd(data_path,'10')
+    pc11, mv11, mv11_mm = load_pcd(data_path,'11')
+    pc12, mv12, mv12_mm = load_pcd(data_path,'12')
+    pc13, mv13, mv13_mm = load_pcd(data_path,'13')
+    pc14, mv14, mv14_mm = load_pcd(data_path,'14')
+    pc15, mv15, mv15_mm = load_pcd(data_path,'15')
 
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
@@ -266,19 +277,14 @@ def evaluate_linemod(generator, model, threshold=0.05):
         image = generator.preprocess_image(image_raw)
         image, scale = generator.resize_image(image)
 
-        image_raw_dep = generator.load_image_dep(index)
-        image_raw_dep = np.where(image_raw_dep > 0, image_raw_dep, 0.0)
-        image_raw_dep = np.multiply(image_raw_dep, 255.0 / 2000.0)
-        image_raw_dep = np.repeat(image_raw_dep[:, :, np.newaxis], 3, 2)
-        #image_raw_dep = get_normal(image_raw_dep, fxkin, fykin, cxkin, cykin)
-        image_dep = generator.preprocess_image(image_raw_dep)
-        image_dep, scale = generator.resize_image(image_dep)
-
         image_viz = copy.deepcopy(image_raw)
 
         anno = generator.load_annotations(index)
 
         if len(anno['labels']) < 1:
+            continue
+
+        if anno['labels'] == 6 or anno['labels'] == 2:
             continue
 
         checkLab = anno['labels']  # +1 to real_class
@@ -306,12 +312,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
         #    continue
 
         # run network
-        images = []
-        images.append(image)
-        images.append(image_dep)
-        boxes3D, scores, mask = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-
-        #print(np.nanmax(scores))
+        boxes3D, scores, center = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
         for inv_cls in range(scores.shape[2]):
 
@@ -342,41 +343,44 @@ def evaluate_linemod(generator, model, threshold=0.05):
                 continue
             trueDets[int(cls)] += 1
 
-            #obj_mask = mask[0, :, inv_cls]
-            #print(np.nanmax(obj_mask))
-            #cls_img = np.where(obj_mask > 0.5, 255.0, 80.0)
-            #cls_img = cls_img.reshape((60, 80)).astype(np.uint8)
-            #cls_img = np.asarray(Image.fromarray(cls_img).resize((640, 480), Image.NEAREST))
-            #cls_img = np.repeat(cls_img[:, :, np.newaxis], 3, 2)
-            #cls_img = np.where(cls_img > 254, cls_img, image_raw)
-            #cv2.imwrite('/home/stefan/head_mask_viz/pred_mask_' + str(index) + '_.jpg', cls_img)
-
-            '''
             # mask from anchors
             pot_mask = scores[0, :, inv_cls]
-            pot_mask_P3 = pot_mask[:43200]
-            pot_mask_P4 = pot_mask[43200:54000]
-            pot_mask_P4 = pot_mask[54000:]
-            print(pot_mask.shape)
+            mask_P3 = pot_mask[:4800]
+            mask_P4 = pot_mask[4800:6000]
+            mask_P5 = pot_mask[6000:]
 
-            sidx = 0
-            eidx = 0
-            mask_P3 = np.zeros((4800), dtype=np.float32)
-            for idx in range(4800):
-                eidx = eidx + 9
-                mask_P3[idx] = np.sum(pot_mask_P3[sidx:eidx])
-                sidx = eidx
-
-            print(mask_P3.shape)
-            print(np.nanmax(mask_P3))
-            mask_P3 = np.where(mask_P3 > 0.5 * (np.nanmax(mask_P3)), 255, 0)
+            mask_P3 = np.where(mask_P3 > 0.5, 255, 0)
             cls_img = mask_P3.reshape((60, 80)).astype(np.uint8)
             cls_img = cv2.resize(cls_img, (640, 480), interpolation=cv2.INTER_NEAREST)
-            cv2.imwrite('/home/stefan/RGBDPose_viz/pot_mask.jpg', cls_img)
             cls_img = np.repeat(cls_img[:, :, np.newaxis], 3, 2)
-            cls_img = np.where(cls_img > 254, cls_img, image_raw)
-            cv2.imwrite('/home/stefan/RGBDPose_viz/pred_mask.jpg', cls_img)
-            '''
+            img_P3 = np.where(cls_img > 254, cls_img, image_raw)
+
+            mask_P4 = np.where(mask_P4 > 0.5, 255, 0)
+            cls_img = mask_P4.reshape((30, 40)).astype(np.uint8)
+            cls_img = cv2.resize(cls_img, (640, 480), interpolation=cv2.INTER_NEAREST)
+            cls_img = np.repeat(cls_img[:, :, np.newaxis], 3, 2)
+            img_P4 = np.where(cls_img > 254, cls_img, image_raw)
+
+            mask_P5 = np.where(mask_P5 > 0.5, 255, 0)
+            cls_img = mask_P5.reshape((15, 20)).astype(np.uint8)
+            cls_img = cv2.resize(cls_img, (640, 480), interpolation=cv2.INTER_NEAREST)
+            cls_img = np.repeat(cls_img[:, :, np.newaxis], 3, 2)
+            img_P5 = np.where(cls_img > 254, cls_img, image_raw)
+
+            loc_img = np.concatenate([img_P3, img_P4, img_P5], axis=1)
+            #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
+
+            # centerness
+            pot_center = center[0, :, :]
+            center_P3 = pot_center[:4800] * 255.0
+            center_P3 = center_P3.reshape((60, 80)).astype(np.uint8)
+            cen_img = cv2.resize(center_P3, (640, 480), interpolation=cv2.INTER_NEAREST)
+            cen_img = np.repeat(cen_img[:, :, np.newaxis], 3, 2)
+
+            cen_img = np.concatenate([image_raw, cen_img], axis=1)
+            #cv2.imwrite('/home/stefan/PyraPose_viz/pred_cent_' + str(index) + '.jpg', cen_img)
+
+            #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
 
             anno_ind = np.argwhere(anno['labels'] == checkLab)
             t_tra = anno['poses'][anno_ind[0][0]][:3]
@@ -427,13 +431,24 @@ def evaluate_linemod(generator, model, threshold=0.05):
                 model_vsd = mv15
                 model_vsd_mm = mv15_mm
 
-            k_hyp = len(cls_indices[0])
+            #k_hyp = len(cls_indices[0])
             ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
             K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
             ##############################
             # pnp
+            centerns = center[0, cls_indices, 0]
+            centerns = np.squeeze(centerns)
+            #k_hyp = int(np.ceil(len(centerns) * 0.25))
+            k_hyp = 1
+            if len(centerns) < k_hyp:
+                k_hyp = len(centerns)
             pose_votes = boxes3D[0, cls_indices, :]
+            pose_votes = np.squeeze(pose_votes)
+            center_sort = np.argsort(centerns)
+            pose_votes = pose_votes[center_sort, :]
+            pose_votes = pose_votes[-k_hyp:, :]
+
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
             obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -490,7 +505,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
                                                                distCoeffs=None, rvec=None, tvec=None,
                                                                useExtrinsicGuess=False, iterationsCount=300,
                                                                reprojectionError=5.0, confidence=0.99,
-                                                               flags=cv2.SOLVEPNP_ITERATIVE)
+                                                               flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec
 
@@ -542,7 +557,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
 
-
+            '''
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
             box3D = toPix_array(tDbox)
@@ -556,7 +571,6 @@ def evaluate_linemod(generator, model, threshold=0.05):
             eDbox = np.reshape(est3D, (16))
             pose = eDbox.astype(np.uint16)
 
-            '''
             colGT = (255, 0, 0)
             colEst = colEst = (0, 204, 0)
 
@@ -641,7 +655,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
-            #name = '/home/stefan/RGBDPose_viz/detection_LM.jpg'
+            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
             #cv2.imwrite(name, image_raw)
             #print('break')
 
