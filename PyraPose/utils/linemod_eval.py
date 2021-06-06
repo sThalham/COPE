@@ -377,7 +377,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             cen_img = cv2.resize(center_P3, (640, 480), interpolation=cv2.INTER_NEAREST)
             cen_img = np.repeat(cen_img[:, :, np.newaxis], 3, 2)
 
-            cen_img = np.concatenate([image_raw, cen_img], axis=1)
+            #cen_img = np.concatenate([image_raw, cen_img], axis=1)
             #cv2.imwrite('/home/stefan/PyraPose_viz/pred_cent_' + str(index) + '.jpg', cen_img)
 
             #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
@@ -440,7 +440,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             centerns = center[0, cls_indices, 0]
             centerns = np.squeeze(centerns)
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
-            k_hyp = 1
+            k_hyp = len(centerns)
             if len(centerns) < k_hyp:
                 k_hyp = len(centerns)
             pose_votes = boxes3D[0, cls_indices, :]
@@ -557,7 +557,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
 
-            '''
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
             box3D = toPix_array(tDbox)
@@ -572,7 +571,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             pose = eDbox.astype(np.uint16)
 
             colGT = (255, 0, 0)
-            colEst = colEst = (0, 204, 0)
+            colEst = (0, 204, 0)
 
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
@@ -618,6 +617,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                              2)
 
+            '''
             hyp_mask = np.zeros((640, 480), dtype=np.float32)
             for idx in range(k_hyp):
                 hyp_mask[int(est_points[idx, 0, 0]), int(est_points[idx, 0, 1])] += 1
@@ -655,8 +655,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
+            #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
             #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            #cv2.imwrite(name, image_raw)
+            #cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
