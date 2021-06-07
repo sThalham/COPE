@@ -65,7 +65,7 @@ def create_generator(args):
 
         validation_generator = LinemodGenerator(
             args.linemod_path,
-            'val',
+            'target',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config

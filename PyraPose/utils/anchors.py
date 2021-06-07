@@ -64,7 +64,7 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch    = np.zeros((batch_size, location_shape, 16 + 1 + 1), dtype=keras.backend.floatx())
     center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -546,6 +546,7 @@ def box3D_transform(box, locations, diameter, mean=None, std=None):
         print("centerY: ", centerY)
         print("centerness: ", centerness)
     '''
+    targets = np.concatenate([targets, centerness[:, np.newaxis]], axis=1)
 
     return targets, centerness[:, np.newaxis]
 

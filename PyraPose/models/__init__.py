@@ -20,7 +20,7 @@ class Backbone(object):
             'Anchors'          : layers.Anchors,
             'ClipBoxes'        : layers.ClipBoxes,
             '_smooth_l1'       : losses.smooth_l1(),
-            '_smooth_l1_pose'  : losses.smooth_l1_pose(),
+            '_smooth_l1_weighted'  : losses.smooth_l1_weighted(),
             '_focal'           : losses.focal(),
             '_focal_mask'      : losses.focal_mask(),
             '_cross'           : losses.cross(),
@@ -77,7 +77,7 @@ def convert_model(model, nms=True, class_specific_filter=True, anchor_params=Non
 
 def assert_training_model(model):
     assert (all(output in model.output_names for output in ['reg', 'cls', 'conf'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    #assert (all(output in model.output_names for output in ['out_reshape_0', 'out_reshape_1', 'out_reshape_2'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    #assert (all(output in model.output_names for output in ['reg', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):

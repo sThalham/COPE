@@ -148,7 +148,6 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -180,7 +179,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-
+'''
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
 
@@ -440,7 +439,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             centerns = center[0, cls_indices, 0]
             centerns = np.squeeze(centerns)
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
-            k_hyp = len(centerns)
+            #k_hyp = len(centerns)
+            k_hyp = 1
             if len(centerns) < k_hyp:
                 k_hyp = len(centerns)
             pose_votes = boxes3D[0, cls_indices, :]

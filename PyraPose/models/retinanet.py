@@ -173,6 +173,7 @@ def retinanet(
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
+
 def __build_locations(features):
     strides = [8, 16, 32]
     locations = [
@@ -180,6 +181,7 @@ def __build_locations(features):
     ]
 
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
+
 
 def retinanet_bbox(
     model                 = None,
@@ -204,5 +206,5 @@ def retinanet_bbox(
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
 
     # construct the model
-    #return keras.models.Model(inputs=model.inputs, outputs=[regression, classification, centers], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
     return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, centers], name=name)

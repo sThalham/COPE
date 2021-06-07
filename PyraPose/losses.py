@@ -191,6 +191,64 @@ def smooth_l1(sigma=3.0):
     return _smooth_l1
 
 
+def smooth_l1_weighted(weight=4.0, sigma=3.0):
+    """ Create a smooth L1 loss functor.
+
+    Args
+        sigma: This argument defines the point where the loss changes from L2 to L1.
+
+    Returns
+        A functor for computing the smooth L1 loss given target data and predicted data.
+    """
+    sigma_squared = sigma ** 2
+
+    def _smooth_l1_weighted(y_true, y_pred):
+        """ Compute the smooth L1 loss of y_pred w.r.t. y_true.
+
+        Args
+            y_true: Tensor from the generator of shape (B, N, 5). The last value for each box is the state of the anchor (ignore, negative, positive).
+            y_pred: Tensor from the network of shape (B, N, 4).
+
+        Returns
+            The smooth L1 loss of y_pred w.r.t. y_true.
+        """
+        # separate target and state
+        regression        = y_pred
+        regression_target = y_true[:, :, :-2]
+        anchor_state      = y_true[:, :, -1]
+        center_weights      = y_true[:, :, -2]
+
+        # filter out "ignore" anchors
+        indices           = backend.where(keras.backend.equal(anchor_state, 1))
+        regression        = backend.gather_nd(regression, indices)
+        regression_target = backend.gather_nd(regression_target, indices)
+
+        # compute smooth L1 loss
+        # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
+        #        |x| - 0.5 / sigma / sigma    otherwise
+        regression_diff = regression - regression_target
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+
+        center_weights = tf.keras.backend.expand_dims(center_weights, axis=-1)
+        center_weights = backend.gather_nd(center_weights, indices)
+        weights_rep = keras.backend.repeat_elements(center_weights, rep=16, axis=1)
+
+        regression_loss = regression_loss * weights_rep
+
+        # compute the normalizer: the number of positive anchors
+        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+        loss = keras.backend.sum(regression_loss) / normalizer
+        return weight * loss
+
+    return _smooth_l1_weighted
+
+
 def smooth_l1_pose(sigma=3.0):
     """ Create a smooth L1 loss functor.
 
