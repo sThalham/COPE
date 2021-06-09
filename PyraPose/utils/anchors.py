@@ -96,6 +96,7 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, cls] = 1
                 regression_batch[index, locations_positive_obj, -1] = 1
                 center_batch[index, locations_positive_obj, -1] = 1
+                #center_batch[index, :, -1] = 1
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)

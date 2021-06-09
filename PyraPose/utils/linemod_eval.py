@@ -438,9 +438,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             # pnp
             centerns = center[0, cls_indices, 0]
             centerns = np.squeeze(centerns)
-            #k_hyp = int(np.ceil(len(centerns) * 0.25))
+            k_hyp = int(np.ceil(len(centerns) * 0.25))
             #k_hyp = len(centerns)
-            k_hyp = 1
+            #k_hyp = 1
             if len(centerns) < k_hyp:
                 k_hyp = len(centerns)
             pose_votes = boxes3D[0, cls_indices, :]

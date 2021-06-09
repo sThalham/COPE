@@ -186,7 +186,7 @@ def smooth_l1(sigma=3.0):
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
         loss = keras.backend.sum(regression_loss) / normalizer
-        return loss
+        return 6.0 * loss
 
     return _smooth_l1
 
@@ -300,7 +300,7 @@ def smooth_l1_pose(sigma=3.0):
     return _smooth_l1_pose
 
 
-def weighted_mse(weight=60.0):
+def weighted_mse(weight=1.0):
 
     def _wMSE(y_true, y_pred):
 
@@ -372,7 +372,7 @@ def weighted_msle(weight=5.0):
     return _msle
 
 
-def orthogonal_l1(weight=0.125, sigma=3.0):
+def orthogonal_l1(weight=1.0, sigma=3.0):
 
     weight_xy = 0.8
     weight_orth = 0.2
