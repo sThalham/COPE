@@ -21,6 +21,7 @@ import transforms3d as tf3d
 import cv2
 from PIL import Image
 import math
+import matplotlib
 
 from ..utils.compute_overlap import compute_overlap
 
@@ -73,6 +74,10 @@ def anchor_targets_bbox(
         image_locations = locations_for_shape(image.shape)
         # w/o mask
         mask = annotations['mask'][0]
+        masks_level = []
+        for jdx, resx in enumerate(image_shapes):
+            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
+            masks_level.append(mask_level.flatten())
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
@@ -80,13 +85,21 @@ def anchor_targets_bbox(
         for idx, pose in enumerate(annotations['poses']):
 
             locations_positive = []
+            labels_positive = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
             for jdx, resx in enumerate(image_shapes):
-                mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
-                mask_flat = mask_level.flatten()
-                locations_level = np.where(mask_flat == int(mask_id))[0] + location_offset[jdx]
+                # classification
+                labels_level = np.where(mask==mask_id, 1, 0)
+                print(labels_level.shape)
+                labels_level = np.asarray(Image.fromarray(labels_level).resize((resx[1], resx[0]), Image.BOX))
+                print(labels_level.shape)
+                matplotlib.pyplot.imshow((labels_level * 255.0).astype(np.uint8))
+                labels_level = np.where(labels_level > 0)[0] + location_offset[jdx]
+                labels_positive.append(labels_level)
+                # pose
+                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
                 locations_positive.append(locations_level)
 
             locations_positive_obj = np.concatenate(locations_positive, axis=0)
