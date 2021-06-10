@@ -91,13 +91,13 @@ def anchor_targets_bbox(
             obj_diameter = annotations['diameters'][idx]
             for jdx, resx in enumerate(image_shapes):
                 # classification
-                labels_level = np.where(mask==mask_id, 1, 0)
-                print(labels_level.shape)
-                labels_level = np.asarray(Image.fromarray(labels_level).resize((resx[1], resx[0]), Image.BOX))
-                print(labels_level.shape)
-                matplotlib.pyplot.imshow((labels_level * 255.0).astype(np.uint8))
-                labels_level = np.where(labels_level > 0)[0] + location_offset[jdx]
-                labels_positive.append(labels_level)
+                #labels_level = np.where(mask==mask_id, 1, 0)
+                #print(labels_level.shape)
+                #labels_level = np.asarray(Image.fromarray(labels_level).resize((resx[1], resx[0]), Image.BOX))
+                #print(labels_level.shape)
+                #matplotlib.pyplot.imshow((labels_level * 255.0).astype(np.uint8))
+                #labels_level = np.where(labels_level > 0)[0] + location_offset[jdx]
+                #labels_positive.append(labels_level)
                 # pose
                 locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
                 locations_positive.append(locations_level)
