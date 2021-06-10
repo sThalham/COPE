@@ -21,7 +21,7 @@ import transforms3d as tf3d
 import cv2
 from PIL import Image
 import math
-import matplotlib
+import matplotlib.pyplot as plt
 
 from ..utils.compute_overlap import compute_overlap
 
@@ -74,10 +74,11 @@ def anchor_targets_bbox(
         image_locations = locations_for_shape(image.shape)
         # w/o mask
         mask = annotations['mask'][0]
-        masks_level = []
-        for jdx, resx in enumerate(image_shapes):
-            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
-            masks_level.append(mask_level.flatten())
+        # vanilla
+        #masks_level = []
+        #for jdx, resx in enumerate(image_shapes):
+        #    mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
+        #    masks_level.append(mask_level.flatten())
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
@@ -86,10 +87,18 @@ def anchor_targets_bbox(
 
             locations_positive = []
             labels_positive = []
+            labels_values = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
+            labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
             for jdx, resx in enumerate(image_shapes):
+                labels_level = np.asarray(Image.fromarray(labels_cls).resize((resx[1], resx[0]), Image.HAMMING)).flatten() / 255.0
+                loc_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
+                locations_positive.append(loc_positive)
+                lab_positive = np.where(labels_level > 0)[0] + location_offset[jdx]
+                labels_positive.append(lab_positive)
+                labels_values.append(labels_level[np.where(labels_level > 0)[0]])
                 # classification
                 #labels_level = np.where(mask==mask_id, 1, 0)
                 #print(labels_level.shape)
@@ -98,15 +107,23 @@ def anchor_targets_bbox(
                 #matplotlib.pyplot.imshow((labels_level * 255.0).astype(np.uint8))
                 #labels_level = np.where(labels_level > 0)[0] + location_offset[jdx]
                 #labels_positive.append(labels_level)
-                # pose
-                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                locations_positive.append(locations_level)
+
+                # vanilla
+                #locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+                #locations_positive.append(locations_level)
 
             locations_positive_obj = np.concatenate(locations_positive, axis=0)
+            labels_positive_obj = np.concatenate(labels_positive, axis=0)
+            labels_values_obj = np.concatenate(labels_values, axis=0)
+            #print('loc: ', locations_positive_obj.shape)
+            #print('lab: ', labels_positive_obj.shape)
+            #print('val: ', labels_values_obj.shape)
 
             if locations_positive_obj.shape[0] > 1:
-                labels_batch[index, locations_positive_obj, -1] = 1
-                labels_batch[index, locations_positive_obj, cls] = 1
+                #labels_batch[index, locations_positive_obj, -1] = 1
+                # labels_batch[index, locations_positive_obj, cls] = 1
+                labels_batch[index, labels_positive_obj, -1] = 1
+                labels_batch[index, labels_positive_obj, cls] = labels_values_obj
                 regression_batch[index, locations_positive_obj, -1] = 1
                 center_batch[index, locations_positive_obj, -1] = 1
                 #center_batch[index, :, -1] = 1
