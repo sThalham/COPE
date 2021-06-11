@@ -23,6 +23,7 @@ import copy
 import cv2
 import open3d
 from ..utils import ply_loader
+from ..utils.anchors import locations_for_shape
 from .pose_error import reproj, add, adi, re, te, vsd
 import yaml
 import sys
@@ -227,11 +228,41 @@ def boxoverlap(a, b):
     return ovlap
 
 
+def denorm_box(locations, regression, obj_diameter):
+    mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
+
+    regression = regression * (obj_diameter * 6.5)
+
+    x1 = locations[:, :, 0] - (regression[:, :, 0] * std[0] + mean[0])
+    y1 = locations[:, :, 1] - (regression[:, :, 1] * std[1] + mean[1])
+    x2 = locations[:, :, 0] - (regression[:, :, 2] * std[2] + mean[2])
+    y2 = locations[:, :, 1] - (regression[:, :, 3] * std[3] + mean[3])
+    x3 = locations[:, :, 0] - (regression[:, :, 4] * std[4] + mean[4])
+    y3 = locations[:, :, 1] - (regression[:, :, 5] * std[5] + mean[5])
+    x4 = locations[:, :, 0] - (regression[:, :, 6] * std[6] + mean[6])
+    y4 = locations[:, :, 1] - (regression[:, :, 7] * std[7] + mean[7])
+    x5 = locations[:, :, 0] - (regression[:, :, 8] * std[8] + mean[8])
+    y5 = locations[:, :, 1] - (regression[:, :, 9] * std[9] + mean[9])
+    x6 = locations[:, :, 0] - (regression[:, :, 10] * std[10] + mean[10])
+    y6 = locations[:, :, 1] - (regression[:, :, 11] * std[11] + mean[11])
+    x7 = locations[:, :, 0] - (regression[:, :, 12] * std[12] + mean[12])
+    y7 = locations[:, :, 1] - (regression[:, :, 13] * std[13] + mean[13])
+    x8 = locations[:, :, 0] - (regression[:, :, 14] * std[14] + mean[14])
+    y8 = locations[:, :, 1] - (regression[:, :, 15] * std[15] + mean[15])
+
+    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+
+    return pred_boxes
+
+
 def evaluate_linemod(generator, model, data_path, threshold=0.5):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
+
+    image_locations = locations_for_shape((480, 640))
 
     for key, value in yaml.load(open(mesh_info)).items():
         fac = 0.001
@@ -438,12 +469,16 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             # pnp
             centerns = center[0, cls_indices, 0]
             centerns = np.squeeze(centerns)
-            k_hyp = int(np.ceil(len(centerns) * 0.25))
-            #k_hyp = len(centerns)
+            #k_hyp = int(np.ceil(len(centerns) * 0.25))
+            k_hyp = len(centerns)
             #k_hyp = 1
             if len(centerns) < k_hyp:
                 k_hyp = len(centerns)
-            pose_votes = boxes3D[0, cls_indices, :]
+            #pose_votes = boxes3D[0, cls_indices, :]
+            pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
+            #print(pose_votes.shape)
+            #print(model_dia[cls])
+
             pose_votes = np.squeeze(pose_votes)
             center_sort = np.argsort(centerns)
             pose_votes = pose_votes[center_sort, :]

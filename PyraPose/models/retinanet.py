@@ -196,14 +196,15 @@ def retinanet_bbox(
         assert_training_model(model)
 
     # compute the anchors
-    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
-    locations = __build_locations(features)
+    #features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    #locations = __build_locations(features)
 
     regression = model.outputs[0]
     classification = model.outputs[1]
     centers = model.outputs[2]
 
-    boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
+    #boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
+    boxes3D = regression
 
     # construct the model
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
