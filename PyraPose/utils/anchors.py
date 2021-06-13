@@ -75,10 +75,10 @@ def anchor_targets_bbox(
         # w/o mask
         mask = annotations['mask'][0]
         # vanilla
-        masks_level = []
-        for jdx, resx in enumerate(image_shapes):
-            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
-            masks_level.append(mask_level.flatten())
+        #masks_level = []
+        #for jdx, resx in enumerate(image_shapes):
+        #    mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
+        #    masks_level.append(mask_level.flatten())
         # w/o mask
 
         calculated_boxes = np.empty((0, 16))
@@ -91,12 +91,12 @@ def anchor_targets_bbox(
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
-            #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
+            labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
             for jdx, resx in enumerate(image_shapes):
-                #labels_level = np.asarray(Image.fromarray(labels_cls).resize((resx[1], resx[0]), Image.HAMMING)).flatten() / 255.0
-                #loc_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
-                #locations_positive.append(loc_positive)
-                #lab_positive = np.where(labels_level > 0)[0] + location_offset[jdx]
+                labels_level = np.asarray(Image.fromarray(labels_cls).resize((resx[1], resx[0]), Image.HAMMING)).flatten() / 255.0
+                loc_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
+                locations_positive.append(loc_positive)
+                #lab_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
                 #labels_positive.append(lab_positive)
                 #labels_values.append(labels_level[np.where(labels_level > 0)[0]])
                 # classification
@@ -109,8 +109,8 @@ def anchor_targets_bbox(
                 #labels_positive.append(labels_level)
 
                 # vanilla
-                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                locations_positive.append(locations_level)
+                #locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+                #locations_positive.append(locations_level)
 
             locations_positive_obj = np.concatenate(locations_positive, axis=0)
             #labels_positive_obj = np.concatenate(labels_positive, axis=0)
@@ -141,7 +141,7 @@ def anchor_targets_bbox(
                 # project object diameter
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
 
-                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
 
 
@@ -469,15 +469,15 @@ def centerness_scaling(a):
 #     return new_locations
 
 
-def box3D_transform(box, locations, diameter, mean=None, std=None):
+def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
-    np.seterr(invalid='raise')
+    #np.seterr(invalid='raise')
 
     if mean is None:
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        std = np.full(16, 150)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        std = np.full(16, 0.7)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -515,7 +515,7 @@ def box3D_transform(box, locations, diameter, mean=None, std=None):
     #targets = targets.T
     #if math.nan in targets:
     #    print("NaN detected")
-    targets = (targets - mean) / std
+    targets = (targets - mean) / (std * obj_diameter)
     #if math.nan in targets:
     #    print("NaN detected")
     #print(np.mean(gt_boxes, axis=0), np.var(gt_boxes, axis=0))
@@ -525,64 +525,10 @@ def box3D_transform(box, locations, diameter, mean=None, std=None):
 
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    centerness = (x_sum + y_sum) / (diameter * 0.01) 
-    #print('np.nanmin: ', np.nanmin(centerness))
-    #print('centern. pre: ', centerness)
+    centerness = (x_sum + y_sum) / (proj_diameter * 0.01)
     centerness = np.exp(-centerness)
-    #print('center. exp: ', centerness)
-    #centerness = (centerness - np.nanmin(centerness))
-    #print('np.nanmax: ', 1/np.nanmax(centerness))
-    #if not np.isfinite((1/np.nanmax(centerness))):
-    #    print('min: ', np.nanmin(centerness))
-    #    print('targets: ', targets)
-    #    print('diameter: ', diameter)
-    #    print('centerness: ', centerness)
-    #    print('max: ', np.nanmax(centerness))
-    #print('centern. post: ', centerness)
-    #centerness = 1.0 - (centerness * (1/np.nanmax(centerness)))
-
-
-    '''
-    ############################
-    # here goes centerness calculation
-
-    targets_x = np.stack((targets_dx1, targets_dx2, targets_dx3, targets_dx4, targets_dx5, targets_dx6, targets_dx7, targets_dx8))
-    targets_y = np.stack((targets_dy1, targets_dy2, targets_dy3, targets_dy4, targets_dy5, targets_dy6, targets_dy7, targets_dy8))
-    targets_x_scaled = centerness_scaling(targets_x)  # Scale distances
-    targets_y_scaled = centerness_scaling(targets_y)  # Scale distances
-
-    if math.nan in targets_y_scaled or math.nan in targets_x_scaled:
-        print("NaN detected")
-
-    vfactor = np.vectorize(centerness_factor)
-
-    # Calculate factors of diagonally opposite points
-    # To do that create permutated array
-    # calculate centerness for pairs 0-6 1-7 4-2 5-3
-
-    permutation = np.array([6, 7, 5, 4, 3, 2, 0, 1])
-    # permutation = np.array([6, 7, 4, 5, 0, 1, 2, 3])
-    idx = np.empty_like(permutation)
-    idx[permutation] = np.arange(len(permutation))
-    targets_x_scaled_perm = targets_x_scaled[idx, :]
-    targets_y_scaled_perm = targets_y_scaled[idx, :]
-
-    try:
-        centerX = vfactor(np.abs(targets_x_scaled[0:4, :]), np.abs(np.roll(targets_x_scaled_perm[0:4, :], 2, axis=0)))
-        centerY = vfactor(np.abs(targets_y_scaled[0:4, :]), np.abs(np.roll(targets_y_scaled_perm[0:4, :], 2, axis=0)))
-        centerness = np.prod(centerX * centerY)
-    except RuntimeWarning:
-        print("targets_x: ", targets_x)
-        print("centerX: ", centerX)
-        print("centerY: ", centerY)
-        print("centerness: ", centerness)
-    '''
-
-    #targets = np.concatenate([targets, centerness[:, np.newaxis]], axis=1)
-
-    #targets = targets / (diameter * 0.0065)
-    targets = targets / (diameter * 0.03)
-    #print('targets: ', np.unique(targets))
+    #print('new sample: ')
+    #print(np.sort(centerness))
 
     return targets, centerness[:, np.newaxis]
 

@@ -140,7 +140,7 @@ def cross(weight=1.0):
     return _cross
 
 
-def smooth_l1(sigma=3.0):
+def smooth_l1(weight=1.0, sigma=3.0):
     """ Create a smooth L1 loss functor.
 
     Args
@@ -186,7 +186,7 @@ def smooth_l1(sigma=3.0):
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
         loss = keras.backend.sum(regression_loss) / normalizer
-        return 6.0 * loss
+        return weight * loss
 
     return _smooth_l1
 

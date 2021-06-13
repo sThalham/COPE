@@ -233,6 +233,7 @@ def denorm_box(locations, regression, obj_diameter):
     std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
 
     regression = regression * (obj_diameter * 6.5)
+    #regression = regression * (obj_diameter * 30.0)
 
     x1 = locations[:, :, 0] - (regression[:, :, 0] * std[0] + mean[0])
     y1 = locations[:, :, 1] - (regression[:, :, 1] * std[1] + mean[1])
@@ -690,9 +691,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
-            #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            #cv2.imwrite(name, image_viz)
+            image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
+            name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+            cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
