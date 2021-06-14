@@ -228,14 +228,20 @@ def anchor_targets_bbox(
             name = '/home/stefan/RGBDPose_viz/anno_' + str(rind) + '_RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
-        image_center = center_batch[index, :4800, :-1].reshape((60,80))
-        image_center = np.asarray(Image.fromarray(image_center).resize((640, 480), Image.NEAREST))*255
-        image_center = np.repeat(image_center[:, :, np.newaxis], repeats=3, axis=2)
-        image_viz = np.concatenate([image_raw, image_center], axis=1)
-        #regression_3D[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int), -1] = 1
-        rind = np.random.randint(0, 1000)
-        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_RGB.jpg'
-        cv2.imwrite(name, image_viz)
+        # viz mask
+        #image_center = center_batch[index, :4800, :-1].reshape((60,80))
+        #image_center_g = np.where(image_center > 0.5, 255, 0).astype(np.uint8)
+        #img_temp = np.where(image_center > 0.5, 0, image_center)
+        #image_center_b = np.where(img_temp > 0, 255, 0).astype(np.uint8)
+        #image_center_r = np.zeros((60,80), dtype=np.uint8)
+        #image_center = np.concatenate([image_center_b[:, :, np.newaxis], image_center_g[:, :, np.newaxis], image_center_r[:, :, np.newaxis]], axis=2)
+        #image_center = np.asarray(Image.fromarray(image_center).resize((640, 480), Image.NEAREST))
+        #image_viz = np.concatenate([image_raw, image_center], axis=1)
+        #rind = np.random.randint(0, 1000)
+        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_RGB.jpg'
+        #cv2.imwrite(name, image_viz)
+
+
         #mask_viz = mask_viz.reshape((image_shapes[0][0], image_shapes[0][1], 3))
         #mask_viz = cv2.resize(mask_viz, (640, 480), interpolation=cv2.INTER_NEAREST)
         #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_MASK.jpg'
@@ -486,6 +492,8 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         std = np.full(16, 0.7)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        #std = np.full(16, 0.85) # with max dimension
+        #std = np.full(16, 1.5) # with min dimension
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -534,13 +542,16 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
     centerness = (x_sum + y_sum) / (proj_diameter * 0.01)
+    #centerness = (x_sum + y_sum) / (proj_diameter * 0.015) # with max dimension
+    #centerness = (x_sum + y_sum) / (proj_diameter * 0.03) # with min dimension
+    #centerness = (x_sum + y_sum) / (proj_diameter * 0.02)
     centerness = np.exp(-centerness)
     #print('new sample: ')
     #print(np.sort(centerness))
 
-    print('in anchor hypotheses: ')
-    print(targets.shape)
-    print(len(np.where(centerness > 0.5)[0]))
+    #print('in anchor hypotheses: ')
+    #print(targets.shape)
+    #print(len(np.where(centerness > 0.5)[0]))
 
     return targets, centerness[:, np.newaxis]
 

@@ -84,8 +84,19 @@ class LinemodGenerator(Generator):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
+            #radius = value['diameter'] * 0.5
+            #three_box_solo = np.array([[radius, radius, radius],
+            #                           [radius, radius, -radius],
+            #                           [radius, -radius, -radius],
+            #                           [radius, -radius, radius],
+            #                           [-radius, radius, radius],
+            #                           [-radius, radius, -radius],
+            #                           [-radius, -radius, -radius],
+            #                           [-radius, -radius, radius]])
             self.TDboxes[int(key), :, :] = three_box_solo
             self.sphere_diameters[int(key)] = value['diameter']
+            #dimensions = np.array([value['size_x'], value['size_y'], value['size_z']])
+            #self.sphere_diameters[int(key)] = np.nanmin(dimensions)
 
         super(LinemodGenerator, self).__init__(**kwargs)
 
