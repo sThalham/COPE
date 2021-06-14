@@ -80,6 +80,10 @@ def anchor_targets_bbox(
         #    mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
         #    masks_level.append(mask_level.flatten())
         # w/o mask
+        image_raw = image
+        image_raw[..., 0] += 103.939
+        image_raw[..., 1] += 116.779
+        image_raw[..., 2] += 123.68
 
         calculated_boxes = np.empty((0, 16))
 
@@ -224,10 +228,14 @@ def anchor_targets_bbox(
             name = '/home/stefan/RGBDPose_viz/anno_' + str(rind) + '_RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
+        image_center = center_batch[index, :4800, :-1].reshape((60,80))
+        image_center = np.asarray(Image.fromarray(image_center).resize((640, 480), Image.NEAREST))*255
+        image_center = np.repeat(image_center[:, :, np.newaxis], repeats=3, axis=2)
+        image_viz = np.concatenate([image_raw, image_center], axis=1)
         #regression_3D[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int), -1] = 1
-        #rind = np.random.randint(0, 1000)
-        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_RGB.jpg'
-        #cv2.imwrite(name, image_raw)
+        rind = np.random.randint(0, 1000)
+        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_RGB.jpg'
+        cv2.imwrite(name, image_viz)
         #mask_viz = mask_viz.reshape((image_shapes[0][0], image_shapes[0][1], 3))
         #mask_viz = cv2.resize(mask_viz, (640, 480), interpolation=cv2.INTER_NEAREST)
         #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + '_MASK.jpg'
@@ -529,6 +537,10 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     centerness = np.exp(-centerness)
     #print('new sample: ')
     #print(np.sort(centerness))
+
+    print('in anchor hypotheses: ')
+    print(targets.shape)
+    print(len(np.where(centerness > 0.5)[0]))
 
     return targets, centerness[:, np.newaxis]
 
