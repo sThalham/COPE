@@ -149,6 +149,7 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
+'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -180,7 +181,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-'''
+
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
 
@@ -230,27 +231,29 @@ def boxoverlap(a, b):
 
 def denorm_box(locations, regression, obj_diameter):
     mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
+    #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
+    std = np.full(16, 0.7)
 
-    regression = regression * (obj_diameter * 6.5)
+    #regression = regression * (obj_diameter * 6.5)
     #regression = regression * (obj_diameter * 30.0)
+    obj_diameter = obj_diameter * 1000.0
 
-    x1 = locations[:, :, 0] - (regression[:, :, 0] * std[0] + mean[0])
-    y1 = locations[:, :, 1] - (regression[:, :, 1] * std[1] + mean[1])
-    x2 = locations[:, :, 0] - (regression[:, :, 2] * std[2] + mean[2])
-    y2 = locations[:, :, 1] - (regression[:, :, 3] * std[3] + mean[3])
-    x3 = locations[:, :, 0] - (regression[:, :, 4] * std[4] + mean[4])
-    y3 = locations[:, :, 1] - (regression[:, :, 5] * std[5] + mean[5])
-    x4 = locations[:, :, 0] - (regression[:, :, 6] * std[6] + mean[6])
-    y4 = locations[:, :, 1] - (regression[:, :, 7] * std[7] + mean[7])
-    x5 = locations[:, :, 0] - (regression[:, :, 8] * std[8] + mean[8])
-    y5 = locations[:, :, 1] - (regression[:, :, 9] * std[9] + mean[9])
-    x6 = locations[:, :, 0] - (regression[:, :, 10] * std[10] + mean[10])
-    y6 = locations[:, :, 1] - (regression[:, :, 11] * std[11] + mean[11])
-    x7 = locations[:, :, 0] - (regression[:, :, 12] * std[12] + mean[12])
-    y7 = locations[:, :, 1] - (regression[:, :, 13] * std[13] + mean[13])
-    x8 = locations[:, :, 0] - (regression[:, :, 14] * std[14] + mean[14])
-    y8 = locations[:, :, 1] - (regression[:, :, 15] * std[15] + mean[15])
+    x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
+    y1 = locations[:, :, 1] - (regression[:, :, 1] * (std[1] * obj_diameter) + mean[1])
+    x2 = locations[:, :, 0] - (regression[:, :, 2] * (std[2] * obj_diameter) + mean[2])
+    y2 = locations[:, :, 1] - (regression[:, :, 3] * (std[3] * obj_diameter) + mean[3])
+    x3 = locations[:, :, 0] - (regression[:, :, 4] * (std[4] * obj_diameter) + mean[4])
+    y3 = locations[:, :, 1] - (regression[:, :, 5] * (std[5] * obj_diameter) + mean[5])
+    x4 = locations[:, :, 0] - (regression[:, :, 6] * (std[6] * obj_diameter) + mean[6])
+    y4 = locations[:, :, 1] - (regression[:, :, 7] * (std[7] * obj_diameter) + mean[7])
+    x5 = locations[:, :, 0] - (regression[:, :, 8] * (std[8] * obj_diameter) + mean[8])
+    y5 = locations[:, :, 1] - (regression[:, :, 9] * (std[9] * obj_diameter) + mean[9])
+    x6 = locations[:, :, 0] - (regression[:, :, 10] * (std[10] * obj_diameter) + mean[10])
+    y6 = locations[:, :, 1] - (regression[:, :, 11] * (std[11] * obj_diameter) + mean[11])
+    x7 = locations[:, :, 0] - (regression[:, :, 12] * (std[12] * obj_diameter) + mean[12])
+    y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
+    x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
+    y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
 
     pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
 
@@ -691,9 +694,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
-            image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-            name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            cv2.imwrite(name, image_viz)
+            #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
+            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+            #cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
