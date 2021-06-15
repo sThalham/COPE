@@ -35,6 +35,9 @@ def focal(alpha=0.25, gamma=2.0):
         As defined in https://arxiv.org/abs/1708.02002
 
         Args
+    # compute smooth L1 loss
+    # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
+    #        |x| - 0.5 / sigma / sigma    otherwise
             y_true: Tensor of target data from the generator with shape (B, N, num_classes).
             y_pred: Tensor of predicted data from the network with shape (B, N, num_classes).
 
@@ -494,3 +497,56 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
 
     return _smooth_l1_xy
 
+
+def per_cls_smooth_l1(arg):
+    y_true, y_pred = arg
+
+    regression_target = y_true[:, :, :-1]
+    anchor_state = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
+    regression = y_pred
+
+    indices = backend.where(keras.backend.equal(anchor_state, 1))
+    regression = backend.gather_nd(regression, indices)
+    regression_target = backend.gather_nd(regression_target, indices)
+
+    regression_diff = regression - regression_target
+    regression_diff = keras.backend.abs(regression_diff)
+    regression_loss = backend.where(
+        keras.backend.less(regression_diff, 1.0 / sigma_squared),
+        0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+        regression_diff - 0.5 / sigma_squared
+    )
+
+    # compute the normalizer: the number of positive anchors
+    normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+    normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+    loss = keras.backend.sum(regression_loss) / normalizer
+    return loss
+
+
+def focal_l1(weight=1.0):
+    """ Create a functor for computing the focal loss.
+
+    Args
+        alpha: Scale the focal weight with alpha. vanilla 0.25 2.0
+        gamma: Take the power of the focal weight with gamma.
+
+    Returns
+        A functor that computes the focal loss using the alpha and gamma.
+    """
+    def _focal_l1(y_true, y_pred):
+
+        num_cls = keras.backend.int_shape(y_true)[2]
+        exp_y_pred = tf.keras.backend.expand_dims(y_pred, axis=0)
+        rep_y_pred = keras.backend.repeat_elements(exp_y_pred, rep=num_cls, axis=0)
+
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true, rep_y_pred))
+
+        max_cls = keras.backend.max(loss_per_cls)
+        max_cls_exp = tf.keras.backend.expand_dims(max_cls, axis=0)
+        max_cls_rep = keras.backend.repeat_elements(max_cls_exp, rep=num_cls, axis=0)
+        loss = loss_per_cls * (max_cls_rep / loss_per_cls)
+
+        return weight * (keras.backend.sum(loss) / num_cls)
+
+    return _focal_l1

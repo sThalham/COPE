@@ -65,7 +65,8 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -147,14 +148,18 @@ def anchor_targets_bbox(
                 # project object diameter
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
 
-                index_filt, boxes, centers =  box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                regression_batch[index, locations_positive_obj[index_filt], :-1] = boxes
-                regression_batch[index, locations_positive_obj[index_filt], -1] = 1
-                center_batch[index, locations_positive_obj, :-1] = centers
-                center_batch[index, locations_positive_obj, -1] = 1
+                # top 50% centerness
+                #index_filt, boxes, centers =  box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #regression_batch[index, locations_positive_obj[index_filt], :-1] = boxes
+                #regression_batch[index, locations_positive_obj[index_filt], -1] = 1
+                #center_batch[index, locations_positive_obj, :-1] = centers
+                #center_batch[index, locations_positive_obj, -1] = 1
+
+                # vanilla
                 #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
-
+                # per class anno
+                regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
             '''
             # debug
@@ -567,13 +572,11 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #print(len(np.where(centerness > 0.5)[0]))
 
     # top 50% centerness
-    med_cent = np.median(centerness)
-    indices_med = np.argwhere(centerness>med_cent)
-    #print(centerness.shape)
-    #print(indices_med.shape)
+    #med_cent = np.median(centerness)
+    #indices_med = np.argwhere(centerness>med_cent)
 
-    #return targets, centerness[:, np.newaxis]
-    return indices_med, targets[indices_med, :], centerness[:, np.newaxis]
+    return targets, centerness[:, np.newaxis]
+    #return indices_med, targets[indices_med, :], centerness[:, np.newaxis]
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
