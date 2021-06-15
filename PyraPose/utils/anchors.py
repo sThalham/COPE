@@ -80,18 +80,18 @@ def anchor_targets_bbox(
         #    mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
         #    masks_level.append(mask_level.flatten())
         # w/o mask
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
 
         calculated_boxes = np.empty((0, 16))
 
         for idx, pose in enumerate(annotations['poses']):
 
             locations_positive = []
-            labels_positive = []
-            labels_values = []
+            #labels_positive = []
+            #labels_values = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
@@ -128,8 +128,10 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, cls] = 1
                 #labels_batch[index, labels_positive_obj, -1] = 1
                 #labels_batch[index, labels_positive_obj, cls] = labels_values_obj
-                regression_batch[index, locations_positive_obj, -1] = 1
-                center_batch[index, locations_positive_obj, -1] = 1
+
+                #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
+                #center_batch[index, locations_positive_obj, -1] = 1
+
                 #center_batch[index, :, -1] = 1
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
@@ -145,7 +147,12 @@ def anchor_targets_bbox(
                 # project object diameter
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
 
-                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                index_filt, boxes, centers =  box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj[index_filt], :-1] = boxes
+                regression_batch[index, locations_positive_obj[index_filt], -1] = 1
+                center_batch[index, locations_positive_obj, :-1] = centers
+                center_batch[index, locations_positive_obj, -1] = 1
+                #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
 
 
@@ -228,13 +235,18 @@ def anchor_targets_bbox(
             name = '/home/stefan/RGBDPose_viz/anno_' + str(rind) + '_RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
-        # viz mask
+        # viz center
         #image_center = center_batch[index, :4800, :-1].reshape((60,80))
         #image_center_g = np.where(image_center > 0.5, 255, 0).astype(np.uint8)
         #img_temp = np.where(image_center > 0.5, 0, image_center)
         #image_center_b = np.where(img_temp > 0, 255, 0).astype(np.uint8)
         #image_center_r = np.zeros((60,80), dtype=np.uint8)
         #image_center = np.concatenate([image_center_b[:, :, np.newaxis], image_center_g[:, :, np.newaxis], image_center_r[:, :, np.newaxis]], axis=2)
+
+        #image_center = center_batch[index, :4800, :-1].reshape((60, 80))
+        #image_center = (image_center*255).astype(np.uint8)
+        #image_center = np.repeat(image_center[:, :, np.newaxis], repeats=3, axis=2)
+
         #image_center = np.asarray(Image.fromarray(image_center).resize((640, 480), Image.NEAREST))
         #image_viz = np.concatenate([image_raw, image_center], axis=1)
         #rind = np.random.randint(0, 1000)
@@ -541,7 +553,8 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
 
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    centerness = (x_sum + y_sum) / (proj_diameter * 0.01)
+    #centerness = (x_sum + y_sum) / (proj_diameter * 0.01)
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
     #centerness = (x_sum + y_sum) / (proj_diameter * 0.015) # with max dimension
     #centerness = (x_sum + y_sum) / (proj_diameter * 0.03) # with min dimension
     #centerness = (x_sum + y_sum) / (proj_diameter * 0.02)
@@ -553,7 +566,14 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #print(targets.shape)
     #print(len(np.where(centerness > 0.5)[0]))
 
-    return targets, centerness[:, np.newaxis]
+    # top 50% centerness
+    med_cent = np.median(centerness)
+    indices_med = np.argwhere(centerness>med_cent)
+    #print(centerness.shape)
+    #print(indices_med.shape)
+
+    #return targets, centerness[:, np.newaxis]
+    return indices_med, targets[indices_med, :], centerness[:, np.newaxis]
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):

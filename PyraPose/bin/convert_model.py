@@ -62,14 +62,7 @@ def main(args=None):
     args = parse_args(args)
 
     # Set modified tf session to avoid using the GPUs
-    keras.backend.tensorflow_backend.set_session(get_session())
-
-    # optionally load config parameters
-    anchor_parameters = None
-    if args.config:
-        args.config = read_config_file(args.config)
-        if 'anchor_parameters' in args.config:
-            anchor_parameters = parse_anchor_parameters(args.config)
+    #  keras.backend.tensorflow_backend.set_session(get_session())
 
     # load the model
     model = models.load_model(args.model_in, backbone_name=args.backbone)
@@ -78,7 +71,7 @@ def main(args=None):
     models.check_training_model(model)
 
     # convert the model
-    model = models.convert_model(model, nms=args.nms, class_specific_filter=args.class_specific_filter, anchor_params=anchor_parameters)
+    model = models.convert_model(model)
 
     # save model
     model.save(args.model_out)

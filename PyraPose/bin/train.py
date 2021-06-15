@@ -37,7 +37,7 @@ from .. import losses
 from .. import models
 from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
-from ..models.retinanet import retinanet_bbox
+from ..models.retinanet import inference_model
 from ..utils.anchors import make_shapes_callback
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
@@ -84,7 +84,7 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
         training_model = model
 
     # make prediction model
-    prediction_model = retinanet_bbox(model=model)
+    prediction_model = inference_model(model=model)
 
     # compile model
     training_model.compile(
@@ -333,6 +333,8 @@ def main(args=None):
 
     # print model summary
     print(model.summary())
+    #for i, layer in enumerate(model.layers):
+    #    print(i, layer.name)
 
     # create the callbacks
     callbacks = create_callbacks(

@@ -153,6 +153,7 @@ def retinanet(
 
     b1, b2, b3 = backbone_layers
 
+    '''
     features = create_pyramid_features(b1, b2, b3)
     pyramids = []
     regression_P3 = regression_branch[0](features[0])
@@ -166,6 +167,21 @@ def retinanet(
     center_P3 = regression_branch[1](features[0])
     center_P4 = regression_branch[1](features[1])
     center_P5 = regression_branch[1](features[2])
+    '''
+
+    P3, P4, P5 = create_pyramid_features(b1, b2, b3)
+    pyramids = []
+    regression_P3 = regression_branch[0](P3)
+    regression_P4 = regression_branch[0](P4)
+    regression_P5 = regression_branch[0](P5)
+
+    location_P3 = location_branch(P3)
+    location_P4 = location_branch(P4)
+    location_P5 = location_branch(P5)
+
+    center_P3 = regression_branch[1](P3)
+    center_P4 = regression_branch[1](P4)
+    center_P5 = regression_branch[1](P5)
 
     pyramids.append(keras.layers.Concatenate(axis=1, name='reg')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
@@ -183,7 +199,7 @@ def __build_locations(features):
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
 
 
-def retinanet_bbox(
+def inference_model(
     model                 = None,
     name                  = 'pyrapose',
     **kwargs

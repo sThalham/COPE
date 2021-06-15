@@ -48,24 +48,13 @@ from ..utils.keras_version import check_keras_version
 def create_generator(args):
     """ Create generators for evaluation.
     """
-    if args.dataset_type == 'coco':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.coco import CocoGenerator
-
-        validation_generator = CocoGenerator(
-            args.coco_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-            config=args.config
-        )
-    elif args.dataset_type == 'linemod':
+    if args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.linemod import LinemodGenerator
 
         validation_generator = LinemodGenerator(
             args.linemod_path,
-            'val',
+            'target',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config
@@ -182,31 +171,14 @@ def main(args=None):
     print('Loading model, this may take a second...')
     model = models.load_model(args.model, backbone_name=args.backbone)
 
-    #filters3 = model.layers[355].get_weights()[0]
-    #f_min, f_max = filters3.min(), filters3.max()
-    #filters3 = (filters3 - f_min) / (f_max - f_min)
-
-    #n_filters, ix = 6, 1
-    #for i in range(n_filters):
-    #    f = filters3[:, :, :, i]
-    #    for j in range(3):
-    #        ax = pyplot.subplot(n_filters, 3, ix)
-    #        ax.set_xticks([])
-    #        ax.set_yticks([])
-    #        pyplot.imshow(f[:, :, j], cmap='brg')
-    #        ix += 1
-    #pyplot.show()
-
-    #filter4 = model.layers[355].get_weights()[0]
-    #filter5 = model.layers[355].get_weights()[0]
-
-    print(model.summary())
     # optionally convert the model
     if args.convert_model:
         model = models.convert_model(model)
 
     # print model summary
     print(model.summary())
+    #for i, layer in enumerate(model.layers):
+    #    print(i, layer.name)
 
     # start evaluation
 
