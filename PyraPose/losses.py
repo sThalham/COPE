@@ -499,6 +499,7 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
 
 
 def per_cls_smooth_l1(arg):
+    sigma_squared = 9.0
     y_true, y_pred = arg
 
     regression_target = y_true[:, :, :-1]
@@ -524,7 +525,7 @@ def per_cls_smooth_l1(arg):
     return loss
 
 
-def focal_l1(weight=1.0):
+def focal_l1(num_classes, weight=1.0):
     """ Create a functor for computing the focal loss.
 
     Args
@@ -536,17 +537,28 @@ def focal_l1(weight=1.0):
     """
     def _focal_l1(y_true, y_pred):
 
-        num_cls = keras.backend.int_shape(y_true)[2]
-        exp_y_pred = tf.keras.backend.expand_dims(y_pred, axis=0)
-        rep_y_pred = keras.backend.repeat_elements(exp_y_pred, rep=num_cls, axis=0)
+        y_true = keras.backend.expand_dims(y_true, axis=2)  # hackiest !
+        y_true_perm = keras.backend.permute_dimensions(y_true, (2, 0, 1, 3))
+        #y_true = keras.backend.repeat_elements(x=y_true, rep=8, axis=2)
 
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true, rep_y_pred))
+        #num_cls = keras.backend.shape(y_true)[2]
+        exp_y_pred = tf.keras.backend.expand_dims(y_pred, axis=0)
+        rep_y_pred = keras.backend.repeat_elements(exp_y_pred, rep=num_classes, axis=0)
+        print('y_true: ', y_true)
+        print('y_pred: ', y_pred)
+
+        print('rep_y_pred: ', rep_y_pred)
+
+        print('y_true_perm: ', y_true_perm)
+
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_perm, rep_y_pred))
+        print('loss_per_cls: ', loss_per_cls)
 
         max_cls = keras.backend.max(loss_per_cls)
         max_cls_exp = tf.keras.backend.expand_dims(max_cls, axis=0)
-        max_cls_rep = keras.backend.repeat_elements(max_cls_exp, rep=num_cls, axis=0)
+        max_cls_rep = keras.backend.repeat_elements(max_cls_exp, rep=num_classes, axis=0)
         loss = loss_per_cls * (max_cls_rep / loss_per_cls)
 
-        return weight * (keras.backend.sum(loss) / num_cls)
+        return weight * (keras.backend.sum(loss) / num_classes)
 
     return _focal_l1

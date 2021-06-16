@@ -89,7 +89,8 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
     # compile model
     training_model.compile(
         loss={
-            'reg'        : losses.smooth_l1(),
+            #'reg'        : losses.smooth_l1(),
+            'reg'        : losses.focal_l1(num_classes=num_classes),
             'cls'          : losses.focal(),
             #'conf'          : losses.cross(weight=1.0),
             'conf'         : losses.smooth_l1(weight=6.0),
