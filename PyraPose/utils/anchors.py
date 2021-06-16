@@ -22,6 +22,7 @@ import cv2
 from PIL import Image
 import math
 import matplotlib.pyplot as plt
+import copy
 
 from ..utils.compute_overlap import compute_overlap
 
@@ -65,8 +66,8 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -76,15 +77,17 @@ def anchor_targets_bbox(
         # w/o mask
         mask = annotations['mask'][0]
         # vanilla
-        #masks_level = []
-        #for jdx, resx in enumerate(image_shapes):
-        #    mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
-        #    masks_level.append(mask_level.flatten())
+        masks_level = []
+        for jdx, resx in enumerate(image_shapes):
+            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
+            masks_level.append(mask_level.flatten())
         # w/o mask
         #image_raw = image
         #image_raw[..., 0] += 103.939
         #image_raw[..., 1] += 116.779
         #image_raw[..., 2] += 123.68
+        #image_nearest = copy.deepcopy(image_raw)
+        #image_sum = np.zeros(image_raw[:,:,0].shape)
 
         calculated_boxes = np.empty((0, 16))
 
@@ -96,26 +99,10 @@ def anchor_targets_bbox(
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
-            labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
+            #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
             for jdx, resx in enumerate(image_shapes):
-                labels_level = np.asarray(Image.fromarray(labels_cls).resize((resx[1], resx[0]), Image.HAMMING)).flatten() / 255.0
-                loc_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
-                locations_positive.append(loc_positive)
-                #lab_positive = np.where(labels_level > 0.5)[0] + location_offset[jdx]
-                #labels_positive.append(lab_positive)
-                #labels_values.append(labels_level[np.where(labels_level > 0)[0]])
-                # classification
-                #labels_level = np.where(mask==mask_id, 1, 0)
-                #print(labels_level.shape)
-                #labels_level = np.asarray(Image.fromarray(labels_level).resize((resx[1], resx[0]), Image.BOX))
-                #print(labels_level.shape)
-                #matplotlib.pyplot.imshow((labels_level * 255.0).astype(np.uint8))
-                #labels_level = np.where(labels_level > 0)[0] + location_offset[jdx]
-                #labels_positive.append(labels_level)
-
-                # vanilla
-                #locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                #locations_positive.append(locations_level)
+                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+                locations_positive.append(locations_level)
 
             locations_positive_obj = np.concatenate(locations_positive, axis=0)
             #labels_positive_obj = np.concatenate(labels_positive, axis=0)
@@ -130,8 +117,8 @@ def anchor_targets_bbox(
                 #labels_batch[index, labels_positive_obj, -1] = 1
                 #labels_batch[index, labels_positive_obj, cls] = labels_values_obj
 
-                #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
-                #center_batch[index, locations_positive_obj, -1] = 1
+                regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
+                center_batch[index, locations_positive_obj, -1] = 1
 
                 #center_batch[index, :, -1] = 1
 
@@ -156,10 +143,12 @@ def anchor_targets_bbox(
                 #center_batch[index, locations_positive_obj, -1] = 1
 
                 # vanilla
-                #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
+                regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
                 # per class anno
-                regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+
+
 
             '''
             # debug
@@ -235,6 +224,10 @@ def anchor_targets_bbox(
                     #image_crop = image[0][int(bb[1]):int(bb[3]), int(bb[0]):int(bb[2]), :]
                     #name = '/home/stefan/RGBDPose_viz/anno_' + str(rind) + '_' + str(cls) + '_' + str(jdx) + '_crop.jpg'
                     #cv2.imwrite(name, image_crop)
+                    
+            '''
+
+        '''     
         if viz_img == True:
             #image_raw = image_raw[int(np.nanmin(true_anchors[:, 0])):int(np.nanmin(true_anchors[:, 1])), int(np.nanmax(true_anchors[:, 2])):int(np.nanmax(true_anchors[:, 3])), :]
             name = '/home/stefan/RGBDPose_viz/anno_' + str(rind) + '_RGB.jpg'

@@ -347,7 +347,7 @@ def main(args=None):
 
     # Use multiprocessing if workers > 0
     if args.workers > 0:
-        use_multiprocessing = True
+        use_multiprocessing = False
     else:
         use_multiprocessing = False
 

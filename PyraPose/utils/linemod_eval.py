@@ -473,6 +473,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             # pnp
             centerns = center[0, cls_indices, 0]
             centerns = np.squeeze(centerns)
+
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
             k_hyp = len(centerns)
             #k_hyp = 1
@@ -484,9 +485,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #print(model_dia[cls])
 
             pose_votes = np.squeeze(pose_votes)
-            center_sort = np.argsort(centerns)
-            pose_votes = pose_votes[center_sort, :]
-            pose_votes = pose_votes[-k_hyp:, :]
+            hyp_ind = np.where(centerns > 0.5)[0]
+            k_hyp = len(hyp_ind)
+            if hyp_ind.shape[0] < 1:
+                hyp_ind = np.argmax(centerns)
+                k_hyp = 1
+            #center_sort = np.argsort(centerns)
+            #print(centerns[center_sort])
+            #pose_votes = pose_votes[center_sort, :]
+            #pose_votes = pose_votes[-k_hyp:, :]
+            pose_votes = pose_votes[hyp_ind, :]
+            #print('centerns: ', centerns)
+            #print('ind: ', hyp_ind)
+            #print('cls_indices: ', cls_indices)
 
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
