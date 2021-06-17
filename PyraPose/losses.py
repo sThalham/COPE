@@ -189,6 +189,7 @@ def smooth_l1(weight=1.0, sigma=3.0):
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
         loss = keras.backend.sum(regression_loss) / normalizer
+
         return weight * loss
 
     return _smooth_l1
@@ -501,7 +502,7 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
 def per_cls_smooth_l1(arg):
     sigma_squared = 9.0
 
-    y_true, y_pred = arg
+    y_pred, y_true = arg
     print('in cls y_true: ', y_true)
     print('in cls y_pred: ', y_pred)
 
@@ -543,27 +544,35 @@ def focal_l1(num_classes, weight=1.0):
     """
     def _focal_l1(y_true, y_pred):
 
-        y_true = keras.backend.expand_dims(y_true, axis=2)  # hackiest !
-        y_true_perm = keras.backend.permute_dimensions(y_true, (2, 0, 1, 3))
-        #y_true = keras.backend.repeat_elements(x=y_true, rep=8, axis=2)
+        y_true_exp = keras.backend.expand_dims(y_true, axis=2)  # hackiest !
+        y_true_perm = keras.backend.permute_dimensions(y_true_exp, (2, 0, 1, 3))
+
+        #y_true_rep = tf.tile(y_true_exp, [2, 1, 1, 1])
 
         #num_cls = keras.backend.shape(y_true)[2]
-        exp_y_pred = tf.keras.backend.expand_dims(y_pred, axis=0)
-        rep_y_pred = keras.backend.repeat_elements(exp_y_pred, rep=num_classes, axis=0)
-        print('y_true: ', y_true)
-        print('y_pred: ', y_pred)
+        y_pred_exp = tf.keras.backend.expand_dims(y_pred, axis=0)
+        #y_pred_rep = tf.tile(y_pred_exp, [2, 1, 1, 1])
+        #rep_y_pred = keras.backend.repeat_elements(exp_y_pred, rep=num_classes, axis=2)
+        #rep_y_pred_perm = keras.backend.permute_dimensions(rep_y_pred, (2, 0, 1, 3))
+        print('y_true: ', y_true_perm)
+        print('y_pred: ', y_pred_exp)
 
-        print('rep_y_pred: ', rep_y_pred)
+        #print('rep_y_pred: ', rep_y_pred_perm)
 
-        print('y_true_perm: ', y_true_perm)
+        #print('y_true_perm: ', y_true_perm)
 
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_perm, rep_y_pred))
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_pred_exp, y_true_perm))
+        print('loss_per_cls: ', loss_per_cls)
+        #loss_per_cls = tf.concat(loss_per_cls, 0)
         print('loss_per_cls: ', loss_per_cls)
 
         max_cls = keras.backend.max(loss_per_cls)
         max_cls_exp = tf.keras.backend.expand_dims(max_cls, axis=0)
-        max_cls_rep = keras.backend.repeat_elements(max_cls_exp, rep=num_classes, axis=0)
+        print('max_cls_exp: ', max_cls_exp)
+        max_cls_rep = tf.tile(max_cls_exp, [num_classes])
+        print('max_cls_rep: ', max_cls_rep)
         loss = loss_per_cls * (max_cls_rep / loss_per_cls)
+        print('loss: ', loss)
 
         return weight * (keras.backend.sum(loss) / num_classes)
 
