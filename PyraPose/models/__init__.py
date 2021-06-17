@@ -11,7 +11,7 @@ class Backbone(object):
         from .. import layers
         from .. import losses
         from .. import initializers
-        from . import retinanet
+        from . import model
         self.custom_objects = {
             'UpsampleLike'     : layers.UpsampleLike,
             'PriorProbability' : initializers.PriorProbability,
@@ -71,7 +71,7 @@ def load_model(filepath, backbone_name='resnet50'):
 
 
 def convert_model(model):
-    from .retinanet import inference_model
+    from .model import inference_model
     return inference_model(model=model)
 
 

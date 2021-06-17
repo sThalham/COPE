@@ -21,8 +21,8 @@ import os
 import sys
 import warnings
 
-import keras
-import keras.preprocessing.image
+import tensorflow.keras as keras
+import tensorflow.keras.preprocessing.image
 import tensorflow as tf
 
 # Allow relative imports when being executed as script.
@@ -37,7 +37,7 @@ from .. import losses
 from .. import models
 from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
-from ..models.retinanet import inference_model
+from ..models.model import inference_model
 from ..utils.anchors import make_shapes_callback
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
@@ -53,13 +53,6 @@ def makedirs(path):
     except OSError:
         if not os.path.isdir(path):
             raise
-
-
-#def get_session():
-#    config = tf.ConfigProto()
-#    config.gpu_options.allow_growth = True
-#    return tf.Session(config=config)
-
 
 def model_with_weights(model, weights, skip_mismatch):
     if weights is not None:
@@ -89,7 +82,7 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
     # compile model
     training_model.compile(
         loss={
-            'reg'        : losses.smooth_l1(),
+            'reg'        : losses.per_cls_smooth_l1(),
             'cls'          : losses.focal(),
             #'conf'          : losses.cross(weight=1.0),
             'conf'         : losses.smooth_l1(weight=6.0),
@@ -350,7 +343,6 @@ def main(args=None):
         use_multiprocessing = False
     else:
         use_multiprocessing = False
-
 
 
     # start training
