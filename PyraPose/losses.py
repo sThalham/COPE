@@ -500,10 +500,13 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
 
 def per_cls_smooth_l1(arg):
     sigma_squared = 9.0
+
     y_true, y_pred = arg
+    print('in cls y_true: ', y_true)
+    print('in cls y_pred: ', y_pred)
 
     regression_target = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
+    anchor_state = y_true[:, :, -1]
     regression = y_pred
 
     indices = backend.where(keras.backend.equal(anchor_state, 1))
@@ -522,6 +525,9 @@ def per_cls_smooth_l1(arg):
     normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
     normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
     loss = keras.backend.sum(regression_loss) / normalizer
+
+    print('per cls loss: ', loss)
+
     return loss
 
 

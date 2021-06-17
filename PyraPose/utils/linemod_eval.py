@@ -484,17 +484,16 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #print(pose_votes.shape)
             #print(model_dia[cls])
 
-            pose_votes = np.squeeze(pose_votes)
-            hyp_ind = np.where(centerns > 0.5)[0]
-            k_hyp = len(hyp_ind)
-            if hyp_ind.shape[0] < 1:
-                hyp_ind = np.argmax(centerns)
-                k_hyp = 1
-            #center_sort = np.argsort(centerns)
-            #print(centerns[center_sort])
-            #pose_votes = pose_votes[center_sort, :]
-            #pose_votes = pose_votes[-k_hyp:, :]
-            pose_votes = pose_votes[hyp_ind, :]
+            # hyps above 0.5
+            #pose_votes = np.squeeze(pose_votes)
+            #hyp_ind = np.where(centerns > 0.5)[0]
+            #k_hyp = len(hyp_ind)
+            #if hyp_ind.shape[0] < 1:
+            #    hyp_ind = np.argmax(centerns)
+            #    k_hyp = 1
+            #pose_votes = pose_votes[hyp_ind, :]
+
+
             #print('centerns: ', centerns)
             #print('ind: ', hyp_ind)
             #print('cls_indices: ', cls_indices)
