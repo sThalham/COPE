@@ -32,7 +32,7 @@ class ResNetBackbone(Backbone):
         self.custom_objects.update()
 
     def model(self, *args, **kwargs):
-        """ Returns a retinanet model using the correct backbone.
+        """ Returns PyraPose using the correct backbone.
         """
         return resnet_model(*args, **kwargs)
 
@@ -42,7 +42,7 @@ class ResNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def resnet_retinanet(num_classes, inputs=None, modifier=None, **kwargs):
+def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -73,6 +73,6 @@ def resnet_retinanet(num_classes, inputs=None, modifier=None, **kwargs):
     resnet_outputs = [resnet.layers[80].output, resnet.layers[142].output, resnet.layers[174].output]
 
     # create the full model
-    return model.retinanet(inputs=inputs, num_classes=num_classes, backbone_layers=resnet_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=resnet_outputs, **kwargs)
 
 

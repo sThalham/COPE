@@ -36,7 +36,6 @@ from ..utils.anchors import (
     anchors_for_shape,
     guess_shapes
 )
-from ..utils.config import parse_anchor_parameters
 from ..utils.image import (
     TransformParameters,
     adjust_transform_for_image,
@@ -252,10 +251,8 @@ class LinemodDataset(tf.data.Dataset):
         while True:
             order = list(range(len(image_ids)))
             np.random.shuffle(order)
-            groups_syn = [[order_syn[x % len(order_syn)] for x in range(i, i + batch_size)] for i in
+            groups = [[order_syn[x % len(order_syn)] for x in range(i, i + batch_size)] for i in
                           range(0, len(order_syn), batch_size)]
-
-            batches = np.arange(len(groups))
 
             for btx in range(len(batches_syn)):
                 x_s = [load_image(image_index) for image_index in groups[btx]]
@@ -265,24 +262,6 @@ class LinemodDataset(tf.data.Dataset):
 
                 # filter annotations
                 for index, (image, annotations) in enumerate(zip(x_s, y_s)):
-                    '''
-                    # test x2 < x1 | y2 < y1 | x1 < 0 | y1 < 0 | x2 <= 0 | y2 <= 0 | x2 >= image.shape[1] | y2 >= image.shape[0]
-                    invalid_indices = np.where(
-                        (annotations['bboxes'][:, 2] <= annotations['bboxes'][:, 0]) |
-                        (annotations['bboxes'][:, 3] <= annotations['bboxes'][:, 1]) |
-                        (annotations['bboxes'][:, 0] < 0) |
-                        (annotations['bboxes'][:, 1] < 0) |
-                        (annotations['bboxes'][:, 2] > image.shape[1]) |
-                        (annotations['bboxes'][:, 3] > image.shape[0])
-                    )[0]
-
-                    # delete invalid indices
-                    if len(invalid_indices):
-                        for k in y_s[index].keys():
-                            if k == 'target_domain' or k == 'mask' or k == 'depth':
-                                continue
-                            y_s[index][k] = np.delete(annotations[k], invalid_indices, axis=0)
-                    '''
 
                     # transform a single group entry
                     x_s[index], y_s[index] = random_transform_group_entry(x_s[index], y_s[index])
@@ -296,13 +275,13 @@ class LinemodDataset(tf.data.Dataset):
                 for image_index, image in enumerate(x_s):
                     image_source_batch[image_index, :image.shape[0], :image.shape[1], :image.shape[2]] = image
 
-                target_batch = compute_anchor_targets(anchors, x_s, y_s, len(classes))
+                target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
                 image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
                 target_batch = tf.tuple(target_batch)
 
                 yield image_source_batch, target_batch
 
-    def __new__(self, data_dir, set_name, self_dir, batch_size):
-        return tf.data.Dataset.from_generator(self._generate, (tf.dtypes.float32, (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)), args=(data_dir, set_name, batch_size))
+    def __new__(self, data_dir, set_name, batch_size):
+        return tf.data.Dataset.from_generator(self._generate, (tf.dtypes.float32, (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)), args=(data_dir, set_name, batch_size))
 

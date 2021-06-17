@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-from tensorflow import keras
+import tensorflow
 
 
 class Backbone(object):
@@ -32,17 +32,11 @@ class Backbone(object):
         }
 
         self.backbone = backbone
-        self.validate()
 
-    def retinanet(self, *args, **kwargs):
+    def model(self, *args, **kwargs):
         """ Returns a retinanet model using the correct backbone.
         """
         raise NotImplementedError('retinanet method not implemented.')
-
-    def validate(self):
-        """ Checks whether the backbone string is correct.
-        """
-        raise NotImplementedError('validate method not implemented.')
 
     def preprocess_image(self, inputs):
         """ Takes as input an image and prepares it for being passed through the network.
@@ -54,20 +48,16 @@ class Backbone(object):
 def backbone(backbone_name):
     if 'resnet' in backbone_name:
         from .resnet import ResNetBackbone as b
-    elif 'efficientnets' in backbone_name:
-        from .efficientnet import EffNetBackbone as b
-    elif 'densenet' in backbone_name:
-        from .densenet import DenseNetBackbone as b
     else:
         raise NotImplementedError('Backbone class for  \'{}\' not implemented.'.format(backbone))
 
     return b(backbone_name)
 
 
-def load_model(filepath, backbone_name='resnet50'):
-    import keras.models
+def load_model(filepath, backbone_name='resnet'):
+    import tensorflow.keras.models
 
-    return keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
+    return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 
 
 def convert_model(model):
@@ -76,8 +66,7 @@ def convert_model(model):
 
 
 def assert_training_model(model):
-    assert (all(output in model.output_names for output in ['reg', 'cls', 'conf'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    #assert (all(output in model.output_names for output in ['reg', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):

@@ -1,4 +1,4 @@
-import keras
+import tensorflow.keras as keras
 import tensorflow as tf
 from .. import initializers
 from .. import layers
@@ -27,14 +27,14 @@ def default_classification_model(
         outputs = keras.layers.Conv2D(
             filters=classification_feature_size,
             activation='relu',
-            kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+            kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
             bias_initializer='zeros',
             **options
         )(outputs)
 
     labels = keras.layers.Conv2D(
         filters=num_classes,
-        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         bias_initializer=initializers.PriorProbability(probability=prior_probability),
         **options
     )(outputs)
@@ -67,7 +67,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
         'kernel_size'        : 3,
         'strides'            : 1,
         'padding'            : 'same',
-        'kernel_initializer' : keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        'kernel_initializer' : keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer'   : 'zeros',
         'kernel_regularizer' : keras.regularizers.l2(0.001),
     }
@@ -98,7 +98,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
 
     centerness = keras.layers.Conv2D(
         filters=1,
-        kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         bias_initializer=initializers.PriorProbability(probability=prior_probability),
         **options_centerness
     )(outputs)
@@ -141,12 +141,12 @@ def __create_sparceFPN(C3, C4, C5, feature_size=256):
     return [P3, P4, P5]
 
 
-def retinanet(
+def pyrapose(
     inputs,
     backbone_layers,
     num_classes,
     create_pyramid_features = __create_sparceFPN,
-    name                    = 'retinanet'
+    name                    = 'pyrapose'
 ):
     regression_branch = default_regression_model(16)
     location_branch = default_classification_model(num_classes)

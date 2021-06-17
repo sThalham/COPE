@@ -32,29 +32,10 @@ def anchor_targets_bbox(
     annotations_group,
     num_classes,
 ):
-    """ Generate anchor targets for bbox detection.
-
-    Args
-        anchors: np.array of annotations of shape (N, 4) for (x1, y1, x2, y2).
-        image_group: List of BGR images.
-        annotations_group: List of annotations (np.array of shape (N, 5) for (x1, y1, x2, y2, label)).
-        num_classes: Number of classes to predict.
-        mask_shape: If the image is padded with zeros, mask_shape can be used to mark the relevant part of the image.
-        negative_overlap: IoU overlap for negative anchors (all anchors with overlap < negative_overlap are negative).
-        positive_overlap: IoU overlap or positive anchors (all anchors with overlap > positive_overlap are positive).
-
-    Returns
-        labels_batch: batch that contains labels & anchor states (np.array of shape (batch_size, N, num_classes + 1),
-                      where N is the number of anchors for an image and the last column defines the anchor state (-1 for ignore, 0 for bg, 1 for fg).
-        regression_batch: batch that contains bounding-box regression targets for an image & anchor states (np.array of shape (batch_size, N, 4 + 1),
-                      where N is the number of anchors for an image, the first 4 columns define regression targets for (x1, y1, x2, y2) and the
-                      last column defines anchor states (-1 for ignore, 0 for bg, 1 for fg).
-    """
 
     assert(len(image_group) == len(annotations_group)), "The length of the images and annotations need to be equal."
     assert(len(annotations_group) > 0), "No data received to compute anchor targets for."
     for annotations in annotations_group:
-        assert('bboxes' in annotations), "Annotations should contain bboxes."
         assert('labels' in annotations), "Annotations should contain labels."
         assert('poses' in annotations), "Annotations should contain labels."
         assert('segmentations' in annotations), "Annotations should contain poses"

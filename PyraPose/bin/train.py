@@ -54,26 +54,28 @@ def makedirs(path):
         if not os.path.isdir(path):
             raise
 
+
 def model_with_weights(model, weights, skip_mismatch):
     if weights is not None:
         model.load_weights(weights, by_name=True, skip_mismatch=skip_mismatch)
     return model
 
 
-def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
+def create_models(backbone_model, num_classes, weights, multi_gpu=0,
                   freeze_backbone=False, lr=1e-5):
 
     modifier = freeze_model if freeze_backbone else None
 
     # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
     # optionally wrap in a parallel model
+    # deprecated, not tested with tensorflow [ST]
     if multi_gpu > 1:
-        from keras.utils import multi_gpu_model
+        from tensorflow.keras.utils import multi_gpu_model
         with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_retinanet(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
+            model = model_with_weights(backbone_model(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = multi_gpu_model(model, gpus=multi_gpu)
     else:
-        model          = model_with_weights(backbone_retinanet(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
+        model          = model_with_weights(backbone_model(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
     # make prediction model
@@ -82,10 +84,9 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
     # compile model
     training_model.compile(
         loss={
-            'reg'        : losses.per_cls_smooth_l1(),
+            'points'        : losses.smooth_l1(),
             'cls'          : losses.focal(),
-            #'conf'          : losses.cross(weight=1.0),
-            'conf'         : losses.smooth_l1(weight=6.0),
+            'center'          : losses.smooth_l1(weight=6.0),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -93,8 +94,20 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
     return model, training_model, prediction_model
 
 
-def create_callbacks(model, training_model, prediction_model, validation_generator, args):
+def create_callbacks(model, prediction_model, args, validation_generator=None, train_generator=None):
     callbacks = []
+
+    tensorboard_callback = None
+
+    if args.evaluation and validation_generator:
+        if args.dataset_type == 'linemod':
+            from ..callbacks.linemod import LinemodEval
+            evaluation = LinemodEval(validation_generator, train_generator)
+
+        else:
+            evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
+        evaluation = RedirectModel(evaluation, prediction_model)
+        callbacks.append(evaluation)
 
         # save the model
     if args.snapshots:
@@ -134,6 +147,7 @@ def create_generators(args, preprocess_image):
         args             : parseargs object containing configuration for generators.
         preprocess_image : Function that preprocesses an image for the network.
     """
+    '''
     common_args = {
         'batch_size'       : args.batch_size,
         'image_min_side'   : args.image_min_side,
@@ -142,97 +156,29 @@ def create_generators(args, preprocess_image):
     }
 
     transform_generator = random_transform_generator(
-            min_scaling=(0.9, 0.9),
-            max_scaling=(1.1, 1.1),
+            min_translation=(-0.2, -0.2),
+            max_translation=(0.2, 0.2),
+            min_scaling=(0.8, 0.8),
+            max_scaling=(1.2, 1.2),
         )
+    '''
 
-    if args.dataset_type == 'ycbv':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.ycbv import YCBvGenerator
+    if args.dataset_type == 'linemod':
+        from ..preprocessing.data_linemod import LinemodDataset
 
-        train_generator = YCBvGenerator(
-            args.ycbv_path,
-            'train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = YCBvGenerator(
-            args.ycbv_path,
-            'val',
-            **common_args
-        )
-    elif args.dataset_type == 'linemod':
-        from ..preprocessing.linemod import LinemodGenerator
-
-        train_generator = LinemodGenerator(
-            args.linemod_path,
-            'train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = LinemodGenerator(
-            args.linemod_path,
-            'val',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-    elif args.dataset_type == 'occlusion':
-        from ..preprocessing.occlusion import OcclusionGenerator
-
-        train_generator = OcclusionGenerator(
-            args.occlusion_path,
-            'train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = OcclusionGenerator(
-            args.linemod_path,
-            'val',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-    elif args.dataset_type == 'tless':
-        from ..preprocessing.tless import TlessGenerator
-
-        train_generator = TlessGenerator(
-            args.tless_path,
-            'train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = TlessGenerator(
-            args.tless_path,
-            'val',
-            transform_generator=transform_generator,
-            **common_args
-        )
-    elif args.dataset_type == 'homebrewed':
-        from ..preprocessing.homebrewed import HomebrewedGenerator
-
-        train_generator = HomebrewedGenerator(
-            args.homebrewed_path,
-            'train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = HomebrewedGenerator(
-            args.homebrewed_path,
-            'val',
-            transform_generator=transform_generator,
-            **common_args
+        dataset = LinemodDataset(args.linemod_path, 'train', batch_size=args.batch_size)
+        num_classes = 15
+        train_samples = 50000
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
         )
 
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return train_generator, validation_generator
+    return dataset, num_classes, train_samples
 
 
 def parse_args(args):
@@ -242,20 +188,8 @@ def parse_args(args):
     subparsers = parser.add_subparsers(help='Arguments for specific dataset types.', dest='dataset_type')
     subparsers.required = True
 
-    ycbv_parser = subparsers.add_parser('ycbv')
-    ycbv_parser.add_argument('ycbv_path', help='Path to dataset directory (ie. /tmp/ycbv).')
-
     linemod_parser = subparsers.add_parser('linemod')
     linemod_parser.add_argument('linemod_path', help='Path to dataset directory (ie. /tmp/linemod).')
-
-    occlusion_parser = subparsers.add_parser('occlusion')
-    occlusion_parser.add_argument('occlusion_path', help='Path to dataset directory (ie. /tmp/occlusion.')
-
-    tless_parser = subparsers.add_parser('tless')
-    tless_parser.add_argument('tless_path', help='Path to dataset directory (ie. /tmp/tless).')
-
-    homebrewed_parser = subparsers.add_parser('homebrewed')
-    homebrewed_parser.add_argument('homebrewed_path', help='Path to dataset directory (ie. /tmp/tless).')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--snapshot',          help='Resume training from a snapshot.')
@@ -263,19 +197,16 @@ def parse_args(args):
     group.add_argument('--weights',           help='Initialize the model with weights from a file.')
     group.add_argument('--no-weights',        help='Don\'t initialize the model with any weights.', dest='imagenet_weights', action='store_const', const=False)
 
-    parser.add_argument('--backbone', help='Backbone model used by retinanet.', default='resnet50', type=str)
     parser.add_argument('--batch-size',       help='Size of the batches.', default=1, type=int)
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=20)
+    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=100)
     parser.add_argument('--lr',               help='Learning rate.', type=float, default=1e-5)
     parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./models\')', default='./models')
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
     parser.add_argument('--no-snapshots',     help='Disable saving snapshots.', dest='snapshots', action='store_false')
-    parser.add_argument('--no-evaluation',    help='Disable per epoch evaluation.', dest='evaluation', action='store_true')
     parser.add_argument('--freeze-backbone',  help='Freeze training of backbone layers.', action='store_true')
     parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=480)
     parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=640)
-    parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
 
     # Fit generator arguments
     parser.add_argument('--workers', help='Number of multiprocessing workers. To disable multiprocessing, set workers to 0', type=int, default=1)
@@ -290,34 +221,28 @@ def main(args=None):
         args = sys.argv[1:]
     args = parse_args(args)
 
-    backbone = models.backbone(args.backbone)
-
-    check_keras_version()
+    backbone = models.backbone('resnet')
 
     # optionally choose specific GPU
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    #keras.backend.tensorflow_backend.set_session(get_session())
 
     # create the generators
-    train_generator, validation_generator = create_generators(args, backbone.preprocess_image)
+    dataset, num_classes, train_samples = create_generators(args, backbone.preprocess_image)
 
     # create the model
     if args.snapshot is not None:
         print('Loading model, this may take a second...')
         model            = models.load_model(args.snapshot, backbone_name=args.backbone)
         training_model   = model
-        prediction_model = retinanet_bbox(model=model)
+        prediction_model = inference_model(model=model)
     else:
         weights = args.weights
-        # default to imagenet if nothing else is specified
-        if weights is None and args.imagenet_weights:
-            weights = backbone.download_imagenet()
 
         print('Creating model, this may take a second...')
         model, training_model, prediction_model = create_models(
-            backbone_retinanet=backbone.retinanet,
-            num_classes=train_generator.num_classes(),
+            backbone_model=backbone.model,
+            num_classes=num_classes,
             weights=weights,
             multi_gpu=0,
             freeze_backbone=args.freeze_backbone,
@@ -326,29 +251,23 @@ def main(args=None):
 
     # print model summary
     print(model.summary())
-    #for i, layer in enumerate(model.layers):
-    #    print(i, layer.name)
 
     # create the callbacks
     callbacks = create_callbacks(
         model,
-        training_model,
         prediction_model,
-        validation_generator,
         args,
     )
 
     # Use multiprocessing if workers > 0
     if args.workers > 0:
-        use_multiprocessing = False
+        use_multiprocessing = True
     else:
         use_multiprocessing = False
 
-
-    # start training
-    training_model.fit_generator(
-        generator=train_generator,
-        steps_per_epoch=train_generator.size()/args.batch_size,
+    training_model.fit(
+        x=dataset,
+        steps_per_epoch=train_samples / args.batch_size,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
@@ -360,3 +279,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
