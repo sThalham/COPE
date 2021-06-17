@@ -19,7 +19,7 @@ import os
 import sys
 import math
 
-import keras
+import tensorflow.keras as keras
 import tensorflow as tf
 
 from matplotlib import pyplot
@@ -32,17 +32,7 @@ if __name__ == "__main__" and __package__ is None:
 
 # Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import models
-#from ..utils.config import read_config_file, parse_anchor_parameters
 from ..utils.eval import evaluate
-from ..utils.keras_version import check_keras_version
-
-
-#def get_session():
-#    """ Construct a modified tf session.
-#    """
-#    config = tf.ConfigProto()
-#    config.gpu_options.allow_growth = True
-#    return tf.Session(config=config)
 
 
 def create_generator(args):
@@ -55,50 +45,6 @@ def create_generator(args):
         validation_generator = LinemodGenerator(
             args.linemod_path,
             'target',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-            config=args.config
-        )
-    elif args.dataset_type == 'occlusion':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.occlusion import OcclusionGenerator
-
-        validation_generator = OcclusionGenerator(
-            args.occlusion_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-            config=args.config
-        )
-    elif args.dataset_type == 'ycbv':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.ycbv import YCBvGenerator
-
-        validation_generator = YCBvGenerator(
-            args.ycbv_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-            config=args.config
-        )
-    elif args.dataset_type == 'tless':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.tless import TlessGenerator
-
-        validation_generator = TlessGenerator(
-            args.tless_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-            config=args.config
-        )
-    elif args.dataset_type == 'homebrewed':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.homebrewed import HomebrewedGenerator
-
-        validation_generator = HomebrewedGenerator(
-            args.homebrewed_path,
-            'val',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config
@@ -142,7 +88,6 @@ def parse_args(args):
     parser.add_argument('--save-path',        help='Path for saving images with detections (doesn\'t work for COCO).')
     parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=480)
     parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=640)
-    parser.add_argument('--config',           help='Path to a configuration parameters .ini file (only used with --convert-model).')
 
     return parser.parse_args(args)
 
@@ -152,8 +97,6 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
     args = parse_args(args)
-
-    print("Args ", args)
 
     # optionally choose specific GPU
     if args.gpu:
@@ -169,7 +112,7 @@ def main(args=None):
 
     # load the model
     print('Loading model, this may take a second...')
-    model = models.load_model(args.model, backbone_name=args.backbone)
+    model = models.load_model(args.model, backbone_name='resnet')
 
     # optionally convert the model
     if args.convert_model:
@@ -187,22 +130,6 @@ def main(args=None):
         #from ..utils.index_eval import evaluate_linemod
 
         evaluate_linemod(generator, model, args.linemod_path, args.score_threshold)
-
-    elif args.dataset_type == 'occlusion':
-        from ..utils.occlusion_eval import evaluate_occlusion
-        evaluate_occlusion(generator, model, args.score_threshold)
-
-    elif args.dataset_type == 'ycbv':
-        from ..utils.ycbv_eval import evaluate_ycbv
-        evaluate_ycbv(generator, model, args.score_threshold)
-
-    elif args.dataset_type == 'tless':
-        from ..utils.tless_eval import evaluate_tless
-        evaluate_tless(generator, model, args.score_threshold)
-
-    elif args.dataset_type == 'homebrewed':
-        from ..utils.homebrewed_eval import evaluate_homebrewed
-        evaluate_homebrewed(generator, model, args.score_threshold)
 
     else:
          print('unknown dataset: ', args.dataset_type)

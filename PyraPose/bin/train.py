@@ -31,15 +31,13 @@ if __name__ == "__main__" and __package__ is None:
     import PyraPose.bin  # noqa: F401
     __package__ = "PyraPose.bin"
 
-# Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import layers  # noqa: F401
 from .. import losses
 from .. import models
 from ..callbacks import RedirectModel
-from ..callbacks.eval import Evaluate
+#from ..callbacks.eval import Evaluate
 from ..models.model import inference_model
 from ..utils.anchors import make_shapes_callback
-from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
 from ..utils.transform import random_transform_generator
 
@@ -99,7 +97,7 @@ def create_callbacks(model, prediction_model, args, validation_generator=None, t
 
     tensorboard_callback = None
 
-    if args.evaluation and validation_generator:
+    if validation_generator:
         if args.dataset_type == 'linemod':
             from ..callbacks.linemod import LinemodEval
             evaluation = LinemodEval(validation_generator, train_generator)
@@ -116,7 +114,7 @@ def create_callbacks(model, prediction_model, args, validation_generator=None, t
         checkpoint = keras.callbacks.ModelCheckpoint(
             os.path.join(
                 args.snapshot_path,
-                '{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone, dataset_type=args.dataset_type)
+                'pyrapose_{dataset_type}_{{epoch:02d}}.h5'.format(dataset_type=args.dataset_type)
             ),
             #verbose=1,
             #save_best_only=True,

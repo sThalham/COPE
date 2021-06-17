@@ -27,13 +27,13 @@ import warnings
 import copy
 import cv2
 import time
+import imgaug.augmenters as iaa
 
 import tensorflow.keras as keras
 import tensorflow as tf
 
 from ..utils.anchors import (
     anchor_targets_bbox,
-    anchors_for_shape,
     guess_shapes
 )
 from ..utils.image import (
@@ -46,6 +46,7 @@ from ..utils.image import (
     preprocess_image,
     resize_image,
     read_image_bgr,
+    augment_image
 )
 from ..utils.transform import transform_aabb, random_transform_generator
 
@@ -248,20 +249,62 @@ class LinemodDataset(tf.data.Dataset):
 
         max_shape = (image_min_side, image_max_side, 3)
 
+        seq = iaa.Sequential([
+            # blur
+            iaa.SomeOf((0, 2), [
+                iaa.GaussianBlur((0.0, 2.0)),
+                iaa.AverageBlur(k=(3, 7)),
+                iaa.MedianBlur(k=(3, 7)),
+                iaa.BilateralBlur(d=(1, 7)),
+                iaa.MotionBlur(k=(3, 7))
+            ]),
+            # color
+            iaa.SomeOf((0, 2), [
+                # iaa.WithColorspace(),
+                iaa.AddToHueAndSaturation((-15, 15)),
+                # iaa.ChangeColorspace(to_colorspace[], alpha=0.5),
+                iaa.Grayscale(alpha=(0.0, 0.2))
+            ]),
+            # brightness
+            iaa.OneOf([
+                iaa.Sequential([
+                    iaa.Add((-10, 10), per_channel=0.5),
+                    iaa.Multiply((0.75, 1.25), per_channel=0.5)
+                ]),
+                iaa.Add((-10, 10), per_channel=0.5),
+                iaa.Multiply((0.75, 1.25), per_channel=0.5),
+                iaa.FrequencyNoiseAlpha(
+                    exponent=(-4, 0),
+                    first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
+                    second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
+            ]),
+            # contrast
+            iaa.SomeOf((0, 2), [
+                iaa.GammaContrast((0.75, 1.25), per_channel=0.5),
+                iaa.SigmoidContrast(gain=(0, 10), cutoff=(0.25, 0.75), per_channel=0.5),
+                iaa.LogContrast(gain=(0.75, 1), per_channel=0.5),
+                iaa.LinearContrast(alpha=(0.7, 1.3), per_channel=0.5)
+            ]),
+        ], random_order=True)
+
         while True:
             order = list(range(len(image_ids)))
             np.random.shuffle(order)
-            groups = [[order_syn[x % len(order_syn)] for x in range(i, i + batch_size)] for i in
-                          range(0, len(order_syn), batch_size)]
+            groups = [[order[x % len(order)] for x in range(i, i + batch_size)] for i in
+                          range(0, len(order), batch_size)]
 
-            for btx in range(len(batches_syn)):
+            batches = np.arange(len(groups))
+
+            for btx in range(len(batches)):
                 x_s = [load_image(image_index) for image_index in groups[btx]]
                 y_s = [load_annotations(image_index) for image_index in groups[btx]]
 
-                assert (len(x_s) == len(y_s) == len(x_t))
+                assert (len(x_s) == len(y_s))
 
                 # filter annotations
                 for index, (image, annotations) in enumerate(zip(x_s, y_s)):
+
+                    x_s[index] = augment_image(x_s[index], seq)
 
                     # transform a single group entry
                     x_s[index], y_s[index] = random_transform_group_entry(x_s[index], y_s[index])

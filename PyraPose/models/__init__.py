@@ -17,7 +17,6 @@ class Backbone(object):
             'PriorProbability' : initializers.PriorProbability,
             'RegressBoxes'     : layers.RegressBoxes,
             'FilterDetections' : layers.FilterDetections,
-            'Anchors'          : layers.Anchors,
             'ClipBoxes'        : layers.ClipBoxes,
             '_smooth_l1'       : losses.smooth_l1(),
             '_smooth_l1_weighted'  : losses.smooth_l1_weighted(),

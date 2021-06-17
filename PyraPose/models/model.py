@@ -183,9 +183,9 @@ def pyrapose(
     center_P4 = regression_branch[1](P4)
     center_P5 = regression_branch[1](P5)
 
-    pyramids.append(keras.layers.Concatenate(axis=1, name='reg')([regression_P3, regression_P4, regression_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
-    pyramids.append(keras.layers.Concatenate(axis=1, name='conf')([center_P3, center_P4, center_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='center')([center_P3, center_P4, center_P5]))
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 

@@ -22,6 +22,42 @@ from . import Backbone
 from ..utils.image import preprocess_image
 
 
+def replace_relu_with_swish(model):
+    for layer in tuple(model.layers):
+        layer_type = type(layer).__name__
+        if hasattr(layer, 'activation') and layer.activation.__name__ == 'relu':
+            if layer_type == "Conv2D":
+                # conv layer with swish activation
+                layer.activation = tf.keras.activations.swish
+            else:
+                # activation layer
+                layer.activation = tf.keras.activations.swish
+    return model
+
+# taken from https://github.com/broadinstitute/keras-resnet/blob/master/keras_resnet/layers/_batch_normalization.py
+class BatchNormalization_freezeable(keras.layers.BatchNormalization):
+    """
+    Identical to keras.layers.BatchNormalization, but adds the option to freeze parameters.
+    """
+    def __init__(self, freeze, *args, **kwargs):
+        self.freeze = freeze
+        super(BatchNormalization_freezeable, self).__init__(*args, **kwargs)
+
+        # set to non-trainable if freeze is true
+        self.trainable = not self.freeze
+
+    def call(self, *args, **kwargs):
+        # Force test mode if frozen, otherwise use default behaviour (i.e., training=None).
+        if self.freeze:
+            kwargs['training'] = False
+        return super(BatchNormalization_freezeable, self).call(*args, **kwargs)
+
+    def get_config(self):
+        config = super(BatchNormalization_freezeable, self).get_config()
+        config.update({'freeze': self.freeze})
+        return config
+
+
 class ResNetBackbone(Backbone):
     """ Describes backbone information and provides utility functions.
     """
@@ -65,6 +101,8 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    print("weights:", len(layer.weights))
         #    print("trainable_weights:", len(layer.trainable_weights))
         #    print("non_trainable_weights:", len(layer.non_trainable_weights))
+
+    resnet = replace_relu_with_swish(resnet)
 
         # invoke modifier if given
     if modifier:

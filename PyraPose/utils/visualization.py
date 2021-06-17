@@ -16,8 +16,66 @@ limitations under the License.
 
 import cv2
 import numpy as np
+import copy
+import os
+import matplotlib.pyplot as plt
+from PIL import Image
 
 from .colors import label_color
+
+
+class Visualizer:
+
+    def __init__(self, image):
+        self.image_raw = image
+        self.image_raw[..., 0] += 103.939
+        self.image_raw[..., 1] += 116.779
+        self.image_raw[..., 2] += 123.68
+        self.image_cen = copy.deepcopy(self.image_raw)
+
+    def give_data(self, box3D, centers):
+
+        pose = box3D.reshape((16)).astype(np.int16)
+        colEst = (255, 0, 0)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                             5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                             5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                             5)
+        self.image_raw = cv2.line(self.image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                             5)
+
+        # image_center = center_batch[index, :4800, :-1].reshape((60,80))
+        # image_center_g = np.where(image_center > 0.5, 255, 0).astype(np.uint8)
+        # img_temp = np.where(image_center > 0.5, 0, image_center)
+        # image_center_b = np.where(img_temp > 0, 255, 0).astype(np.uint8)
+        # image_center_r = np.zeros((60,80), dtype=np.uint8)
+        # image_center = np.concatenate([image_center_b[:, :, np.newaxis], image_center_g[:, :, np.newaxis], image_center_r[:, :, np.newaxis]], axis=2)
+
+        image_center = centers[:4800, :-1].reshape((60, 80))
+        image_center = (image_center*255).astype(np.uint8)
+        image_center = np.repeat(image_center[:, :, np.newaxis], repeats=3, axis=2)
+        self.image_center = np.asarray(Image.fromarray(image_center).resize((640, 480), Image.NEAREST))
+
+    def print_img(self, path=None):
+        image_viz = np.concatenate([self.image_raw.astype(np.uint8), self.image_center.astype(np.uint8)], axis=1)
+        if path == None:
+
+            plt.imshow(image_viz)
+            plt.show()
+        else:
+            rind = np.random.randint(0, 1000)
+            name = os.path.join(path, 'anno_' + str(rind) + '_RGB.jpg')
+            cv2.imwrite(name, image_viz)
 
 
 def draw_box(image, box, color, thickness=2):

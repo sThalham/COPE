@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 import cv2
 from PIL import Image
-import imgaug.augmenters as iaa
+
 #import pyfastnoisesimd as fns
 import random
 from scipy import ndimage
@@ -147,60 +147,8 @@ class TransformParameters:
             return cv2.INTER_LANCZOS4
 
 
-def apply_transform(matrix, image, params, cpara):
+def apply_transform(matrix, image, params):
 
-    # rgb
-    # seq describes an object for rgb image augmentation using aleju/imgaug
-    seq = iaa.Sequential([
-        # blur
-        iaa.SomeOf((0, 2), [
-            iaa.GaussianBlur((0.0, 2.0)),
-            iaa.AverageBlur(k=(3, 7)),
-            iaa.MedianBlur(k=(3, 7)),
-            iaa.BilateralBlur(d=(1, 7)),
-            iaa.MotionBlur(k=(3, 7))
-        ]),
-        # color
-        iaa.SomeOf((0, 2), [
-            # iaa.WithColorspace(),
-            iaa.AddToHueAndSaturation((-15, 15)),
-            # iaa.ChangeColorspace(to_colorspace[], alpha=0.5),
-            iaa.Grayscale(alpha=(0.0, 0.2))
-        ]),
-        # brightness
-        iaa.OneOf([
-            iaa.Sequential([
-                iaa.Add((-10, 10), per_channel=0.5),
-                iaa.Multiply((0.75, 1.25), per_channel=0.5)
-            ]),
-            iaa.Add((-10, 10), per_channel=0.5),
-            iaa.Multiply((0.75, 1.25), per_channel=0.5),
-            iaa.FrequencyNoiseAlpha(
-                exponent=(-4, 0),
-                first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
-                second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
-        ]),
-        # contrast
-        iaa.SomeOf((0, 2), [
-            iaa.GammaContrast((0.75, 1.25), per_channel=0.5),
-            iaa.SigmoidContrast(gain=(0, 10), cutoff=(0.25, 0.75), per_channel=0.5),
-            iaa.LogContrast(gain=(0.75, 1), per_channel=0.5),
-            iaa.LinearContrast(alpha=(0.7, 1.3), per_channel=0.5)
-        ]),
-    ], random_order=True)
-    image = seq.augment_image(image)
-    '''
-    seq = iaa.Sequential([
-                        iaa.Sometimes(0.5, iaa.CoarseDropout(p=0.2, size_percent=(0.1, 0.25))),
-                        iaa.Sometimes(0.5, iaa.GaussianBlur(1.2*np.random.rand())),
-                        iaa.Sometimes(0.5, iaa.Add((-25, 25), per_channel=0.3)),
-                        iaa.Sometimes(0.5, iaa.Invert(0.2, per_channel=True)),
-                        iaa.Sometimes(0.5, iaa.Multiply((0.6, 1.4), per_channel=0.5)),
-                        iaa.Sometimes(0.5, iaa.Multiply((0.6, 1.4))),
-                        iaa.Sometimes(0.5, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3))
-                ], random_order=False)
-    image = seq.augment_image(image)
-    '''
     image = cv2.warpAffine(
         image,
         matrix[:2, :],
@@ -225,6 +173,15 @@ def apply_transform2mask(matrix, mask, params, min_side=480, max_side=640):
         borderValue=0,
     )
     return [mask]
+
+
+def augment_image(image, sequential):
+    # rgb
+    # seq describes an object for rgb image augmentation using aleju/imgaug
+
+    image = sequential.augment_image(image)
+
+    return image
 
 
 def adjust_pose_annotation(matrix, pose, cpara):
