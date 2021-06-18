@@ -502,52 +502,44 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
 def per_cls_smooth_l1(arg):
     sigma_squared = 9.0
 
-    y_pred, y_true = arg
+    y_true, y_pred = arg
 
     regression_target = y_true[:, :, :-1]
     anchor_state = y_true[:, :, -1]
     regression = y_pred
 
-    indices = backend.where(keras.backend.equal(anchor_state, 1))
-    regression = backend.gather_nd(regression, indices)
-    regression_target = backend.gather_nd(regression_target, indices)
+    indices = tf.where(tf.math.equal(anchor_state, 1))
+    regression = tf.gather_nd(regression, indices)
+    regression_target = tf.gather_nd(regression_target, indices)
 
     regression_diff = regression - regression_target
     regression_diff = tf.math.abs(regression_diff)
-    regression_loss = backend.where(
-        keras.backend.less(regression_diff, 1.0 / sigma_squared),
-        0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+    regression_loss = tf.where(
+        tf.math.less(regression_diff, 1.0 / sigma_squared),
+        0.5 * sigma_squared * tf.math.pow(regression_diff, 2),
         regression_diff - 0.5 / sigma_squared
     )
 
     # compute the normalizer: the number of positive anchors
-    normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
-    normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+    normalizer = tf.math.maximum(1, tf.shape(indices)[0])
+    normalizer = tf.cast(normalizer, dtype=tf.float32)
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
     return loss
 
 
 def focal_l1(num_classes, weight=1.0):
-    """ Create a functor for computing the focal loss.
 
-    Args
-        alpha: Scale the focal weight with alpha. vanilla 0.25 2.0
-        gamma: Take the power of the focal weight with gamma.
-
-    Returns
-        A functor that computes the focal loss using the alpha and gamma.
-    """
     def _focal_l1(y_true, y_pred):
 
-        #y_true_exp = tf.expand_dims(y_true, axis=2)  # hackiest !
-        #y_true_rep = tf.tile(y_true_exp, [1, 1, num_classes, 1])
-        y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
+        y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
+        y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
+
 
         y_pred_exp = tf.expand_dims(y_pred, axis=0)
         y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
 
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_pred_rep, y_true_perm))
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_rep, y_pred_rep))
 
         max_cls = tf.math.reduce_max(loss_per_cls)
         max_cls_exp = tf.expand_dims(max_cls, axis=0)
