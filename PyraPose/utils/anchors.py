@@ -17,6 +17,7 @@ import math
 
 import numpy as np
 import tensorflow.keras as keras
+import tensorflow as tf
 import transforms3d as tf3d
 import cv2
 from PIL import Image
@@ -47,7 +48,7 @@ def anchor_targets_bbox(
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
-    regression_batch = np.zeros((num_classes, batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -88,7 +89,7 @@ def anchor_targets_bbox(
                 #labels_batch[index, labels_positive_obj, cls] = labels_values_obj
 
                 #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
-                regression_batch[cls, index, locations_positive_obj, -1] = 1
+                regression_batch[index, locations_positive_obj, cls, -1] = 1
                 center_batch[index, locations_positive_obj, -1] = 1
 
                 #center_batch[index, :, -1] = 1
@@ -117,13 +118,14 @@ def anchor_targets_bbox(
                 #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
                 # per class anno
-                regression_batch[cls, index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
                 #VISU.give_data(box3D, center_batch[index, ...])
 
         #VISU.print_img()
 
-    return regression_batch, labels_batch, center_batch
+    #return regression_batch, labels_batch, center_batch
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
 
 
 def layer_shapes(image_shape, model):

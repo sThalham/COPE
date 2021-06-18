@@ -504,6 +504,9 @@ def per_cls_smooth_l1(arg):
 
     y_true, y_pred = arg
 
+    print('y_t: ', y_true)
+    print('y_p: ', y_pred)
+
     regression_target = y_true[:, :, :-1]
     anchor_state = y_true[:, :, -1]
     regression = y_pred
@@ -525,21 +528,25 @@ def per_cls_smooth_l1(arg):
     normalizer = tf.cast(normalizer, dtype=tf.float32)
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
+    print('loss cls: ', loss)
+
     return loss
 
 
 def focal_l1(num_classes, weight=1.0):
 
     def _focal_l1(y_true, y_pred):
+        print('y_true: ', y_true)
+        print('y_pred: ', y_pred)
 
-        y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
-        y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
+        #y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
+        #y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
+        y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
 
+        y_pred_exp = tf.expand_dims(y_pred, axis=2)
+        y_pred_rep = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
 
-        y_pred_exp = tf.expand_dims(y_pred, axis=0)
-        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
-
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_rep, y_pred_rep))
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true, y_pred_rep))
 
         max_cls = tf.math.reduce_max(loss_per_cls)
         max_cls_exp = tf.expand_dims(max_cls, axis=0)
