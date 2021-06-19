@@ -507,9 +507,11 @@ def per_cls_smooth_l1(arg):
     print('y_t: ', y_true)
     print('y_p: ', y_pred)
 
-    regression_target = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]
+    regression_target = y_true[:, :-1]
+    anchor_state = y_true[:, -1]
     regression = y_pred
+
+    #tf.print('locations: ', tf.reduce_sum(tf.math.equal(anchor_state, 1)))
 
     indices = tf.where(tf.math.equal(anchor_state, 1))
     regression = tf.gather_nd(regression, indices)
@@ -534,7 +536,19 @@ def per_cls_smooth_l1(arg):
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
     tf.print('reduced loss: ', tf.math.reduce_sum(regression_loss))
-    tf.print('loss cls: ', loss)
+    #tf.print('loss cls: ', loss)
+
+    #loss = tf.expand_dims(tf.expand_dims(loss, axis=0), axis=1)
+    #y_pred_rep = tf.tile(loss, [4, 1])
+    #tf.print('loss: ', loss)
+
+    return loss
+
+
+def loop_batch(args):
+    y_true, y_pred = args
+
+    loss = tf.vectorized_map(per_cls_smooth_l1, (y_true, y_pred))
 
     return loss
 
@@ -542,18 +556,19 @@ def per_cls_smooth_l1(arg):
 def focal_l1(num_classes, weight=1.0):
 
     def _focal_l1(y_true, y_pred):
+        tf.print('y_true loc: ', tf.math.reduce_sum(y_true[:, :, :, -1]))
 
         #y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
         #y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
-        y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
+        #y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
 
-        y_pred_exp = tf.expand_dims(y_pred, axis=0)
-        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
+        y_pred_exp = tf.expand_dims(y_pred, axis=1)
+        y_pred_rep = tf.tile(y_pred_exp, [1, num_classes, 1, 1])
 
-        print('y_true_perm: ', y_true_perm)
+        print('y_true_perm: ', y_true)
         print('y_pred_rep: ', y_pred_rep)
 
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_perm, y_pred_rep))
+        loss_per_cls = tf.vectorized_map(loop_batch, (y_true, y_pred_rep))
         tf.print('loss_per_cls: ', loss_per_cls)
 
         max_cls = tf.math.reduce_max(loss_per_cls)
