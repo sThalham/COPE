@@ -515,6 +515,9 @@ def per_cls_smooth_l1(arg):
     regression = tf.gather_nd(regression, indices)
     regression_target = tf.gather_nd(regression_target, indices)
 
+    tf.print('regression: ', tf.shape(regression))
+    tf.print('regression: ', tf.shape(regression_target))
+
     regression_diff = regression - regression_target
     regression_diff = tf.math.abs(regression_diff)
     regression_loss = tf.where(
@@ -522,13 +525,16 @@ def per_cls_smooth_l1(arg):
         0.5 * sigma_squared * tf.math.pow(regression_diff, 2),
         regression_diff - 0.5 / sigma_squared
     )
+    tf.print('regression loss: ', tf.shape(regression_loss))
 
     # compute the normalizer: the number of positive anchors
     normalizer = tf.math.maximum(1, tf.shape(indices)[0])
     normalizer = tf.cast(normalizer, dtype=tf.float32)
+    tf.print('normalizer: ', normalizer)
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
-    print('loss cls: ', loss)
+    tf.print('reduced loss: ', tf.math.reduce_sum(regression_loss))
+    tf.print('loss cls: ', loss)
 
     return loss
 
@@ -536,17 +542,19 @@ def per_cls_smooth_l1(arg):
 def focal_l1(num_classes, weight=1.0):
 
     def _focal_l1(y_true, y_pred):
-        print('y_true: ', y_true)
-        print('y_pred: ', y_pred)
 
         #y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
         #y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
         y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
 
-        y_pred_exp = tf.expand_dims(y_pred, axis=2)
-        y_pred_rep = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+        y_pred_exp = tf.expand_dims(y_pred, axis=0)
+        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
 
-        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true, y_pred_rep))
+        print('y_true_perm: ', y_true_perm)
+        print('y_pred_rep: ', y_pred_rep)
+
+        loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (y_true_perm, y_pred_rep))
+        tf.print('loss_per_cls: ', loss_per_cls)
 
         max_cls = tf.math.reduce_max(loss_per_cls)
         max_cls_exp = tf.expand_dims(max_cls, axis=0)
