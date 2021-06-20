@@ -499,16 +499,17 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
     return _smooth_l1_xy
 
 
-def per_cls_smooth_l1(arg):
+#def per_cls_smooth_l1(arg):
+def per_cls_smooth_l1(y_true, y_pred):
     sigma_squared = 9.0
 
-    y_true, y_pred = arg
+    #y_true, y_pred = arg
 
     print('y_t: ', y_true)
     print('y_p: ', y_pred)
 
-    regression_target = y_true[:, :-1]
-    anchor_state = y_true[:, -1]
+    regression_target = y_true[:, :, :, :-1]
+    anchor_state = y_true[:, :, :, -1]
     regression = y_pred
 
     #tf.print('locations: ', tf.reduce_sum(tf.math.equal(anchor_state, 1)))
@@ -550,6 +551,8 @@ def loop_batch(args):
 
     loss = tf.vectorized_map(per_cls_smooth_l1, (y_true, y_pred))
 
+    tf.print('loop loss: ', loss)
+
     return loss
 
 
@@ -562,13 +565,23 @@ def focal_l1(num_classes, weight=1.0):
         #y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
         #y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
 
-        y_pred_exp = tf.expand_dims(y_pred, axis=1)
-        y_pred_rep = tf.tile(y_pred_exp, [1, num_classes, 1, 1])
+        y_pred_exp = tf.expand_dims(y_pred, axis=2)
+        y_pred_rep = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+
+        nested_y_true = tf.split(y_true, num_or_size_splits=num_classes, axis=2)
+        nested_y_pred = tf.split(y_pred_rep, num_or_size_splits=num_classes, axis=2)
 
         print('y_true_perm: ', y_true)
         print('y_pred_rep: ', y_pred_rep)
 
-        loss_per_cls = tf.vectorized_map(loop_batch, (y_true, y_pred_rep))
+        cls_ls = []
+        for idx, y_t in enumerate(nested_y_true):
+            cls_ls.append(per_cls_smooth_l1(y_t, nested_y_pred[idx]))
+
+        loss_per_cls = tf.stack(cls_ls, axis=0)
+
+        #loss_per_cls = tf.vectorized_map(loop_batch, (y_true, y_pred_rep))
+        #loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (nested_y_true, nested_y_pred))
         tf.print('loss_per_cls: ', loss_per_cls)
 
         max_cls = tf.math.reduce_max(loss_per_cls)
