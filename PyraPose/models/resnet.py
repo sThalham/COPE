@@ -34,6 +34,7 @@ def replace_relu_with_swish(model):
                 layer.activation = tf.keras.activations.swish
     return model
 
+
 # taken from https://github.com/broadinstitute/keras-resnet/blob/master/keras_resnet/layers/_batch_normalization.py
 class BatchNormalization_freezeable(keras.layers.BatchNormalization):
     """
@@ -64,7 +65,6 @@ class ResNetBackbone(Backbone):
 
     def __init__(self, backbone):
         super(ResNetBackbone, self).__init__(backbone)
-        #self.custom_objects.update(keras_resnet.custom_objects)
         self.custom_objects.update()
 
     def model(self, *args, **kwargs):

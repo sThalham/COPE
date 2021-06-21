@@ -21,11 +21,10 @@ import copy
 import cv2
 import time
 
-import keras
+import tensorflow.keras as keras
 
 from ..utils.anchors import (
     anchor_targets_bbox,
-    anchors_for_shape,
     guess_shapes
 )
 from ..utils.image import (

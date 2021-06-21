@@ -499,27 +499,18 @@ def smooth_l1_xy(sigma=3.0, weight=0.1):
     return _smooth_l1_xy
 
 
-#def per_cls_smooth_l1(arg):
-def per_cls_smooth_l1(y_true, y_pred):
+def per_cls_smooth_l1(arg):
     sigma_squared = 9.0
 
-    #y_true, y_pred = arg
+    y_true, y_pred = arg
 
-    print('y_t: ', y_true)
-    print('y_p: ', y_pred)
-
-    regression_target = y_true[:, :, :, :-1]
-    anchor_state = y_true[:, :, :, -1]
+    regression_target = y_true[:, :, :-1]
+    anchor_state = y_true[:, :, -1]
     regression = y_pred
-
-    #tf.print('locations: ', tf.reduce_sum(tf.math.equal(anchor_state, 1)))
 
     indices = tf.where(tf.math.equal(anchor_state, 1))
     regression = tf.gather_nd(regression, indices)
     regression_target = tf.gather_nd(regression_target, indices)
-
-    tf.print('regression: ', tf.shape(regression))
-    tf.print('regression: ', tf.shape(regression_target))
 
     regression_diff = regression - regression_target
     regression_diff = tf.math.abs(regression_diff)
@@ -528,66 +519,40 @@ def per_cls_smooth_l1(y_true, y_pred):
         0.5 * sigma_squared * tf.math.pow(regression_diff, 2),
         regression_diff - 0.5 / sigma_squared
     )
-    tf.print('regression loss: ', tf.shape(regression_loss))
 
     # compute the normalizer: the number of positive anchors
     normalizer = tf.math.maximum(1, tf.shape(indices)[0])
     normalizer = tf.cast(normalizer, dtype=tf.float32)
-    tf.print('normalizer: ', normalizer)
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
-    tf.print('reduced loss: ', tf.math.reduce_sum(regression_loss))
-    #tf.print('loss cls: ', loss)
-
-    #loss = tf.expand_dims(tf.expand_dims(loss, axis=0), axis=1)
-    #y_pred_rep = tf.tile(loss, [4, 1])
-    #tf.print('loss: ', loss)
-
-    return loss
-
-
-def loop_batch(args):
-    y_true, y_pred = args
-
-    loss = tf.vectorized_map(per_cls_smooth_l1, (y_true, y_pred))
-
-    tf.print('loop loss: ', loss)
-
-    return loss
+    return (loss, loss)
 
 
 def focal_l1(num_classes, weight=1.0):
 
     def _focal_l1(y_true, y_pred):
-        tf.print('y_true loc: ', tf.math.reduce_sum(y_true[:, :, :, -1]))
 
-        #y_true_exp = tf.expand_dims(y_true, axis=0)  # hackiest !
-        #y_true_rep = tf.tile(y_true_exp, [num_classes, 1, 1, 1])
-        #y_true_perm = tf.transpose(y_true, perm=[2, 0, 1, 3])
+        y_true_perm = tf.transpose(y_true, [2, 0, 1, 3])
 
-        y_pred_exp = tf.expand_dims(y_pred, axis=2)
-        y_pred_rep = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+        y_pred_exp = tf.expand_dims(y_pred, axis=0)
+        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
 
-        nested_y_true = tf.split(y_true, num_or_size_splits=num_classes, axis=2)
-        nested_y_pred = tf.split(y_pred_rep, num_or_size_splits=num_classes, axis=2)
+        #nested_y_true = tf.split(y_true, num_or_size_splits=num_classes, axis=2)
+        #nested_y_pred = tf.split(y_pred_rep, num_or_size_splits=num_classes, axis=2)
 
-        print('y_true_perm: ', y_true)
-        print('y_pred_rep: ', y_pred_rep)
+        #cls_ls = []
+        #for idx, y_t in enumerate(nested_y_true):
+        #    cls_ls.append(per_cls_smooth_l1(y_t, nested_y_pred[idx]))
+        #loss_per_cls = tf.stack(cls_ls, axis=0)
 
-        cls_ls = []
-        for idx, y_t in enumerate(nested_y_true):
-            cls_ls.append(per_cls_smooth_l1(y_t, nested_y_pred[idx]))
+        #tf.nest.assert_same_structure(y_true, y_pred_rep)
 
-        loss_per_cls = tf.stack(cls_ls, axis=0)
-
-        #loss_per_cls = tf.vectorized_map(loop_batch, (y_true, y_pred_rep))
-        #loss_per_cls = tf.vectorized_map(per_cls_smooth_l1, (nested_y_true, nested_y_pred))
-        tf.print('loss_per_cls: ', loss_per_cls)
+        loss_per_cls = tf.map_fn(per_cls_smooth_l1, (y_true_perm, y_pred_rep))
 
         max_cls = tf.math.reduce_max(loss_per_cls)
         max_cls_exp = tf.expand_dims(max_cls, axis=0)
         max_cls_rep = tf.tile(max_cls_exp, [num_classes])
-        loss = tf.math.multiply(loss_per_cls, tf.math.truediv(max_cls_rep, loss_per_cls))
+        loss = tf.math.multiply(loss_per_cls, tf.math.divide_no_nan(max_cls_rep, loss_per_cls))
 
         return weight * (tf.math.reduce_sum(loss) / num_classes)
 

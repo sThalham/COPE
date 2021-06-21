@@ -124,7 +124,6 @@ def anchor_targets_bbox(
 
         #VISU.print_img()
 
-    print('all annos: ', np.sum(regression_batch[:, :, :, -1]))
     #return regression_batch, labels_batch, center_batch
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
 

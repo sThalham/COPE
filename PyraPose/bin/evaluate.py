@@ -47,7 +47,6 @@ def create_generator(args):
             'target',
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
-            config=args.config
         )
 
     else:
