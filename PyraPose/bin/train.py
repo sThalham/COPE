@@ -24,6 +24,7 @@ import warnings
 import tensorflow.keras as keras
 import tensorflow.keras.preprocessing.image
 import tensorflow as tf
+#from tensorflow.python.framework.ops import disable_eager_execution
 
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
@@ -108,7 +109,7 @@ def create_callbacks(model, prediction_model, args, validation_generator=None, t
         evaluation = RedirectModel(evaluation, prediction_model)
         callbacks.append(evaluation)
 
-        # save the model
+    # save the model
     if args.snapshots:
         # ensure directory created first; otherwise h5py will error after epoch.
         makedirs(args.snapshot_path)
@@ -117,10 +118,6 @@ def create_callbacks(model, prediction_model, args, validation_generator=None, t
                 args.snapshot_path,
                 'pyrapose_{dataset_type}_{{epoch:02d}}.h5'.format(dataset_type=args.dataset_type)
             ),
-            #verbose=1,
-            #save_best_only=True,
-            #monitor="val_loss",
-            #mode='auto'
         )
         checkpoint = RedirectModel(checkpoint, model)
         callbacks.append(checkpoint)
@@ -219,6 +216,8 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
     args = parse_args(args)
+
+    #disable_eager_execution()
 
     backbone = models.backbone('resnet')
 

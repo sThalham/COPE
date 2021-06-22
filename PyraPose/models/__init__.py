@@ -28,6 +28,7 @@ class Backbone(object):
             '_msle'           : losses.weighted_msle(),
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
+            '_focal_l1'            : losses.focal_l1(),
         }
 
         self.backbone = backbone
@@ -55,6 +56,8 @@ def backbone(backbone_name):
 
 def load_model(filepath, backbone_name='resnet'):
     import tensorflow.keras.models
+
+    print(backbone(backbone_name).custom_objects)
 
     return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 

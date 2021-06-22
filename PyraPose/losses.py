@@ -530,10 +530,11 @@ def per_cls_smooth_l1(arg):
     return (loss, loss)
 
 
-def focal_l1(num_classes, weight=1.0):
+def focal_l1(num_classes=0, weight=1.0):
 
     def _focal_l1(y_true, y_pred):
-
+        #y_true_exp = tf.expand_dims(y_true, axis=0)
+        #y_true_rep = tf.tile(y_true_exp, [1, 1, num_classes, 1])
         y_true_perm = tf.transpose(y_true, [2, 0, 1, 3])
 
         y_pred_exp = tf.expand_dims(y_pred, axis=0)

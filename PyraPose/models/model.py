@@ -90,6 +90,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
             activation='relu',
             **options
         )(outputs)
+        tf.print('layer: ', outputs.name)
 
     regress = keras.layers.Conv2D(num_values, **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
