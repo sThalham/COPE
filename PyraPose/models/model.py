@@ -114,7 +114,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     return keras.models.Model(inputs=inputs, outputs=regress), keras.models.Model(inputs=inputs, outputs=centerness)
 
 
-def __create_sparceFPN(C3, C4, C5, feature_size=256):
+def __create_PFPN(C3, C4, C5, feature_size=256):
     
     # 3x3 conv for test 4
     P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3)
@@ -146,7 +146,7 @@ def pyrapose(
     inputs,
     backbone_layers,
     num_classes,
-    create_pyramid_features = __create_sparceFPN,
+    create_pyramid_features = __create_PFPN,
     name                    = 'pyrapose'
 ):
     regression_branch = default_regression_model(16)

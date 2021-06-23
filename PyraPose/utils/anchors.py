@@ -120,6 +120,8 @@ def anchor_targets_bbox(
                 # per class anno
                 regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
+                #print('target: ', np.nanmax(regression_batch[index, locations_positive_obj, cls, :-1]), np.nanmin(regression_batch[index, locations_positive_obj, cls, :-1]))
+
                 #VISU.give_data(box3D, center_batch[index, ...])
 
         #VISU.print_img()

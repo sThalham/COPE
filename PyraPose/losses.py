@@ -525,8 +525,6 @@ def per_cls_smooth_l1(arg):
     normalizer = tf.cast(normalizer, dtype=tf.float32)
     loss = tf.math.reduce_sum(regression_loss) / normalizer
 
-    #tf.print('cls_ loss: ', normalizer, loss)
-
     return (loss, loss)
 
 
@@ -558,6 +556,8 @@ def focal_l1(num_classes=0, weight=1.0):
         #loss = tf.math.multiply(loss_per_cls, tf.math.divide_no_nan(max_cls_rep, loss_per_cls))
 
         #return weight * (tf.math.reduce_sum(loss) / num_classes)
+
+        #tf.print('loss sum: ', tf.math.reduce_sum(loss_per_cls))
 
         return weight * (tf.math.reduce_sum(loss_per_cls) / num_classes)
 

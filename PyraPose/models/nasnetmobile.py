@@ -59,18 +59,18 @@ class BatchNormalization_freezeable(keras.layers.BatchNormalization):
         return config
 
 
-class ResNetBackbone(Backbone):
+class NASNetBackbone(Backbone):
     """ Describes backbone information and provides utility functions.
     """
 
     def __init__(self, backbone):
-        super(ResNetBackbone, self).__init__(backbone)
+        super(NASNetBackbone, self).__init__(backbone)
         self.custom_objects.update()
 
     def model(self, *args, **kwargs):
         """ Returns PyraPose using the correct backbone.
         """
-        return resnet_model(*args, **kwargs)
+        return nasnet_model(*args, **kwargs)
 
     def preprocess_image(self, inputs):
         """ Takes as input an image and prepares it for being passed through the network.
@@ -78,7 +78,7 @@ class ResNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
+def nasnet_model(num_classes, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -86,15 +86,17 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
             # inputs = keras.layers.Input(shape=(None, None, 3))
             inputs = keras.layers.Input(shape=(480, 640, 3))
 
-    resnet = tf.keras.applications.ResNet50(
+    nasnet = tf.keras.applications.NASNetMobile(
         include_top=False, weights='imagenet', input_tensor=inputs, classes=num_classes)
 
-    for i, layer in enumerate(resnet.layers):
+    for i, layer in enumerate(nasnet.layers):
         # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
         #    layer.trainable=False
-        if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
+        if i < 99 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        # print(i, layer.name)
+        #print(i, layer.name, layer)
+
+    #nasnet.summary()
 
         # if 'bn' in layer.name:
         #    layer.trainable = False
@@ -102,15 +104,16 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    print("trainable_weights:", len(layer.trainable_weights))
         #    print("non_trainable_weights:", len(layer.non_trainable_weights))
 
-    resnet = replace_relu_with_swish(resnet)
+    #nasnet = replace_relu_with_swish(nasnet)
 
         # invoke modifier if given
     if modifier:
-        resnet = modifier(resnet)
+        nasnet = modifier(nasnet)
 
-    resnet_outputs = [resnet.layers[80].output, resnet.layers[142].output, resnet.layers[174].output]
+    nasnet_outputs = [nasnet.layers[335].output, nasnet.layers[572].output, nasnet.layers[768].output]
+    #xception_outputs = [resnet.layers[31].output, resnet.layers[121].output, resnet.layers[131].output]
 
     # create the full model
-    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=resnet_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=nasnet_outputs, **kwargs)
 
 

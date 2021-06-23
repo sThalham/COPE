@@ -206,7 +206,7 @@ def parse_args(args):
 
     # Fit generator arguments
     parser.add_argument('--workers', help='Number of multiprocessing workers. To disable multiprocessing, set workers to 0', type=int, default=1)
-    parser.add_argument('--max-queue-size', help='Queue length for multiprocessing workers in fit generator.', type=int, default=10)
+    parser.add_argument('--max-queue-size', help='Queue length for multiprocessing workers in fit generator.', type=int, default=1)
 
     return parser.parse_args(args)
 
@@ -219,7 +219,13 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    backbone = models.backbone('resnet')
+    #backbone = models.backbone('resnet50')
+    #backbone = models.backbone('resnet101')
+    backbone = models.backbone('efficientnet')
+    #backbone = models.backbone('darknet')
+    #backbone = models.backbone('xception')
+    #backbone = models.backbone('densenet')
+    #backbone = models.backbone('nasnetmobile')
 
     # optionally choose specific GPU
     if args.gpu:
