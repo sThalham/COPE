@@ -196,7 +196,7 @@ def locations_for_shape(
     image_shapes = shapes_callback(image_shape, pyramid_levels)
 
     if distributions is None:
-
+        ratios = np.array([[1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.4], [0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.0]])
 
     # compute anchors over all pyramid levels
     all_locations = np.zeros((0, 2))
