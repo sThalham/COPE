@@ -185,6 +185,7 @@ def locations_for_shape(
     image_shape,
     pyramid_levels=None,
     shapes_callback=None,
+    distributions=None,
 ):
 
     if pyramid_levels is None:
@@ -193,6 +194,9 @@ def locations_for_shape(
     if shapes_callback is None:
         shapes_callback = guess_shapes
     image_shapes = shapes_callback(image_shape, pyramid_levels)
+
+    if distributions is None:
+
 
     # compute anchors over all pyramid levels
     all_locations = np.zeros((0, 2))
