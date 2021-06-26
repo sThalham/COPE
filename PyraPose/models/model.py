@@ -174,6 +174,66 @@ def __create_PFPN(C3, C4, C5, feature_size=256):
     return [P3, P4, P5]
 
 
+def __create_rep_FPN(C3, C4, C5, feature_size=256):
+    # 3x3 conv for test 4
+    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C3)
+    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C4)
+    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same')(C5)
+
+    # first FPN
+    P5_upsampled = layers.UpsampleLike()([P5, P4])
+    P4_mid = keras.layers.Add()([P5_upsampled, P4])
+    P4_mid = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(
+        P4_mid)
+    P4_upsampled = layers.UpsampleLike()([P4_mid, P3])
+    P3 = keras.layers.Add()([P4_upsampled, P3])
+    P3 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P3)
+
+    P3_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P3)
+    P4 = keras.layers.Add()([P4_mid, P3_down])
+    P4 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P4)
+
+    P4_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P4)
+    P5 = keras.layers.Add()([P4_down, P5])
+    P5 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P5)
+
+    #2nd FPN
+    P5_upsampled = layers.UpsampleLike()([P5, P4])
+    P4_mid = keras.layers.Add()([P5_upsampled, P4])
+    P4_mid = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(
+        P4_mid)
+    P4_upsampled = layers.UpsampleLike()([P4_mid, P3])
+    P3 = keras.layers.Add()([P4_upsampled, P3])
+    P3 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P3)
+
+    P3_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P3)
+    P4 = keras.layers.Add()([P4_mid, P3_down])
+    P4 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P4)
+
+    P4_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P4)
+    P5 = keras.layers.Add()([P4_down, P5])
+    P5 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(P5)
+
+    # 3rd FPN
+    P5_upsampled = layers.UpsampleLike()([P5, P4])
+    P4_mid = keras.layers.Add()([P5_upsampled, P4])
+    P4_mid = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same')(
+        P4_mid)
+    P4_upsampled = layers.UpsampleLike()([P4_mid, P3])
+    P3 = keras.layers.Add()([P4_upsampled, P3])
+    P3 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P3')(P3)
+
+    P3_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P3)
+    P4 = keras.layers.Add()([P4_mid, P3_down])
+    P4 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P4')(P4)
+
+    P4_down = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=2, padding='same')(P4)
+    P5 = keras.layers.Add()([P4_down, P5])
+    P5 = keras.layers.SeparableConv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P5')(P5)
+
+    return [P3, P4, P5]
+
+
 def pyrapose(
     inputs,
     backbone_layers,
