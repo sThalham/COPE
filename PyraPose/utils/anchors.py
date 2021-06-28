@@ -76,11 +76,28 @@ def anchor_targets_bbox(
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
-            for jdx, resx in enumerate(image_shapes):
-                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                locations_positive.append(locations_level)
 
-            locations_positive_obj = np.concatenate(locations_positive, axis=0)
+            #compute image reso to estimate
+            ex = obj_diameter / pose[2]
+            # 2... max index
+            reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
+
+            #print('obj_diameter: ', obj_diameter)
+            #print('depth: ', pose[2])
+            #print('ex: ', ex)
+            #print('reso_idx: ', reso_idx)
+
+            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
+            #for jdx, resx in enumerate(image_shapes):
+            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+            #    locations_positive.append(locations_level)
+            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
+
+            #for jdx, resx in enumerate(image_shapes):
+            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+            #    locations_positive.append(locations_level)
+            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
             if locations_positive_obj.shape[0] > 1:
                 labels_batch[index, locations_positive_obj, -1] = 1
@@ -124,7 +141,25 @@ def anchor_targets_bbox(
 
                 #VISU.give_data(box3D, center_batch[index, ...])
 
+        '''
         #VISU.print_img()
+        random_idx = str(np.random.randint(0, 1000))
+        labels_img = (labels_batch[index, 0:4800, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((60, 80))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch[index, 4800:6000, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((30, 40))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch[index, 6000:6300, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((15, 20))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx+ '.png'
+        img_viz = np.concatenate([labels_img3, labels_img4, labels_img5], axis=1)
+        cv2.imwrite(img_name, img_viz)
+        '''
 
     #return regression_batch, labels_batch, center_batch
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
