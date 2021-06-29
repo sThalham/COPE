@@ -116,8 +116,8 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
         regress = keras.layers.Permute((2, 3, 1))(regress)
     regress = keras.layers.Reshape((-1, num_values))(regress)
 
-    centerness = keras.layers.Conv2D(
-        filters=1,
+    conf = keras.layers.Conv2D(
+        filters=num_values,
         kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         bias_initializer=initializers.PriorProbability(probability=prior_probability),
         **options_centerness
@@ -131,12 +131,12 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
 
     # reshape output and apply sigmoid
     if keras.backend.image_data_format() == 'channels_first':
-        centerness = keras.layers.Permute((2, 3, 1))(centerness)
-    centerness = keras.layers.Reshape((-1, 1))(centerness) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
-    centerness = keras.layers.Activation('sigmoid')(centerness)
+        conf = keras.layers.Permute((2, 3, 1))(conf)
+    conf = keras.layers.Reshape((-1, num_values))(conf) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
+    conf = keras.layers.Activation('sigmoid')(conf)
 
     #return keras.models.Model(inputs=inputs, outputs=regress)
-    return keras.models.Model(inputs=inputs, outputs=regress), keras.models.Model(inputs=inputs, outputs=centerness)
+    return keras.models.Model(inputs=inputs, outputs=regress), keras.models.Model(inputs=inputs, outputs=conf)
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
@@ -278,7 +278,13 @@ def pyrapose(
 
     pyramids.append(keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
-    pyramids.append(keras.layers.Concatenate(axis=1, name='center')([center_P3, center_P4, center_P5]))
+    #pyramids.append(keras.layers.Concatenate(axis=1, name='conf')([center_P3, center_P4, center_P5]))
+
+    regression = keras.layers.Concatenate(axis=1)([regression_P3, regression_P4, regression_P5])
+    residuals = keras.layers.Concatenate(axis=1)([center_P3, center_P4, center_P5])
+    residual_predictions = keras.layers.Concatenate(axis=2, name='conf')([regression, residuals])
+    print(residual_predictions)
+    pyramids.append(residual_predictions)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
