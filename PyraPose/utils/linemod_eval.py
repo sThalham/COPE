@@ -704,9 +704,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
-            #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            #cv2.imwrite(name, image_viz)
+            image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
+            name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+            cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)

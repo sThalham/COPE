@@ -81,19 +81,34 @@ def anchor_targets_bbox(
             #compute image reso to estimate
             ex = obj_diameter / pose[2]
             # 2... max index
-            reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
+            # single pyramid level
+            #reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            # multi-level prediction making
+            fuzzy_level = np.log(ex) / np.log(3.5)
+            if fuzzy_level < -1.75:
+                reso_levels = [0]
+            elif fuzzy_level > -1.75 and fuzzy_level < -1.25:
+                reso_levels = [0, 1]
+            elif fuzzy_level > -1.25 and fuzzy_level < -0.75:
+                reso_levels = [1]
+            elif fuzzy_level > -0.75 and fuzzy_level < -0.25:
+                reso_levels = [1, 2]
+            elif fuzzy_level > -0.25:
+                reso_levels = [2]
+            else:
+                print('The hell... implossible data range')
 
             #print('obj_diameter: ', obj_diameter)
             #print('depth: ', pose[2])
-            #print('ex: ', ex)
-            #print('reso_idx: ', reso_idx)
+            #print('ex: ', 2 + (np.log(ex)/np.log(3.5)))
+            #print('fuzzy_level: ', fuzzy_level)
+            #print('reso_levels: ', reso_levels)
 
-            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
-
-            #for jdx, resx in enumerate(image_shapes):
-            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-            #    locations_positive.append(locations_level)
-            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
+            for jdx in reso_levels:
+                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+                locations_positive.append(locations_level)
+            locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
             #for jdx, resx in enumerate(image_shapes):
             #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
@@ -143,7 +158,6 @@ def anchor_targets_bbox(
                 regression_batch[index, locations_positive_obj, cls, :-1] = boxes
                 residual_batch[index, locations_positive_obj, :-1] = boxes
 
-
         '''
         #VISU.print_img()
         random_idx = str(np.random.randint(0, 1000))
@@ -160,7 +174,7 @@ def anchor_targets_bbox(
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
         img_name = '/home/stefan/PyraPose_viz/' + random_idx+ '.png'
-        img_viz = np.concatenate([labels_img3, labels_img4, labels_img5], axis=1)
+        img_viz = np.concatenate([image+100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
         '''
 
