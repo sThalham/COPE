@@ -346,6 +346,10 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
 
+    # exponential targets
+    targets = np.where(targets > 0, np.exp(targets), targets)
+    targets = np.where(targets < 0, -np.exp(-targets), targets)
+
     #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
     #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)

@@ -69,7 +69,7 @@ def backbone(backbone_name):
 def load_model(filepath, backbone_name='resnet50'):
     import tensorflow.keras.models
 
-    backbone_name='resnet50'
+    backbone_name='resnet101'
 
     return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 
@@ -80,7 +80,7 @@ def convert_model(model):
 
 
 def assert_training_model(model):
-    assert (all(output in model.output_names for output in ['points', 'cls', 'conf'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):
