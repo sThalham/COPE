@@ -346,7 +346,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
         #    continue
 
         # run network
-        boxes3D, scores, center = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        boxes3D, scores, residuals = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
         for inv_cls in range(scores.shape[2]):
 
@@ -405,14 +405,16 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
 
             # centerness
-            pot_center = center[0, :, :]
-            center_P3 = pot_center[:4800] * 255.0
-            center_P3 = center_P3.reshape((60, 80)).astype(np.uint8)
-            cen_img = cv2.resize(center_P3, (640, 480), interpolation=cv2.INTER_NEAREST)
-            cen_img = np.repeat(cen_img[:, :, np.newaxis], 3, 2)
+            res_temp = np.ones((6300)) * 255
+            print(residuals[0, cls_indices, :].shape)
+            res_sum = np.sum(residuals[0, cls_indices, :], axis=2)
+            res_temp[cls_indices] = (res_sum / np.nanmax(res_sum)) * 255
+            res_P3 = res_temp[:4800].reshape((60, 80)).astype(np.uint8)
+            res_img = cv2.resize(res_P3, (640, 480), interpolation=cv2.INTER_NEAREST)
+            res_img = np.repeat(res_img[:, :, np.newaxis], 3, 2)
 
-            #cen_img = np.concatenate([image_raw, cen_img], axis=1)
-            #cv2.imwrite('/home/stefan/PyraPose_viz/pred_cent_' + str(index) + '.jpg', cen_img)
+            #cen_img = np.concatenate([image_raw, res_img], axis=1)
+            #cv2.imwrite('/home/stefan/PyraPose_viz/residuals_' + str(index) + '.jpg', cen_img)
 
             #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
 
@@ -471,14 +473,17 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
 
             ##############################
             # pnp
-            centerns = center[0, cls_indices, 0]
-            centerns = np.squeeze(centerns)
+            #centerns = center[0, cls_indices, 0]
+            #centerns = np.squeeze(centerns)
 
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
-            k_hyp = len(centerns)
-            #k_hyp = 1
-            if len(centerns) < k_hyp:
-                k_hyp = len(centerns)
+            print('residuals: ', res_sum)
+            res_idx = np.argmin(res_sum)
+
+            #k_hyp = len(cls_indices[0])
+            k_hyp = 1
+            #if len(centerns) < k_hyp:
+            #    k_hyp = len(centerns)
             #pose_votes = boxes3D[0, cls_indices, :]
             pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
             #print(pose_votes.shape)
@@ -497,6 +502,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #print('centerns: ', centerns)
             #print('ind: ', hyp_ind)
             #print('cls_indices: ', cls_indices)
+            print(pose_votes.shape)
+            pose_votes = pose_votes[:, res_idx, :]
 
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
@@ -704,9 +711,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
             '''
 
-            image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-            name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            cv2.imwrite(name, image_viz)
+            #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
+            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+            #cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)

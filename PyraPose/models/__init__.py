@@ -29,6 +29,7 @@ class Backbone(object):
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
             '_focal_l1'            : losses.focal_l1(),
+            '_residual_loss'         : losses.residual_loss(),
         }
 
         self.backbone = backbone
@@ -80,7 +81,7 @@ def convert_model(model):
 
 
 def assert_training_model(model):
-    assert (all(output in model.output_names for output in ['points', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'conf'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):
