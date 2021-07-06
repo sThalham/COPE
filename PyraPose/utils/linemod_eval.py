@@ -27,7 +27,7 @@ from ..utils.anchors import locations_for_shape
 from .pose_error import reproj, add, adi, re, te, vsd
 import yaml
 import sys
-
+import matplotlib.pyplot as plt
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -149,7 +149,7 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-
+'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -181,7 +181,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-'''
+
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
 
@@ -406,7 +406,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
 
             # centerness
             res_temp = np.ones((6300)) * 255
-            print(residuals[0, cls_indices, :].shape)
+            obj_residuals = residuals[0, cls_indices, :]
             res_sum = np.sum(residuals[0, cls_indices, :], axis=2)
             res_temp[cls_indices] = (res_sum / np.nanmax(res_sum)) * 255
             res_P3 = res_temp[:4800].reshape((60, 80)).astype(np.uint8)
@@ -467,9 +467,97 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
                 model_vsd = mv15
                 model_vsd_mm = mv15_mm
 
-            #k_hyp = len(cls_indices[0])
             ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
             K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
+            t_rot = tf3d.quaternions.quat2mat(t_rot)
+            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+            t_gt = np.array(t_tra, dtype=np.float32)
+            t_gt = t_gt * 0.001
+            pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
+
+            # go for all
+            #k_hyp = len(cls_indices[0])
+            # min residual
+            #res_idx = np.argmin(res_sum)
+            #k_hyp = 1
+            #pose_votes = pose_votes[:, res_idx, :]
+
+            #est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+            #obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
+            #obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+            #retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
+            #                                                   imagePoints=est_points, cameraMatrix=K,
+            #                                                   distCoeffs=None, rvec=None, tvec=None,
+            #                                                   useExtrinsicGuess=False, iterationsCount=300,
+            #                                                   reprojectionError=5.0, confidence=0.99,
+            #                                                   flags=cv2.SOLVEPNP_EPNP)
+            #R_est, _ = cv2.Rodrigues(orvec)
+            #t_est = otvec.T
+            #if cls == 10 or cls == 11:
+            #    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+            #else:
+            #    err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+            #if err_add < model_dia[true_cat] * 0.1:
+            #    truePoses[int(true_cat)] += 1
+            #print(' ')
+            #print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
+
+            for b_p in range(0, pose_votes.shape[2]-1, 2):
+                print('votes pre: ', pose_votes[0, :, b_p:b_p+2])
+
+                sort_axis = np.argsort(np.sum(obj_residuals[0, :, b_p:b_p+2], axis=1), axis=0)
+                print('sort: ', sort_axis)
+                if b_p == 14:
+                    obj_residuals[0, :, b_p:b_p+2] = obj_residuals[0, sort_axis, b_p:b_p+2]
+                    pose_votes[0, :, b_p:b_p+2] = pose_votes[0, sort_axis, b_p:b_p+2]
+                else:
+                    obj_residuals[0, :, b_p:b_p+2] = obj_residuals[0, sort_axis, b_p:b_p+2]
+                    pose_votes[0, :, b_p:b_p+2] = pose_votes[0, sort_axis, b_p:b_p+2]
+                print('votes post: ', pose_votes[0, :, b_p:b_p+2])
+
+            res_sum = np.sum(obj_residuals, axis=2)
+
+            # each separately
+            k_hyp = 1
+            error_vector = []
+            residual_vector = []
+            for pdx in range(pose_votes.shape[1]):
+                pose_vote = pose_votes[:, pdx, :]
+
+                est_points = np.ascontiguousarray(pose_vote, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+                obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
+                obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+                retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
+                                                                   imagePoints=est_points, cameraMatrix=K,
+                                                                   distCoeffs=None, rvec=None, tvec=None,
+                                                                   useExtrinsicGuess=False, iterationsCount=300,
+                                                                   reprojectionError=5.0, confidence=0.99,
+                                                                   flags=cv2.SOLVEPNP_EPNP)
+                R_est, _ = cv2.Rodrigues(orvec)
+                t_est = otvec.T
+                if cls == 10 or cls == 11:
+                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                else:
+                    err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                if err_add < model_dia[true_cat] * 0.1:
+                    truePoses[int(true_cat)] += 1
+                print(' ')
+                print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
+                print('residual: ', res_sum[0, pdx])
+                error_vector.append(err_add)
+                residual_vector.append(res_sum[0, pdx])
+
+            error_vector = np.array(error_vector)
+            residual_vector = np.array(residual_vector)
+            sort = np.argsort(error_vector)
+            error_vector = error_vector[sort]
+            residual_vector = residual_vector[sort]
+            x = np.arange(residual_vector.shape[0])
+
+            plt.plot(x, error_vector, 'r--', residual_vector, 'b--')
+            plt.xlabel('hypothesis')
+            plt.ylabel('error/residual')
+            plt.show()
 
             ##############################
             # pnp
@@ -477,15 +565,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #centerns = np.squeeze(centerns)
 
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
-            print('residuals: ', res_sum)
-            res_idx = np.argmin(res_sum)
 
-            #k_hyp = len(cls_indices[0])
-            k_hyp = 1
             #if len(centerns) < k_hyp:
             #    k_hyp = len(centerns)
             #pose_votes = boxes3D[0, cls_indices, :]
-            pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
+
             #print(pose_votes.shape)
             #print(model_dia[cls])
 
@@ -502,13 +586,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #print('centerns: ', centerns)
             #print('ind: ', hyp_ind)
             #print('cls_indices: ', cls_indices)
-            print(pose_votes.shape)
-            pose_votes = pose_votes[:, res_idx, :]
-
-            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
-            obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-            obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
-
             ###############################
             # weighted mean
             #pose_weights = np.repeat(cls_mask[cls_indices, np.newaxis], 16, axis=2)
@@ -556,14 +633,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #obj_points = np.repeat(ori_points[np.newaxis, :, :], top_n, axis=0)
             #obj_points = obj_points.reshape((int(top_n * 8), 1, 3))
 
-            retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
-                                                               imagePoints=est_points, cameraMatrix=K,
-                                                               distCoeffs=None, rvec=None, tvec=None,
-                                                               useExtrinsicGuess=False, iterationsCount=300,
-                                                               reprojectionError=5.0, confidence=0.99,
-                                                               flags=cv2.SOLVEPNP_EPNP)
-            R_est, _ = cv2.Rodrigues(orvec)
-            t_est = otvec
+
 
             ##############################
             # pnp
@@ -581,38 +651,18 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #t_est[:2] = t_est[:2] * 0.5
             #t_est[2] = (t_est[2] / 3 + 1.0)
 
-            BOP_R = R_est.flatten().tolist()
-            BOP_t = t_est.flatten().tolist()
-
             # result = [int(BOP_scene_id), int(BOP_im_id), int(BOP_obj_id), float(BOP_score), BOP_R[0], BOP_R[1], BOP_R[2], BOP_R[3], BOP_R[4], BOP_R[5], BOP_R[6], BOP_R[7], BOP_R[8], BOP_t[0], BOP_t[1], BOP_t[2]]
             # result = [int(BOP_scene_id), int(BOP_im_id), int(BOP_obj_id), float(BOP_score), BOP_R, BOP_t]
             # results_image.append(result)
 
             # t_rot = tf3d.euler.euler2mat(t_rot[0], t_rot[1], t_rot[2])
-            t_rot = tf3d.quaternions.quat2mat(t_rot)
-            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
-            t_gt = np.array(t_tra, dtype=np.float32)
 
-            # print(t_est)
-            # print(t_gt)
-
-            t_gt = t_gt * 0.001
             t_est = t_est.T  # * 0.001
             #print('pose: ', pose)
             #print(t_gt)
             #print(t_est)
 
-            if cls == 10 or cls == 11:
-                err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-            else:
-                err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-
-            if err_add < model_dia[true_cat] * 0.1:
-                truePoses[int(true_cat)] += 1
-
-            print(' ')
-            print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
-
+            '''
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
             box3D = toPix_array(tDbox)
@@ -672,6 +722,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
                              2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                              2)
+            '''
 
             '''
             hyp_mask = np.zeros((640, 480), dtype=np.float32)
