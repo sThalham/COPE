@@ -49,8 +49,8 @@ def anchor_targets_bbox(
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
-    #center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
-    residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
+    #residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -123,9 +123,9 @@ def anchor_targets_bbox(
 
                 #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
-                residual_batch[index, locations_positive_obj, -1] = 1
+                #residual_batch[index, locations_positive_obj, -1] = 1
 
-                #center_batch[index, :, -1] = 1
+                center_batch[index, :, -1] = 1
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -151,12 +151,12 @@ def anchor_targets_bbox(
                 #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
 
                 # per class anno
-                #regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
                 # with residual regression
-                boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :-1] = boxes
-                residual_batch[index, locations_positive_obj, :-1] = boxes
+                #boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                #residual_batch[index, locations_positive_obj, :-1] = boxes
 
         '''
         #VISU.print_img()
@@ -179,7 +179,7 @@ def anchor_targets_bbox(
         '''
 
     #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(residual_batch),
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
 
 
 def layer_shapes(image_shape, model):
@@ -347,16 +347,16 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets = (targets - mean) / (std * obj_diameter)
 
     # exponential targets
-    targets = np.where(targets > 0, np.exp(targets), targets)
-    targets = np.where(targets < 0, -np.exp(-targets), targets)
+    #targets = np.where(targets > 0, np.exp(targets), targets)
+    #targets = np.where(targets < 0, -np.exp(-targets), targets)
 
-    #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
-    #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
-    #centerness = np.exp(-centerness)
-    #return targets, centerness[:, np.newaxis]
+    x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
+    y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    centerness = np.exp(-centerness)
+    return targets, centerness[:, np.newaxis]
 
-    return targets
+    #return targets
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):

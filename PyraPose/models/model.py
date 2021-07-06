@@ -278,13 +278,12 @@ def pyrapose(
 
     pyramids.append(keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
-    #pyramids.append(keras.layers.Concatenate(axis=1, name='conf')([center_P3, center_P4, center_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='center')([center_P3, center_P4, center_P5]))
 
-    regression = keras.layers.Concatenate(axis=1)([regression_P3, regression_P4, regression_P5])
-    residuals = keras.layers.Concatenate(axis=1)([center_P3, center_P4, center_P5])
-    residual_predictions = keras.layers.Concatenate(axis=2, name='conf')([regression, residuals])
-    print(residual_predictions)
-    pyramids.append(residual_predictions)
+    #regression = keras.layers.Concatenate(axis=1)([regression_P3, regression_P4, regression_P5])
+    #residuals = keras.layers.Concatenate(axis=1)([center_P3, center_P4, center_P5])
+    #residual_predictions = keras.layers.Concatenate(axis=2, name='conf')([regression, residuals])
+
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
