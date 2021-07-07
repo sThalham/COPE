@@ -79,41 +79,36 @@ def anchor_targets_bbox(
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
             #compute image reso to estimate
-            ex = obj_diameter / pose[2]
+            #ex = obj_diameter / pose[2]
             # 2... max index
             # single pyramid level
             #reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
             #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
             # multi-level prediction making
-            fuzzy_level = np.log(ex) / np.log(3.5)
-            if fuzzy_level < -1.75:
-                reso_levels = [0]
-            elif fuzzy_level > -1.75 and fuzzy_level < -1.25:
-                reso_levels = [0, 1]
-            elif fuzzy_level > -1.25 and fuzzy_level < -0.75:
-                reso_levels = [1]
-            elif fuzzy_level > -0.75 and fuzzy_level < -0.25:
-                reso_levels = [1, 2]
-            elif fuzzy_level > -0.25:
-                reso_levels = [2]
-            else:
-                print('The hell... implossible data range')
+            #fuzzy_level = np.log(ex) / np.log(3.5)
+            #if fuzzy_level < -1.75:
+            #    reso_levels = [0]
+            #elif fuzzy_level > -1.75 and fuzzy_level < -1.25:
+            #    reso_levels = [0, 1]
+            #elif fuzzy_level > -1.25 and fuzzy_level < -0.75:
+            #    reso_levels = [1]
+            #elif fuzzy_level > -0.75 and fuzzy_level < -0.25:
+            #    reso_levels = [1, 2]
+            #elif fuzzy_level > -0.25:
+            #    reso_levels = [2]
+            #else:
+            #    print('The hell... implossible data range')
 
-            #print('obj_diameter: ', obj_diameter)
-            #print('depth: ', pose[2])
-            #print('ex: ', 2 + (np.log(ex)/np.log(3.5)))
-            #print('fuzzy_level: ', fuzzy_level)
-            #print('reso_levels: ', reso_levels)
-
-            for jdx in reso_levels:
-                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                locations_positive.append(locations_level)
-            locations_positive_obj = np.concatenate(locations_positive, axis=0)
-
-            #for jdx, resx in enumerate(image_shapes):
+            #for jdx in reso_levels:
             #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
             #    locations_positive.append(locations_level)
             #locations_positive_obj = np.concatenate(locations_positive, axis=0)
+
+            for jdx, resx in enumerate(image_shapes):
+                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+                locations_positive.append(locations_level)
+            locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
             if locations_positive_obj.shape[0] > 1:
                 labels_batch[index, locations_positive_obj, -1] = 1

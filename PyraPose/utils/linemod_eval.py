@@ -149,7 +149,7 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-'''
+
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -181,6 +181,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
+'''
 
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
@@ -476,32 +477,34 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
 
             # go for all
-            #k_hyp = len(cls_indices[0])
+            k_hyp = len(cls_indices[0])
             # min residual
             #res_idx = np.argmin(res_sum)
             #k_hyp = 1
             #pose_votes = pose_votes[:, res_idx, :]
 
-            #est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
-            #obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-            #obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
-            #retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
-            #                                                   imagePoints=est_points, cameraMatrix=K,
-            #                                                   distCoeffs=None, rvec=None, tvec=None,
-            #                                                   useExtrinsicGuess=False, iterationsCount=300,
-            #                                                   reprojectionError=5.0, confidence=0.99,
-            #                                                   flags=cv2.SOLVEPNP_EPNP)
-            #R_est, _ = cv2.Rodrigues(orvec)
-            #t_est = otvec.T
-            #if cls == 10 or cls == 11:
-            #    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-            #else:
-            #    err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-            #if err_add < model_dia[true_cat] * 0.1:
-            #    truePoses[int(true_cat)] += 1
-            #print(' ')
-            #print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
+            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+            obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
+            obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+            retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
+                                                               imagePoints=est_points, cameraMatrix=K,
+                                                               distCoeffs=None, rvec=None, tvec=None,
+                                                               useExtrinsicGuess=False, iterationsCount=300,
+                                                               reprojectionError=5.0, confidence=0.99,
+                                                               flags=cv2.SOLVEPNP_EPNP)
+            R_est, _ = cv2.Rodrigues(orvec)
+            t_est = otvec.T
+            if cls == 10 or cls == 11:
+                err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+            else:
+                err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+            if err_add < model_dia[true_cat] * 0.1:
+                truePoses[int(true_cat)] += 1
+            print(' ')
+            print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
 
+            '''
+            # separate evaluation
             for b_p in range(0, pose_votes.shape[2]-1, 2):
                 print('votes pre: ', pose_votes[0, :, b_p:b_p+2])
 
@@ -558,6 +561,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             plt.xlabel('hypothesis')
             plt.ylabel('error/residual')
             plt.show()
+            '''
 
             ##############################
             # pnp

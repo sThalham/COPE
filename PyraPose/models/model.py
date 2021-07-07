@@ -319,6 +319,7 @@ def inference_model(
     #residuals = model.outputs[2][:, :, 16:]
 
     #boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
+
     boxes3D = regression
 
     # construct the model
