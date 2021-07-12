@@ -343,8 +343,10 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets = (targets - mean) / (std * obj_diameter)
 
     # exponential targets
-    #targets = np.where(targets > 0, np.exp(targets), targets)
-    #targets = np.where(targets < 0, -np.exp(-targets), targets)
+    targets = np.where(targets > 0, np.exp(targets) - 1.0, targets)
+    targets = np.where(targets < 0, -np.exp(-targets) + 1.0, targets)
+    #print('pos targets: ', np.nanmin(targets[targets > 0]), np.nanmax(targets[targets > 0]))
+    #print('neg targets: ', np.nanmin(targets[targets < 0]), np.nanmax(targets[targets < 0]))
 
     #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
