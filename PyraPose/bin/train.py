@@ -89,7 +89,7 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
             'cls'          : losses.focal(),
             #'center'          : losses.smooth_l1(weight=6.0),
             #'conf'             : losses.residual_loss(weight=0.2),
-            'conf': losses.residual_loss(weight=0.15), # exponential targets
+            #'conf': losses.residual_loss(weight=0.15), # exponential targets
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
