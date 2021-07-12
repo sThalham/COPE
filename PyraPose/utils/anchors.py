@@ -50,7 +50,7 @@ def anchor_targets_bbox(
     #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     #center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
-    #residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -79,11 +79,11 @@ def anchor_targets_bbox(
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
             #compute image reso to estimate
-            #ex = obj_diameter / pose[2]
+            ex = obj_diameter / pose[2]
             # 2... max index
             # single pyramid level
-            #reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
+            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
             # multi-level prediction making
             #fuzzy_level = np.log(ex) / np.log(3.5)
@@ -105,10 +105,10 @@ def anchor_targets_bbox(
             #    locations_positive.append(locations_level)
             #locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
-            for jdx, resx in enumerate(image_shapes):
-                locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-                locations_positive.append(locations_level)
-            locations_positive_obj = np.concatenate(locations_positive, axis=0)
+            #for jdx, resx in enumerate(image_shapes):
+            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
+            #    locations_positive.append(locations_level)
+            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
             if locations_positive_obj.shape[0] > 1:
                 labels_batch[index, locations_positive_obj, -1] = 1
@@ -118,7 +118,7 @@ def anchor_targets_bbox(
 
                 #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
-                #residual_batch[index, locations_positive_obj, -1] = 1
+                residual_batch[index, locations_positive_obj, -1] = 1
 
                 #center_batch[index, :, -1] = 1
 
@@ -147,12 +147,12 @@ def anchor_targets_bbox(
 
                 # per class anno
                 #regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #regression_batch[index, locations_positive_obj, cls, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
                 # with residual regression
-                #boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #regression_batch[index, locations_positive_obj, cls, :-1] = boxes
-                #residual_batch[index, locations_positive_obj, :-1] = boxes
+                boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                residual_batch[index, locations_positive_obj, :-1] = boxes
 
         '''
         #VISU.print_img()
@@ -175,7 +175,7 @@ def anchor_targets_bbox(
         '''
 
     #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch)#, tf.convert_to_tensor(center_batch),
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(residual_batch),
 
 
 def layer_shapes(image_shape, model):
