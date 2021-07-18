@@ -145,11 +145,10 @@ def toPix_array(translation):
 
     xpix = ((translation[:, 0] * fxkin) / translation[:, 2]) + cxkin
     ypix = ((translation[:, 1] * fykin) / translation[:, 2]) + cykin
-    #zpix = translation[2] * fxkin
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-
+'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -181,7 +180,6 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-'''
 
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
@@ -235,8 +233,9 @@ def denorm_box(locations, regression, obj_diameter):
     #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
     std = np.full(16, 0.7)
 
-    #regression = regression * (obj_diameter * 6.5)
-    #regression = regression * (obj_diameter * 30.0)
+    #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
+    #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
+
     obj_diameter = obj_diameter * 1000.0
 
     x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
@@ -343,7 +342,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
         #    t_tra = anno['poses'][0][:3]
         #    t_rot = anno['poses'][0][3:]
 
-        #if anno['labels'][0] != 13:
+        #if anno['labels'][0] != 5:
         #    continue
 
         # run network
@@ -378,6 +377,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
                 continue
             trueDets[int(cls)] += 1
 
+            '''
             # mask from anchors
             pot_mask = scores[0, :, inv_cls]
             mask_P3 = pot_mask[:4800]
@@ -418,6 +418,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #cv2.imwrite('/home/stefan/PyraPose_viz/residuals_' + str(index) + '.jpg', cen_img)
 
             #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
+            '''
 
             anno_ind = np.argwhere(anno['labels'] == checkLab)
             t_tra = anno['poses'][anno_ind[0][0]][:3]
@@ -666,7 +667,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             #print(t_gt)
             #print(t_est)
 
-            '''
+
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
             box3D = toPix_array(tDbox)
@@ -674,9 +675,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             tDbox = tDbox.astype(np.uint16)
 
             eDbox = R_est.dot(ori_points.T).T
-            #eDbox = eDbox + np.repeat(t_est[:, np.newaxis], 8, axis=1).T
-            eDbox = eDbox + np.repeat(t_est, 8, axis=0)
+            #print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
+            eDbox = eDbox + np.repeat(t_est, 8, axis=1).T
+            #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
+            #print(eDbox.shape)
             est3D = toPix_array(eDbox)
+            #print(est3D)
             eDbox = np.reshape(est3D, (16))
             pose = eDbox.astype(np.uint16)
 
@@ -726,7 +730,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
                              2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                              2)
-            '''
+
 
             '''
             hyp_mask = np.zeros((640, 480), dtype=np.float32)
@@ -767,8 +771,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             '''
 
             #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            #cv2.imwrite(name, image_viz)
+        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        #cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
