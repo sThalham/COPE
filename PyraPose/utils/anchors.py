@@ -25,6 +25,7 @@ import math
 import matplotlib.pyplot as plt
 import copy
 from .visualization import Visualizer
+import time
 
 
 def anchor_targets_bbox(
@@ -47,10 +48,10 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
     labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    #regression_batch    = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    labels_batch_bilinear = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    labels_batch_hamming = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    labels_batch_bicubic = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
-    #center_batch        = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
-    #residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -62,9 +63,10 @@ def anchor_targets_bbox(
         mask = annotations['mask'][0]
         # vanilla
         masks_level = []
-        for jdx, resx in enumerate(image_shapes):
-            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST))
-            masks_level.append(mask_level.flatten())
+        #for jdx, resx in enumerate(image_shapes):
+            #mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
+            #masks_level.append(mask_level.flatten())
+        #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
 
         calculated_boxes = np.empty((0, 16))
 
@@ -83,7 +85,45 @@ def anchor_targets_bbox(
             # 2... max index
             # single pyramid level
             reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
-            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            #vanilla location anno
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            # bicubic instead of linear
+            mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
+            mask_level = np.asarray(Image.fromarray(mask_now).resize((image_shapes[reso_idx][1], image_shapes[reso_idx][0]), Image.BICUBIC)).flatten()
+            locations_positive_obj = np.where(mask_level > 127)[0] + location_offset[reso_idx]
+            values_location = mask_level * 1/255
+
+            '''
+            # test Hamming and bilinear bicubic
+            locations_positive_bilinear = []
+            values_bilinear = []
+            locations_positive_hamming = []
+            values_hamming = []
+            locations_positive_bicubic = []
+            values_bicubic = []
+            mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
+            for jdx, resx in enumerate(image_shapes):
+
+                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.BILINEAR)).flatten()
+                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
+                locations_positive_bilinear.append(locations_level)
+                values_bilinear.append(mask_level * 1/255)
+                print(np.nanmin((mask_level * 1/255).astype(np.uint8)), np.nanmax((mask_level * 1/255).astype(np.uint8)))
+                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.HAMMING)).flatten()
+                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
+                locations_positive_hamming.append(locations_level)
+                values_hamming.append(mask_level * 1/255)
+                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.BICUBIC)).flatten()
+                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
+                locations_positive_bicubic.append(locations_level)
+                values_bicubic.append(mask_level * 1/255)
+            locations_positive_bilinear = np.concatenate(locations_positive_bilinear, axis=0)
+            locations_positive_hamming = np.concatenate(locations_positive_hamming, axis=0)
+            locations_positive_bicubic = np.concatenate(locations_positive_bicubic, axis=0)
+            values_bilinear = np.concatenate(values_bilinear, axis=0)
+            values_hamming = np.concatenate(values_hamming, axis=0)
+            values_bicubic = np.concatenate(values_bicubic, axis=0)
+            '''
 
             # multi-level prediction making
             #fuzzy_level = np.log(ex) / np.log(3.5)
@@ -111,10 +151,17 @@ def anchor_targets_bbox(
             #locations_positive_obj = np.concatenate(locations_positive, axis=0)
 
             if locations_positive_obj.shape[0] > 1:
+                # nearest location sampling
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
+                # continuous locations
+                labels_batch[index, locations_positive_obj, -1] = 1
+                labels_batch[index, locations_positive_obj, cls] = values_location[locations_positive_obj - location_offset[reso_idx]]
+
                 #labels_batch[index, labels_positive_obj, -1] = 1
-                #labels_batch[index, labels_positive_obj, cls] = labels_values_obj
+                #labels_batch_bilinear[index, locations_positive_bilinear, -1] = values_bilinear[locations_positive_bilinear]
+                #labels_batch_hamming[index, locations_positive_hamming, -1] = values_hamming[locations_positive_hamming]
+                #labels_batch_bicubic[index, locations_positive_bicubic, -1] = values_bicubic[locations_positive_bicubic]
 
                 #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
@@ -155,6 +202,24 @@ def anchor_targets_bbox(
                 #residual_batch[index, locations_positive_obj, :-1] = boxes
 
         '''
+        random_idx = str(np.random.randint(0, 1000))
+        labels_img = (np.max(labels_batch[index, 0:4800, :-1], axis=1) * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((60, 80))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (np.max(labels_batch[index, 4800:6000, :-1], axis=1) * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((30, 40))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (np.max(labels_batch[index, 6000:6300, :-1], axis=1) * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((15, 20))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
+        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
+        cv2.imwrite(img_name, img_viz)
+        '''
+        '''
         #VISU.print_img()
         random_idx = str(np.random.randint(0, 1000))
         labels_img = (labels_batch[index, 0:4800, -1] * 255).astype(np.uint8)
@@ -169,8 +234,56 @@ def anchor_targets_bbox(
         labels_img = labels_img.reshape((15, 20))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx+ '.png'
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_nearest.png'
         img_viz = np.concatenate([image+100, labels_img3, labels_img4, labels_img5], axis=1)
+        cv2.imwrite(img_name, img_viz)
+
+        #labels_img = (labels_batch_bilinear[index, 0:4800, -1] * 255).astype(np.uint8)
+        #labels_img = labels_img.reshape((60, 80))
+        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        #labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        #labels_img = (labels_batch_bilinear[index, 4800:6000, -1] * 255).astype(np.uint8)
+        #labels_img = labels_img.reshape((30, 40))
+        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        #labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        #labels_img = (labels_batch_bilinear[index, 6000:6300, -1] * 255).astype(np.uint8)
+        #labels_img = labels_img.reshape((15, 20))
+        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        #labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        #img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_bilinear.png'
+        #img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
+        #cv2.imwrite(img_name, img_viz)
+
+        labels_img = (labels_batch_hamming[index, 0:4800, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((60, 80))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch_hamming[index, 4800:6000, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((30, 40))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch_hamming[index, 6000:6300, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((15, 20))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_hamming.png'
+        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
+        cv2.imwrite(img_name, img_viz)
+
+        labels_img = (labels_batch_bicubic[index, 0:4800, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((60, 80))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch_bicubic[index, 4800:6000, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((30, 40))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        labels_img = (labels_batch_bicubic[index, 6000:6300, -1] * 255).astype(np.uint8)
+        labels_img = labels_img.reshape((15, 20))
+        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
+        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_bicubic.png'
+        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
         '''
 

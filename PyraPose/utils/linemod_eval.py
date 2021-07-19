@@ -148,7 +148,6 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -180,7 +179,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-
+'''
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
 
@@ -233,8 +232,8 @@ def denorm_box(locations, regression, obj_diameter):
     #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
     std = np.full(16, 0.7)
 
-    #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
-    #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
+    regression = np.where(regression > 0, np.log(regression + 1.0), regression)
+    regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
 
     obj_diameter = obj_diameter * 1000.0
 
@@ -346,7 +345,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
         #    continue
 
         # run network
-        boxes3D, scores, residuals = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
         for inv_cls in range(scores.shape[2]):
 
