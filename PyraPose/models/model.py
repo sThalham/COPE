@@ -15,6 +15,7 @@ def default_classification_model(
         'kernel_size' : 3,
         'strides'     : 1,
         'padding'     : 'same',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
     if keras.backend.image_data_format() == 'channels_first':
@@ -31,13 +32,6 @@ def default_classification_model(
             bias_initializer='zeros',
             **options
         )(outputs)
-        #outputs = keras.layers.SeparableConv2D(filters=classification_feature_size,
-        #                                       activation='relu',
-        #                                      kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01,
-        #                                                                                         seed=None),
-        #                                      bias_initializer='zeros',
-        #                                      **options
-        #                                      )(outputs)
 
     labels = keras.layers.Conv2D(
         filters=num_classes,
@@ -45,11 +39,6 @@ def default_classification_model(
         bias_initializer=initializers.PriorProbability(probability=prior_probability),
         **options
     )(outputs)
-    #labels = keras.layers.SeparableConv2D(filters=num_classes,
-    #                                          kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
-    #                                          bias_initializer=initializers.PriorProbability(probability=prior_probability),
-    #                                          **options
-    #)(outputs)
 
     # reshape output and apply sigmoid
     if keras.backend.image_data_format() == 'channels_first':
@@ -57,20 +46,6 @@ def default_classification_model(
     labels = keras.layers.Reshape((-1, num_classes))(labels)
     labels = keras.layers.Activation('sigmoid')(labels)
 
-    # centerness = keras.layers.Conv2D(
-    #     filters=1,
-    #     kernel_initializer=keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
-    #     bias_initializer=initializers.PriorProbability(probability=prior_probability),
-    #     **options
-    # )(outputs)
-    #
-    # # reshape output and apply sigmoid
-    # if keras.backend.image_data_format() == 'channels_first':
-    #     centerness = keras.layers.Permute((2, 3, 1))(centerness)
-    # centerness = keras.layers.Reshape((-1, 1))(centerness) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
-    # centerness = keras.layers.Activation('sigmoid')(centerness)
-
-    # return keras.models.Model(inputs=inputs, outputs=labels), keras.models.Model(inputs=inputs, outputs=centerness)
     return keras.models.Model(inputs=inputs, outputs=labels)
 
 

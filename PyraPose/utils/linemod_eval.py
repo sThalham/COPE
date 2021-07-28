@@ -232,8 +232,8 @@ def denorm_box(locations, regression, obj_diameter):
     #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
     std = np.full(16, 0.7)
 
-    regression = np.where(regression > 0, np.log(regression + 1.0), regression)
-    regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
+    #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
+    #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
 
     obj_diameter = obj_diameter * 1000.0
 
@@ -259,7 +259,7 @@ def denorm_box(locations, regression, obj_diameter):
     return pred_boxes
 
 
-def evaluate_linemod(generator, model, data_path, threshold=0.5):
+def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
@@ -376,7 +376,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
                 continue
             trueDets[int(cls)] += 1
 
-            '''
             # mask from anchors
             pot_mask = scores[0, :, inv_cls]
             mask_P3 = pot_mask[:4800]
@@ -402,8 +401,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.5):
             img_P5 = np.where(cls_img > 254, cls_img, image_raw)
 
             loc_img = np.concatenate([img_P3, img_P4, img_P5], axis=1)
-            #cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
+            cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
 
+            '''
             # centerness
             res_temp = np.ones((6300)) * 255
             obj_residuals = residuals[0, cls_indices, :]

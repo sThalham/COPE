@@ -63,10 +63,10 @@ def anchor_targets_bbox(
         mask = annotations['mask'][0]
         # vanilla
         masks_level = []
-        #for jdx, resx in enumerate(image_shapes):
+        for jdx, resx in enumerate(image_shapes):
             #mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
             #masks_level.append(mask_level.flatten())
-        #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
+            masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
 
         calculated_boxes = np.empty((0, 16))
 
@@ -86,12 +86,12 @@ def anchor_targets_bbox(
             # single pyramid level
             reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
             #vanilla location anno
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
             # bicubic instead of linear
-            mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
-            mask_level = np.asarray(Image.fromarray(mask_now).resize((image_shapes[reso_idx][1], image_shapes[reso_idx][0]), Image.BICUBIC)).flatten()
-            locations_positive_obj = np.where(mask_level > 127)[0] + location_offset[reso_idx]
-            values_location = mask_level * 1/255
+            #mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
+            #mask_level = np.asarray(Image.fromarray(mask_now).resize((image_shapes[reso_idx][1], image_shapes[reso_idx][0]), Image.BICUBIC)).flatten()
+            #locations_positive_obj = np.where(mask_level > 127)[0] + location_offset[reso_idx]
+            #values_location = mask_level * 1/255
 
             '''
             # test Hamming and bilinear bicubic
@@ -155,8 +155,8 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
                 # continuous locations
-                labels_batch[index, locations_positive_obj, -1] = 1
-                labels_batch[index, locations_positive_obj, cls] = values_location[locations_positive_obj - location_offset[reso_idx]]
+                #labels_batch[index, locations_positive_obj, -1] = 1
+                #labels_batch[index, locations_positive_obj, cls] = values_location[locations_positive_obj - location_offset[reso_idx]]
 
                 #labels_batch[index, labels_positive_obj, -1] = 1
                 #labels_batch_bilinear[index, locations_positive_bilinear, -1] = values_bilinear[locations_positive_bilinear]
@@ -456,8 +456,8 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets = (targets - mean) / (std * obj_diameter)
 
     # exponential targets
-    targets = np.where(targets > 0, np.exp(targets) - 1.0, targets)
-    targets = np.where(targets < 0, -np.exp(-targets) + 1.0, targets)
+    #targets = np.where(targets > 0, np.exp(targets) - 1.0, targets)
+    #targets = np.where(targets < 0, -np.exp(-targets) + 1.0, targets)
     #print('pos targets: ', np.nanmin(targets[targets > 0]), np.nanmax(targets[targets > 0]))
     #print('neg targets: ', np.nanmin(targets[targets < 0]), np.nanmax(targets[targets < 0]))
 
