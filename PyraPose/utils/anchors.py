@@ -64,9 +64,9 @@ def anchor_targets_bbox(
         # vanilla
         masks_level = []
         for jdx, resx in enumerate(image_shapes):
-            #mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
-            #masks_level.append(mask_level.flatten())
-            masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
+            mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
+            masks_level.append(mask_level.flatten())
+        #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
 
         calculated_boxes = np.empty((0, 16))
 
@@ -80,18 +80,29 @@ def anchor_targets_bbox(
             obj_diameter = annotations['diameters'][idx]
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
+            # pyramid_index from surface
+            surf_count = np.sum(mask.flatten() == mask_id)
+            #print('surf_count: ', surf_count)
+            if surf_count > 20480:
+                reso_idx = 2
+            elif surf_count > 5120:
+                reso_idx = 1
+            else:
+                reso_idx = 0
+
             #compute image reso to estimate
             ex = obj_diameter / pose[2]
             # 2... max index
             # single pyramid level
-            reso_idx = (2 + np.round(np.log(ex)/np.log(3.5))).astype(np.uint8)
-            #vanilla location anno
+            #reso_idx = (2 + np.round(np.log(ex)/np.log(4))).astype(np.uint8)
+            #reso_van = np.round(np.log(ex))
+            #if reso_van < -2:
+            #    reso_van = -2
+            #reso_idx = int(2 + reso_van)
+
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
-            # bicubic instead of linear
-            #mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
-            #mask_level = np.asarray(Image.fromarray(mask_now).resize((image_shapes[reso_idx][1], image_shapes[reso_idx][0]), Image.BICUBIC)).flatten()
-            #locations_positive_obj = np.where(mask_level > 127)[0] + location_offset[reso_idx]
-            #values_location = mask_level * 1/255
+
+            # single pyramid with via mask
 
             '''
             # test Hamming and bilinear bicubic
@@ -219,6 +230,7 @@ def anchor_targets_bbox(
         img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
         '''
+
         '''
         #VISU.print_img()
         random_idx = str(np.random.randint(0, 1000))
