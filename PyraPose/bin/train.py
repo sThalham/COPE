@@ -83,13 +83,10 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
     # compile model
     training_model.compile(
         loss={
-            #'points'        : losses.focal_l1(num_classes=num_classes, weight=0.6),
-            'points': losses.focal_l1(num_classes=num_classes, weight=0.6), # exponential targets
-            #'points'            : losses.smooth_l1(),
+            'points': losses.focal_l1(num_classes=num_classes, weight=0.6),
             'cls'          : losses.focal(),
             'center'          : losses.cross(weight=1.0),
-            #'conf'             : losses.residual_loss(weight=0.2),
-            #'conf': losses.residual_loss(weight=0.15), # exponential targets
+            'conf'             : losses.residual_loss(weight=0.2),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )

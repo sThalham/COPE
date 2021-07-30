@@ -47,11 +47,9 @@ def anchor_targets_bbox(
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
-    labels_batch        = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    labels_batch_bilinear = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    labels_batch_hamming = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    labels_batch_bicubic = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -73,9 +71,6 @@ def anchor_targets_bbox(
 
         for idx, pose in enumerate(annotations['poses']):
 
-            locations_positive = []
-            #labels_positive = []
-            #labels_values = []
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
@@ -164,8 +159,7 @@ def anchor_targets_bbox(
 
             if locations_positive_obj.shape[0] > 1:
                 # nearest location sampling
-                labels_batch[index, locations_positive_obj, -1] = 1
-                labels_batch[index, locations_positive_obj, cls] = 1
+
                 # continuous locations
                 #labels_batch[index, locations_positive_obj, -1] = 1
                 #labels_batch[index, locations_positive_obj, cls] = values_location[locations_positive_obj - location_offset[reso_idx]]
@@ -176,10 +170,8 @@ def anchor_targets_bbox(
                 #labels_batch_bicubic[index, locations_positive_bicubic, -1] = values_bicubic[locations_positive_bicubic]
 
                 #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
-                regression_batch[index, locations_positive_obj, cls, -1] = 1
-                #residual_batch[index, locations_positive_obj, -1] = 1
 
-                center_batch[index, locations_positive_obj, -1] = 1
+                #
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -211,11 +203,17 @@ def anchor_targets_bbox(
                 # with residual regression
                 #boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
                 #regression_batch[index, locations_positive_obj, cls, :-1] = boxes
-                #residual_batch[index, locations_positive_obj, :-1] = boxes
+                #
 
                 # with centerness for multi-instance
                 boxes, centers = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj, cls, -1] = 1
                 regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                residual_batch[index, locations_positive_obj, -1] = 1
+                residual_batch[index, locations_positive_obj, :-1] = boxes
+                labels_batch[index, locations_positive_obj, -1] = 1
+                labels_batch[index, locations_positive_obj, cls] = 1
+                center_batch[index, locations_positive_obj, -1] = 1
                 center_batch[index, locations_positive_obj, :-1] = centers
 
         '''
@@ -308,7 +306,7 @@ def anchor_targets_bbox(
         '''
 
     #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(residual_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch)
 
 
 def layer_shapes(image_shape, model):

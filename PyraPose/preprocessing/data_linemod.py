@@ -335,9 +335,9 @@ class LinemodDataset(tf.data.Dataset):
         # residual loss
         return tf.data.Dataset.from_generator(self._generate,
                                               output_types=(tf.dtypes.float32,
-                                                            (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
+                                                            (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
-                                              tf.TensorShape([None, 6300, 15, 17]), tf.TensorShape([None, 6300, 16]), tf.TensorShape([None, 6300, 2]))),
+                                              tf.TensorShape([None, 6300, 15, 17]), tf.TensorShape([None, 6300, 17]), tf.TensorShape([None, 6300, 16]), tf.TensorShape([None, 6300, 2]))),
                                               args=(data_dir, set_name, batch_size))
         #return tf.data.Dataset.from_generator(self._generate, args=(data_dir, set_name, batch_size), output_signature=(tf.TensorSpec(shape=(1, 480, 640, 3), dtype=tf.float32), (tf.TensorSpec(shape=(15, 1, 6300, 17), dtype=tf.float32),
          #tf.TensorSpec(shape=(1, 6300, 16), dtype=tf.float32),
