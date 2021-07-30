@@ -28,6 +28,7 @@ from .pose_error import reproj, add, adi, re, te, vsd
 import yaml
 import sys
 import matplotlib.pyplot as plt
+import time
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -345,10 +346,13 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #    continue
 
         # run network
+        t_start = time.time()
         boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
+        print('forward: ', time.time() - t_start)
         for inv_cls in range(scores.shape[2]):
 
+            t_start = time.time()
             true_cat = inv_cls + 1
             # if true_cat > 5:
             #    cls = true_cat + 2
@@ -371,11 +375,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 # falsePoses[int(cls)] += 1
                 continue
 
-            if len(cls_indices[0]) < 10:
+            if len(cls_indices[0]) < 1:
                 # print('not enough inlier')
                 continue
             trueDets[int(cls)] += 1
 
+            '''
             # mask from anchors
             pot_mask = scores[0, :, inv_cls]
             mask_P3 = pot_mask[:4800]
@@ -403,7 +408,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             loc_img = np.concatenate([img_P3, img_P4, img_P5], axis=1)
             cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
 
-            '''
+            
             # centerness
             res_temp = np.ones((6300)) * 255
             obj_residuals = residuals[0, cls_indices, :]
@@ -492,6 +497,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                useExtrinsicGuess=False, iterationsCount=300,
                                                                reprojectionError=5.0, confidence=0.99,
                                                                flags=cv2.SOLVEPNP_EPNP)
+            print('pnp: ', time.time() - t_start)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
             if cls == 10 or cls == 11:

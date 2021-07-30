@@ -46,7 +46,20 @@ def default_classification_model(
     labels = keras.layers.Reshape((-1, num_classes))(labels)
     labels = keras.layers.Activation('sigmoid')(labels)
 
-    return keras.models.Model(inputs=inputs, outputs=labels)
+    cent = keras.layers.Conv2D(
+        filters=1,
+        kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
+        bias_initializer=initializers.PriorProbability(probability=prior_probability),
+        **options
+    )(outputs)
+
+    # reshape output and apply sigmoid
+    if keras.backend.image_data_format() == 'channels_first':
+        cent = keras.layers.Permute((2, 3, 1))(cent)
+    cent = keras.layers.Reshape((-1, 1))(cent) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
+    cent = keras.layers.Activation('sigmoid')(cent)
+
+    return keras.models.Model(inputs=inputs, outputs=labels), keras.models.Model(inputs=inputs, outputs=cent)
 
 
 def default_regression_model(num_values, pyramid_feature_size=256, prior_probability=0.01, regression_feature_size=512):
@@ -242,17 +255,17 @@ def pyrapose(
     regression_P4 = regression_branch(P4)
     regression_P5 = regression_branch(P5)
 
-    location_P3 = location_branch(P3)
-    location_P4 = location_branch(P4)
-    location_P5 = location_branch(P5)
+    location_P3 = location_branch[0](P3)
+    location_P4 = location_branch[0](P4)
+    location_P5 = location_branch[0](P5)
 
-    #center_P3 = regression_branch[1](P3)
-    #center_P4 = regression_branch[1](P4)
-    #center_P5 = regression_branch[1](P5)
+    center_P3 = location_branch[1](P3)
+    center_P4 = location_branch[1](P4)
+    center_P5 = location_branch[1](P5)
 
     pyramids.append(keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5]))
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
-    #pyramids.append(keras.layers.Concatenate(axis=1, name='center')([center_P3, center_P4, center_P5]))
+    pyramids.append(keras.layers.Concatenate(axis=1, name='center')([center_P3, center_P4, center_P5]))
 
     #regression = keras.layers.Concatenate(axis=1)([regression_P3, regression_P4, regression_P5])
     #residuals = keras.layers.Concatenate(axis=1)([center_P3, center_P4, center_P5])

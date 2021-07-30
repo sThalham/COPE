@@ -52,6 +52,7 @@ def anchor_targets_bbox(
     labels_batch_hamming = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch_bicubic = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -178,7 +179,7 @@ def anchor_targets_bbox(
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
                 #residual_batch[index, locations_positive_obj, -1] = 1
 
-                #center_batch[index, :, -1] = 1
+                center_batch[index, locations_positive_obj, -1] = 1
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -208,9 +209,14 @@ def anchor_targets_bbox(
                 #regression_batch[index, locations_positive_obj, cls, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
 
                 # with residual regression
-                boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                #boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #regression_batch[index, locations_positive_obj, cls, :-1] = boxes
                 #residual_batch[index, locations_positive_obj, :-1] = boxes
+
+                # with centerness for multi-instance
+                boxes, centers = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                center_batch[index, locations_positive_obj, :-1] = centers
 
         '''
         random_idx = str(np.random.randint(0, 1000))
@@ -232,23 +238,24 @@ def anchor_targets_bbox(
         '''
 
         '''
-        #VISU.print_img()
+        #visualize centerness
         random_idx = str(np.random.randint(0, 1000))
-        labels_img = (labels_batch[index, 0:4800, -1] * 255).astype(np.uint8)
+        labels_img = (center_batch[index, 0:4800, -1] * 255).astype(np.uint8)
         labels_img = labels_img.reshape((60, 80))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch[index, 4800:6000, -1] * 255).astype(np.uint8)
+        labels_img = (center_batch[index, 4800:6000, -1] * 255).astype(np.uint8)
         labels_img = labels_img.reshape((30, 40))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch[index, 6000:6300, -1] * 255).astype(np.uint8)
+        labels_img = (center_batch[index, 6000:6300, -1] * 255).astype(np.uint8)
         labels_img = labels_img.reshape((15, 20))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_nearest.png'
+        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
         img_viz = np.concatenate([image+100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
+        '''
 
         #labels_img = (labels_batch_bilinear[index, 0:4800, -1] * 255).astype(np.uint8)
         #labels_img = labels_img.reshape((60, 80))
@@ -266,7 +273,8 @@ def anchor_targets_bbox(
         #img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         #cv2.imwrite(img_name, img_viz)
 
-        labels_img = (labels_batch_hamming[index, 0:4800, -1] * 255).astype(np.uint8)
+        '''
+        labels_img = (center_batch_hamming[index, 0:4800, -1] * 255).astype(np.uint8)
         labels_img = labels_img.reshape((60, 80))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
@@ -282,7 +290,7 @@ def anchor_targets_bbox(
         img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
 
-        labels_img = (labels_batch_bicubic[index, 0:4800, -1] * 255).astype(np.uint8)
+        labels_img = (center_batch_bicubic[index, 0:4800, -1] * 255).astype(np.uint8)
         labels_img = labels_img.reshape((60, 80))
         labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
         labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
@@ -300,7 +308,7 @@ def anchor_targets_bbox(
         '''
 
     #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch)#, tf.convert_to_tensor(residual_batch),
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch),
 
 
 def layer_shapes(image_shape, model):
@@ -473,13 +481,13 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #print('pos targets: ', np.nanmin(targets[targets > 0]), np.nanmax(targets[targets > 0]))
     #print('neg targets: ', np.nanmin(targets[targets < 0]), np.nanmax(targets[targets < 0]))
 
-    #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
-    #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
-    #centerness = np.exp(-centerness)
-    #return targets, centerness[:, np.newaxis]
+    x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
+    y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    centerness = np.exp(-centerness)
+    return targets, centerness[:, np.newaxis]
 
-    return targets
+    #return targets
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):

@@ -1,6 +1,6 @@
 # tensorflow
 #FROM tensorflow/tensorflow:latest-gpu-py3
-FROM tensorflow/tensorflow:2.1.1-gpu
+FROM tensorflow/tensorflow:2.3.0-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -37,10 +37,8 @@ RUN apt-get update -qq \
 RUN pip install --upgrade pip
 
 # install Keras
-RUN pip3 install keras==2.3.1
 RUN pip3 install opencv-python==3.4.0.14
 RUN pip3 install progressbar2
-RUN pip3 install keras-resnet
 RUN pip3 install cython
 RUN pip3 install pycocotools
 RUN pip3 install pillow
@@ -54,10 +52,10 @@ RUN pip3 install pygeometry
 RUN pip3 install PyOpenGL
 RUN pip3 install imgaug
 
-RUN git clone https://github.com/sThalham/PyraPose.git /PyraPose
+RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
 
 # Go to pix2pix root
-WORKDIR /PyraPose
+WORKDIR /PyraPoseAF
 
 
 #CMD ["python3", "RetinaNetPose/bin/train.py", "linemod", "data"]
