@@ -130,7 +130,7 @@ class LinemodDataset(tf.data.Dataset):
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
 
         # load 3D boxes
-        TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
+        TDboxes = np.ndarray((16, 9, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((16), dtype=np.float32)
         avg_dimension = np.ndarray((16), dtype=np.float32)
 
@@ -141,7 +141,8 @@ class LinemodDataset(tf.data.Dataset):
             x_plus = value['size_x'] + x_minus
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
-            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+            three_box_solo = np.array([[0.0, 0.0, 0.0],
+                                       [x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
                                        [x_plus, y_minus, z_plus],
@@ -183,7 +184,7 @@ class LinemodDataset(tf.data.Dataset):
             mask = cv2.imread(mask_path, -1)
 
             annotations = {'mask': mask, 'labels': np.empty((0,)),
-                           'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
+                           'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 9, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
 
             for idx, a in enumerate(anns):
@@ -339,7 +340,7 @@ class LinemodDataset(tf.data.Dataset):
                                               output_types=(tf.dtypes.float32,
                                                             (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
-                                              tf.TensorShape([None, 6300, 15, 17]), tf.TensorShape([None, 6300, 17]), tf.TensorShape([None, 6300, 16]), tf.TensorShape([None, 6300, 2]))),
+                                              tf.TensorShape([None, 6300, 15, 19]), tf.TensorShape([None, 6300, 19]), tf.TensorShape([None, 6300, 16]), tf.TensorShape([None, 6300, 2]))),
                                               args=(data_dir, set_name, batch_size))
         #return tf.data.Dataset.from_generator(self._generate, args=(data_dir, set_name, batch_size), output_signature=(tf.TensorSpec(shape=(1, 480, 640, 3), dtype=tf.float32), (tf.TensorSpec(shape=(15, 1, 6300, 17), dtype=tf.float32),
          #tf.TensorSpec(shape=(1, 6300, 16), dtype=tf.float32),

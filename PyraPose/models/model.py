@@ -222,28 +222,12 @@ def pyrapose(
     create_pyramid_features = __create_PFPN,
     name                    = 'pyrapose'
 ):
-    regression_branch = default_regression_model(16)
+    regression_branch = default_regression_model(18)
     location_branch = default_classification_model(num_classes)
 
     b1, b2, b3 = backbone_layers
-
-    '''
-    features = create_pyramid_features(b1, b2, b3)
-    pyramids = []
-    regression_P3 = regression_branch[0](features[0])
-    regression_P4 = regression_branch[0](features[1])
-    regression_P5 = regression_branch[0](features[2])
-
-    location_P3 = location_branch(features[0])
-    location_P4 = location_branch(features[1])
-    location_P5 = location_branch(features[2])
-
-    center_P3 = regression_branch[1](features[0])
-    center_P4 = regression_branch[1](features[1])
-    center_P5 = regression_branch[1](features[2])
-    '''
-
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
+
     pyramids = []
     regression_P3 = regression_branch[0](P3)
     regression_P4 = regression_branch[0](P4)

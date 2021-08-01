@@ -538,16 +538,6 @@ def focal_l1(num_classes=0, weight=1.0):
         y_pred_exp = tf.expand_dims(y_pred, axis=0)
         y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
 
-        #nested_y_true = tf.split(y_true, num_or_size_splits=num_classes, axis=2)
-        #nested_y_pred = tf.split(y_pred_rep, num_or_size_splits=num_classes, axis=2)
-
-        #cls_ls = []
-        #for idx, y_t in enumerate(nested_y_true):
-        #    cls_ls.append(per_cls_smooth_l1(y_t, nested_y_pred[idx]))
-        #loss_per_cls = tf.stack(cls_ls, axis=0)
-
-        #tf.nest.assert_same_structure(y_true, y_pred_rep)
-
         loss_per_cls = tf.map_fn(per_cls_smooth_l1, (y_true_perm, y_pred_rep))
 
         #max_cls = tf.math.reduce_max(loss_per_cls)

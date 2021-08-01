@@ -48,8 +48,8 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
-    residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 18 + 1), dtype=keras.backend.floatx())
+    residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
@@ -68,7 +68,7 @@ def anchor_targets_bbox(
             masks_level.append(mask_level.flatten())
         #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
 
-        calculated_boxes = np.empty((0, 16))
+        calculated_boxes = np.empty((0, 18))
 
         for idx, pose in enumerate(annotations['poses']):
 
@@ -202,10 +202,10 @@ def anchor_targets_bbox(
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = pose[:3]
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
-                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 9, axis=0)
                 box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                                            cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
-                box3D = np.reshape(box3D, (16))
+                box3D = np.reshape(box3D, (18))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
                 # project object diameter
@@ -231,11 +231,11 @@ def anchor_targets_bbox(
                 #
 
                 # with centerness for multi-instance
-                boxes, centers = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                points, centers = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
-                regression_batch[index, locations_positive_obj, cls, :-1] = boxes
+                regression_batch[index, locations_positive_obj, cls, :-1] = points
                 residual_batch[index, locations_positive_obj, -1] = 1
-                residual_batch[index, locations_positive_obj, :-1] = boxes
+                residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
                 center_batch[index, locations_positive_obj, -1] = 1
@@ -329,6 +329,11 @@ def anchor_targets_bbox(
         img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
         '''
+
+    #print('regression: ', regression_batch.shape)
+    #print('residual: ', residual_batch.shape)
+    #print('labels: ', labels_batch.shape)
+    #print('center: ', center_batch.shape)
 
     #return regression_batch, labels_batch, center_batch
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(residual_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch)
@@ -459,9 +464,9 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #np.seterr(invalid='raise')
 
     if mean is None:
-        mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        mean = np.full(18, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        std = np.full(16, 0.7)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        std = np.full(18, 0.7)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
         #std = np.full(16, 1.5) # with min dimension
 
@@ -478,24 +483,26 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #print(box.shape)
     #print(locations.shape)
 
-    targets_dx1 = locations[:, 0] - box[0]
-    targets_dy1 = locations[:, 1] - box[1]
-    targets_dx2 = locations[:, 0] - box[2]
-    targets_dy2 = locations[:, 1] - box[3]
-    targets_dx3 = locations[:, 0] - box[4]
-    targets_dy3 = locations[:, 1] - box[5]
-    targets_dx4 = locations[:, 0] - box[6]
-    targets_dy4 = locations[:, 1] - box[7]
-    targets_dx5 = locations[:, 0] - box[8]
-    targets_dy5 = locations[:, 1] - box[9]
-    targets_dx6 = locations[:, 0] - box[10]
-    targets_dy6 = locations[:, 1] - box[11]
-    targets_dx7 = locations[:, 0] - box[12]
-    targets_dy7 = locations[:, 1] - box[13]
-    targets_dx8 = locations[:, 0] - box[14]
-    targets_dy8 = locations[:, 1] - box[15]
+    targets_dx0 = locations[:, 0] - box[0]
+    targets_dy0 = locations[:, 1] - box[1]
+    targets_dx1 = locations[:, 0] - box[2]
+    targets_dy1 = locations[:, 1] - box[3]
+    targets_dx2 = locations[:, 0] - box[4]
+    targets_dy2 = locations[:, 1] - box[5]
+    targets_dx3 = locations[:, 0] - box[6]
+    targets_dy3 = locations[:, 1] - box[7]
+    targets_dx4 = locations[:, 0] - box[8]
+    targets_dy4 = locations[:, 1] - box[9]
+    targets_dx5 = locations[:, 0] - box[10]
+    targets_dy5 = locations[:, 1] - box[11]
+    targets_dx6 = locations[:, 0] - box[12]
+    targets_dy6 = locations[:, 1] - box[13]
+    targets_dx7 = locations[:, 0] - box[14]
+    targets_dy7 = locations[:, 1] - box[15]
+    targets_dx8 = locations[:, 0] - box[16]
+    targets_dy8 = locations[:, 1] - box[17]
 
-    targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
+    targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
 
     # exponential targets
