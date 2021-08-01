@@ -46,6 +46,7 @@ def anchor_targets_bbox(
     image_shapes = guess_shapes(image_group[0].shape[:2], pyramid_levels)
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
+    img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     residual_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
@@ -76,18 +77,18 @@ def anchor_targets_bbox(
             obj_diameter = annotations['diameters'][idx]
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
-            # pyramid_index from surface
-            surf_count = np.sum(mask.flatten() == mask_id)
-            #print('surf_count: ', surf_count)
-            if surf_count > 20480:
-                reso_idx = 2
-            elif surf_count > 5120:
-                reso_idx = 1
-            else:
-                reso_idx = 0
+            # pyramid_index from surface, single level
+            #surf_count = np.sum(mask.flatten() == mask_id)
+            #if surf_count > 20480:
+            #    reso_idx = 2
+            #elif surf_count > 5120:
+            #    reso_idx = 1
+            #else:
+            #    reso_idx = 0
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
-            #compute image reso to estimate
-            ex = obj_diameter / pose[2]
+            # pyrmid_index from diameter
+            #ex = obj_diameter / pose[2]
             # 2... max index
             # single pyramid level
             #reso_idx = (2 + np.round(np.log(ex)/np.log(4))).astype(np.uint8)
@@ -96,9 +97,34 @@ def anchor_targets_bbox(
             #    reso_van = -2
             #reso_idx = int(2 + reso_van)
 
-            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
-
-            # single pyramid with via mask
+            # multi pyramid levels from surface
+            #surf_count = np.sum(mask.flatten() == mask_id)
+            #if surf_count > 20480:
+            #    reso_levels = [2]
+            #elif 8192 < surf_count <= 20480:
+            #    reso_levels = [2, 1]
+            #elif 5120 < surf_count <= 8192:
+            #    reso_levels = [1]
+            #elif 2048 < surf_count <= 5120:
+            #    reso_levels = [1, 0]
+            #else:
+            #    reso_levels = [0]
+            surf_count = np.sum(mask.flatten() == mask_id) / img_area
+            if surf_count > 0.1:
+                reso_levels = [2]
+            elif 0.05 < surf_count <= 0.1:
+                reso_levels = [2, 1]
+            elif 0.025 < surf_count <= 0.05:
+                reso_levels = [2, 1, 0]
+            elif 0.005 < surf_count <= 0.025:
+                reso_levels = [1, 0]
+            else:
+                reso_levels = [0]
+            print(surf_count, reso_levels)
+            locations_positive_obj = []
+            for reso_idx in reso_levels:
+                locations_positive_obj.append(np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
+            locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
 
             '''
             # test Hamming and bilinear bicubic
@@ -216,7 +242,6 @@ def anchor_targets_bbox(
                 center_batch[index, locations_positive_obj, -1] = 1
                 center_batch[index, locations_positive_obj, :-1] = centers
 
-        '''
         random_idx = str(np.random.randint(0, 1000))
         labels_img = (np.max(labels_batch[index, 0:4800, :-1], axis=1) * 255).astype(np.uint8)
         labels_img = labels_img.reshape((60, 80))
@@ -233,7 +258,6 @@ def anchor_targets_bbox(
         img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
         img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
-        '''
 
         '''
         #visualize centerness
