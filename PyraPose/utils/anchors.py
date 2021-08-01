@@ -120,7 +120,6 @@ def anchor_targets_bbox(
                 reso_levels = [1, 0]
             else:
                 reso_levels = [0]
-            print(surf_count, reso_levels)
             locations_positive_obj = []
             for reso_idx in reso_levels:
                 locations_positive_obj.append(np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
@@ -242,6 +241,7 @@ def anchor_targets_bbox(
                 center_batch[index, locations_positive_obj, -1] = 1
                 center_batch[index, locations_positive_obj, :-1] = centers
 
+        '''
         random_idx = str(np.random.randint(0, 1000))
         labels_img = (np.max(labels_batch[index, 0:4800, :-1], axis=1) * 255).astype(np.uint8)
         labels_img = labels_img.reshape((60, 80))
@@ -258,6 +258,7 @@ def anchor_targets_bbox(
         img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
         img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
         cv2.imwrite(img_name, img_viz)
+        '''
 
         '''
         #visualize centerness

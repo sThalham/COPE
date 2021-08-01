@@ -132,6 +132,7 @@ class LinemodDataset(tf.data.Dataset):
         # load 3D boxes
         TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((16), dtype=np.float32)
+        avg_dimension = np.ndarray((16), dtype=np.float32)
 
         for key, value in yaml.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -149,14 +150,15 @@ class LinemodDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
-
-            transform_generator = random_transform_generator(
-                min_translation=(0.0, 0.0),
-                max_translation=(0.0, 0.0),
-                min_scaling=(0.95, 0.95),
-                max_scaling=(1.05, 1.05),
-            )
             sphere_diameters[int(key)] = value['diameter']
+            avg_dimension[int(key)] = (value['size_x'] + value['size_y'] + value['size_z'])/3
+
+        transform_generator = random_transform_generator(
+            min_translation=(0.0, 0.0),
+            max_translation=(0.0, 0.0),
+            min_scaling=(0.95, 0.95),
+            max_scaling=(1.05, 1.05),
+        )
 
         def load_image(image_index):
             """ Load an image at the image_index.
