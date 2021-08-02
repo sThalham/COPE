@@ -475,9 +475,9 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
         mean = np.full(18, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        #std = np.full(18, 0.7)
+        std = np.full(18, 0.7)
         # avg obj_dimension
-        std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
         #std = np.full(16, 1.5) # with min dimension
 
@@ -525,9 +525,9 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
     # obj_diameter
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
     # avg obj_dimension
-    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.015)
+    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.015)
     centerness = np.exp(-centerness)
     return targets, centerness[:, np.newaxis]
 

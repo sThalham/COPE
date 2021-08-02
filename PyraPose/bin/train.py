@@ -85,9 +85,9 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
         loss={
             'points'        : losses.focal_l1(num_classes=num_classes, weight=0.75),
             # obj_diameter
-            #'conf': losses.residual_loss(weight=0.2),
+            'conf': losses.residual_loss(weight=0.2),
             # avg obj_dimension
-            'conf'          : losses.residual_loss(weight=0.25),
+            #'conf'          : losses.residual_loss(weight=0.25),
             'cls'           : losses.focal(),
             'center'        : losses.smooth_l1(weight=6.0),
         },
@@ -222,8 +222,8 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    backbone = models.backbone('resnet50')
-    #backbone = models.backbone('resnet101')
+    #backbone = models.backbone('resnet50')
+    backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
     #backbone = models.backbone('xception')
