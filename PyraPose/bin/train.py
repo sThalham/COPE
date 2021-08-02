@@ -84,7 +84,10 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
     training_model.compile(
         loss={
             'points'        : losses.focal_l1(num_classes=num_classes, weight=0.75),
-            'conf'          : losses.residual_loss(weight=0.2),
+            # obj_diameter
+            #'conf': losses.residual_loss(weight=0.2),
+            # avg obj_dimension
+            'conf'          : losses.residual_loss(weight=0.25),
             'cls'           : losses.focal(),
             'center'        : losses.smooth_l1(weight=6.0),
         },

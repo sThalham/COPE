@@ -89,13 +89,19 @@ def anchor_targets_bbox(
 
             # pyrmid_index from diameter
             #ex = obj_diameter / pose[2]
-            # 2... max index
-            # single pyramid level
-            #reso_idx = (2 + np.round(np.log(ex)/np.log(4))).astype(np.uint8)
-            #reso_van = np.round(np.log(ex))
+            #reso_van = np.round(np.log(ex) / np.log(3.5))
             #if reso_van < -2:
             #    reso_van = -2
             #reso_idx = int(2 + reso_van)
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
+            # pyrmid_index from avg dimension
+            ex = obj_diameter / pose[2]
+            reso_van = np.round(np.log(ex) / np.log(4))
+            if reso_van < -2:
+                reso_van = -2
+            reso_idx = int(2 + reso_van)
+            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
             # multi pyramid levels from surface
             #surf_count = np.sum(mask.flatten() == mask_id)
@@ -109,6 +115,7 @@ def anchor_targets_bbox(
             #    reso_levels = [1, 0]
             #else:
             #    reso_levels = [0]
+            '''
             surf_count = np.sum(mask.flatten() == mask_id) / img_area
             if surf_count > 0.1:
                 reso_levels = [2]
@@ -124,6 +131,7 @@ def anchor_targets_bbox(
             for reso_idx in reso_levels:
                 locations_positive_obj.append(np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
             locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
+            '''
 
             '''
             # test Hamming and bilinear bicubic
@@ -466,7 +474,10 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     if mean is None:
         mean = np.full(18, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        std = np.full(18, 0.7)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        # obj_diameter
+        #std = np.full(18, 0.7)
+        # avg obj_dimension
+        std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
         #std = np.full(16, 1.5) # with min dimension
 
@@ -513,7 +524,10 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
 
     x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
     y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    # obj_diameter
+    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    # avg obj_dimension
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.015)
     centerness = np.exp(-centerness)
     return targets, centerness[:, np.newaxis]
 

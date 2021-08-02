@@ -218,7 +218,9 @@ class LinemodDataset(tf.data.Dataset):
                 objID = a['category_id']
                 threeDbox = TDboxes[objID, :, :]
                 annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
-                annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
+                #annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
+                #                                          axis=0)
+                annotations['diameters'] = np.concatenate([annotations['diameters'], [avg_dimension[objID]]],
                                                           axis=0)
                 annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
                     fx,
