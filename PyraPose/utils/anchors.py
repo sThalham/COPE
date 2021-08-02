@@ -88,20 +88,20 @@ def anchor_targets_bbox(
             #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
             # pyrmid_index from diameter
-            #ex = obj_diameter / pose[2]
-            #reso_van = np.round(np.log(ex) / np.log(3.5))
-            #if reso_van < -2:
-            #    reso_van = -2
-            #reso_idx = int(2 + reso_van)
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
-
-            # pyrmid_index from avg dimension
             ex = obj_diameter / pose[2]
-            reso_van = np.round(np.log(ex) / np.log(4))
+            reso_van = np.round(np.log(ex) / np.log(3.5))
             if reso_van < -2:
                 reso_van = -2
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
+            # pyrmid_index from avg dimension
+            #ex = obj_diameter / pose[2]
+            #reso_van = np.round(np.log(ex) / np.log(4))
+            #if reso_van < -2:
+            #    reso_van = -2
+            #reso_idx = int(2 + reso_van)
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
             # multi pyramid levels from surface
             #surf_count = np.sum(mask.flatten() == mask_id)
