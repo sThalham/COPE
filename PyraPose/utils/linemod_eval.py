@@ -231,9 +231,10 @@ def boxoverlap(a, b):
 
 
 def denorm_box(locations, regression, obj_diameter):
-    mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
-    std = np.full(16, 0.7)
+    std = np.full(18, 0.7)
+    #std = np.full(18, 0.95)
 
     #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
     #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
@@ -256,8 +257,11 @@ def denorm_box(locations, regression, obj_diameter):
     y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
     x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
     y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
+    x9 = locations[:, :, 0] - (regression[:, :, 16] * (std[16] * obj_diameter) + mean[0])
+    y9 = locations[:, :, 1] - (regression[:, :, 17] * (std[17] * obj_diameter) + mean[1])
 
-    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+    #pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9], axis=2)
 
     return pred_boxes
 
@@ -265,8 +269,9 @@ def denorm_box(locations, regression, obj_diameter):
 def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.yml")
-    threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
+    threeD_boxes = np.ndarray((31, 9, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
+    avg_dimension = np.ndarray((16), dtype=np.float32)
 
     image_locations = locations_for_shape((480, 640))
 
@@ -278,7 +283,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         x_plus = value['size_x'] * fac + x_minus
         y_plus = value['size_y'] * fac + y_minus
         z_plus = value['size_z'] * fac + z_minus
-        three_box_solo = np.array([[x_plus, y_plus, z_plus],
+        three_box_solo = np.array([
+                                    [0.0, 0.0, 0.0],
+                                    [x_plus, y_plus, z_plus],
                                   [x_plus, y_plus, z_minus],
                                   [x_plus, y_minus, z_minus],
                                   [x_plus, y_minus, z_plus],
@@ -288,6 +295,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                   [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
         model_dia[int(key)] = value['diameter'] * fac
+        avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
     pc1, mv1, mv1_mm = load_pcd(data_path,'01')
     pc2, mv2, mv2_mm = load_pcd(data_path,'02')
@@ -348,10 +356,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #    continue
 
         # run network
-        t_start = time.time()
-        boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        #t_start = time.time()
+        boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
 
-        print('forward: ', time.time() - t_start)
+        #print('forward: ', time.time() - t_start)
         for inv_cls in range(scores.shape[2]):
 
             t_start = time.time()
@@ -481,7 +490,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
             t_gt = np.array(t_tra, dtype=np.float32)
             t_gt = t_gt * 0.001
+            #pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], avg_dimension[cls])
             pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
+
 
             # go for all
             k_hyp = len(cls_indices[0])
@@ -489,10 +500,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             #res_idx = np.argmin(res_sum)
             #k_hyp = 1
             #pose_votes = pose_votes[:, res_idx, :]
+            #max center
+            #centerns = centers[0, cls_indices, 0]
+            #centerns = np.squeeze(centerns)
+            #max_center = np.argmax(centerns)
+            #pose_votes = pose_votes[:, max_center, :]
 
-            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 9), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-            obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+            obj_points = obj_points.reshape((int(k_hyp * 9), 1, 3))
             retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                imagePoints=est_points, cameraMatrix=K,
                                                                distCoeffs=None, rvec=None, tvec=None,
@@ -511,12 +527,13 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
 
+
             '''
             # separate evaluation
             for b_p in range(0, pose_votes.shape[2]-1, 2):
                 print('votes pre: ', pose_votes[0, :, b_p:b_p+2])
 
-                sort_axis = np.argsort(np.sum(obj_residuals[0, :, b_p:b_p+2], axis=1), axis=0)
+                sort_axis = np.argsort(np.var(obj_residuals[0, :, b_p:b_p+2], axis=1), axis=0)
                 print('sort: ', sort_axis)
                 if b_p == 14:
                     obj_residuals[0, :, b_p:b_p+2] = obj_residuals[0, sort_axis, b_p:b_p+2]
@@ -527,17 +544,24 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 print('votes post: ', pose_votes[0, :, b_p:b_p+2])
 
             res_sum = np.sum(obj_residuals, axis=2)
+            '''
+
+            '''
+            res_der = obj_residuals[0, cls_indices, :]
+            res_der = np.mean(res_der, axis=2)
+            cen_der = centers[0, cls_indices, :]
 
             # each separately
             k_hyp = 1
             error_vector = []
             residual_vector = []
+            center_vector = []
             for pdx in range(pose_votes.shape[1]):
                 pose_vote = pose_votes[:, pdx, :]
 
-                est_points = np.ascontiguousarray(pose_vote, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+                est_points = np.ascontiguousarray(pose_vote, dtype=np.float32).reshape((int(k_hyp * 9), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-                obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+                obj_points = obj_points.reshape((int(k_hyp * 9), 1, 3))
                 retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                    imagePoints=est_points, cameraMatrix=K,
                                                                    distCoeffs=None, rvec=None, tvec=None,
@@ -554,27 +578,34 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     truePoses[int(true_cat)] += 1
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
-                print('residual: ', res_sum[0, pdx])
+                print('residual: ', res_der[0, pdx])
                 error_vector.append(err_add)
-                residual_vector.append(res_sum[0, pdx])
+                residual_vector.append(res_der[0, pdx])
+                center_vector.append(cen_der[0, pdx])
 
             error_vector = np.array(error_vector)
             residual_vector = np.array(residual_vector)
+            center_vector = np.array(center_vector)
+            #error_vector = (error_vector - np.nanmin(error_vector)) / np.nanmax(error_vector)
+            #error_vector = error_vector * (1 / np.nanmax(error_vector))
+            residual_vector = (residual_vector - np.nanmin(residual_vector)) * (1 / np.nanmax(residual_vector))
+            #center_vector = (center_vector - np.nanmin(center_vector)) * (1 / np.nanmax(center_vector))
+            center_vector = center_vector * (1 / np.nanmax(center_vector))
             sort = np.argsort(error_vector)
             error_vector = error_vector[sort]
             residual_vector = residual_vector[sort]
+            center_vector = center_vector[sort]
             x = np.arange(residual_vector.shape[0])
 
-            plt.plot(x, error_vector, 'r--', residual_vector, 'b--')
+            plt.plot(x, error_vector, 'r*-', residual_vector, 'b*-', center_vector, 'y*-')
             plt.xlabel('hypothesis')
             plt.ylabel('error/residual')
             plt.show()
+            
             '''
-
             ##############################
             # pnp
-            #centerns = center[0, cls_indices, 0]
-            #centerns = np.squeeze(centerns)
+
 
             #k_hyp = int(np.ceil(len(centerns) * 0.25))
 
@@ -676,19 +707,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
 
             tDbox = R_gt.dot(ori_points.T).T
-            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
+            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 9, axis=1).T
             box3D = toPix_array(tDbox)
-            tDbox = np.reshape(box3D, (16))
+            tDbox = np.reshape(box3D, (18))
             tDbox = tDbox.astype(np.uint16)
 
             eDbox = R_est.dot(ori_points.T).T
             #print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
-            eDbox = eDbox + np.repeat(t_est, 8, axis=1).T
+            eDbox = eDbox + np.repeat(t_est, 9, axis=1).T
             #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
             #print(eDbox.shape)
             est3D = toPix_array(eDbox)
             #print(est3D)
-            eDbox = np.reshape(est3D, (16))
+            eDbox = np.reshape(est3D, (18))
             pose = eDbox.astype(np.uint16)
 
             colGT = (255, 0, 0)

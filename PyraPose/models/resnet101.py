@@ -94,7 +94,7 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    layer.trainable=False
         if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        #print(i, layer.name, layer)
+        #:qprint(i, layer.name, layer)
 
     #resnet.summary()
 

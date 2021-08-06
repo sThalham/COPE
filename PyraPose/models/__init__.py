@@ -70,7 +70,7 @@ def backbone(backbone_name):
 def load_model(filepath, backbone_name='resnet50'):
     import tensorflow.keras.models
 
-    backbone_name='resnet50'
+    backbone_name='resnet101'
 
     return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 

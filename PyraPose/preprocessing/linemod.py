@@ -66,7 +66,7 @@ class LinemodGenerator(Generator):
 
         self.load_classes()
 
-        self.TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
+        self.TDboxes = np.ndarray((16, 9, 3), dtype=np.float32)
         self.sphere_diameters = np.ndarray((16), dtype=np.float32)
 
         for key, value in yaml.load(open(self.mesh_info)).items():
@@ -76,7 +76,8 @@ class LinemodGenerator(Generator):
             x_plus = value['size_x'] + x_minus
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
-            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+            three_box_solo = np.array([[0.0, 0.0, 0.0],
+                                        [x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
                                        [x_plus, y_minus, z_plus],
@@ -234,7 +235,7 @@ class LinemodGenerator(Generator):
         # mask = None
         mask = cv2.imread(path, -1)
 
-        annotations     = {'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
+        annotations     = {'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 9, 3)), 'diameters': np.empty((0,)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
 
         for idx, a in enumerate(anns):
             if self.set_name == 'train':
