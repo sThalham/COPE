@@ -281,9 +281,9 @@ def inference_model(
     #locations = __build_locations(features)
 
     regression = model.outputs[0]
-    classification = model.outputs[2]
-    centers = model.outputs[3]
-    residuals = model.outputs[1][:, :, 18:]
+    classification = model.outputs[1]
+    #centers = model.outputs[3]
+    #residuals = model.outputs[1][:, :, 18:]
     #print(centers.shape)
 
     #boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
@@ -291,5 +291,5 @@ def inference_model(
     boxes3D = regression
 
     # construct the model
-    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, residuals, centers], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, residuals, centers], name=name)
