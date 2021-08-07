@@ -51,7 +51,7 @@ def anchor_targets_bbox(
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 18 + 1), dtype=keras.backend.floatx())
     residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
+    #center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -246,8 +246,8 @@ def anchor_targets_bbox(
                 residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
-                center_batch[index, locations_positive_obj, -1] = 1
-                center_batch[index, locations_positive_obj, :-1] = centers
+                #center_batch[index, locations_positive_obj, -1] = 1
+                #center_batch[index, locations_positive_obj, :-1] = centers
 
         '''
         random_idx = str(np.random.randint(0, 1000))
@@ -344,7 +344,7 @@ def anchor_targets_bbox(
     #print('center: ', center_batch.shape)
 
     #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(residual_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(center_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(residual_batch), tf.convert_to_tensor(labels_batch)
 
 
 def layer_shapes(image_shape, model):
