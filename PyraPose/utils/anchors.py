@@ -522,16 +522,16 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     #print('pos targets: ', np.nanmin(targets[targets > 0]), np.nanmax(targets[targets > 0]))
     #print('neg targets: ', np.nanmin(targets[targets < 0]), np.nanmax(targets[targets < 0]))
 
-    x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
-    y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
+    #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
+    #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
     # obj_diameter
-    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
     # avg obj_dimension
     #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.015)
-    centerness = np.exp(-centerness)
-    return targets, centerness[:, np.newaxis]
+    #centerness = np.exp(-centerness)
+    #return targets, centerness[:, np.newaxis]
 
-    #return targets
+    return targets
 
 
 def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
