@@ -239,7 +239,7 @@ def anchor_targets_bbox(
                 #
 
                 # with centerness for multi-instance
-                points, centers = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
                 regression_batch[index, locations_positive_obj, cls, :-1] = points
                 residual_batch[index, locations_positive_obj, -1] = 1
