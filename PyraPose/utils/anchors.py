@@ -338,6 +338,14 @@ def anchor_targets_bbox(
         cv2.imwrite(img_name, img_viz)
         '''
 
+        #img_inv = image
+        #img_inv[..., 0] += 103.939
+        #img_inv[..., 1] += 116.779
+        #img_inv[..., 2] += 123.68
+        #img_inv = img_inv.astype(np.uint8)
+        #img_name = '/home/stefan/PyraPose_viz/image_' + str(np.random.randint(0, 1000)) + '.png'
+        #cv2.imwrite(img_name, img_inv)
+
     #print('regression: ', regression_batch.shape)
     #print('residual: ', residual_batch.shape)
     #print('labels: ', labels_batch.shape)

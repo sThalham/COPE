@@ -255,6 +255,29 @@ class LinemodDataset(tf.data.Dataset):
         max_shape = (image_min_side, image_max_side, 3)
 
         seq = iaa.Sequential([
+            iaa.SomeOf((0, 2), [
+                iaa.BlendAlphaFrequencyNoise(
+                    exponent=(-4, 4),
+                    foreground=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
+                    background=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
+                    upscale_method=["linear", "cubic"]
+                ),
+                iaa.BlendAlphaSimplexNoise(
+                    foreground=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
+                    background=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
+                    upscale_method=["linear", "cubic"]
+                ),
+                #iaa.BlendAlphaSimplexNoise(
+                #    foreground=[iaa.MultiplyHue((0.5, 1.5)), iaa.MultiplySaturation((0.5, 1.5))],
+                #    background=[iaa.MultiplyHue((0.5, 1.5)), iaa.MultiplySaturation((0.5, 1.5))],
+                #    upscale_method=["linear", "cubic"]
+                #),
+                #iaa.BlendAlphaSimplexNoise(
+                #    foreground=[iaa.AddToHue((-50, 50)), iaa.AddToSaturation((-50, 50))],
+                #    background=[iaa.AddToHue((-50, 50)), iaa.AddToSaturation((-50, 50))],
+                #    upscale_method=["linear", "cubic"]
+                #),
+            ]),
             # blur
             iaa.SomeOf((0, 2), [
                 iaa.GaussianBlur((0.0, 2.0)),
@@ -278,10 +301,10 @@ class LinemodDataset(tf.data.Dataset):
                 ]),
                 iaa.Add((-10, 10), per_channel=0.5),
                 iaa.Multiply((0.75, 1.25), per_channel=0.5),
-                iaa.FrequencyNoiseAlpha(
-                    exponent=(-4, 0),
-                    first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
-                    second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
+                #iaa.FrequencyNoiseAlpha(
+                #    exponent=(-4, 0),
+                #    first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
+                #    second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
             ]),
             # contrast
             iaa.SomeOf((0, 2), [
