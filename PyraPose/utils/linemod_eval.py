@@ -357,6 +357,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
         # run network
         #t_start = time.time()
+
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
         boxes3D, scores, residuals = model.predict_on_batch(np.expand_dims(image, axis=0))
 
