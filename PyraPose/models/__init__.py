@@ -82,7 +82,7 @@ def convert_model(model):
 
 def assert_training_model(model):
     #assert (all(output in model.output_names for output in ['points', 'conf', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    assert (all(output in model.output_names for output in ['points', 'boxes', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
     #assert (all(output in model.output_names for output in ['points', 'cls', 'P3', 'P4', 'P5'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 

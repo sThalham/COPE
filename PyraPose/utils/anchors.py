@@ -49,9 +49,10 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
-    boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
+    #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -102,14 +103,16 @@ def anchor_targets_bbox(
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
                 points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                regression_batch[index, locations_positive_obj, cls, -1] = 1
-                regression_batch[index, locations_positive_obj, cls, :-1] = points
+                #regression_batch[index, locations_positive_obj, cls, -1] = 1
+                #regression_batch[index, locations_positive_obj, cls, :-1] = points
+                regression_batch[index, locations_positive_obj, -1] = 1
+                regression_batch[index, locations_positive_obj, :-1] = points
                 #residual_batch[index, locations_positive_obj, -1] = 1
                 #residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
-                boxes_batch[index, locations_positive_obj, cls, -1] = 1
-                boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
+                #boxes_batch[index, locations_positive_obj, cls, -1] = 1
+                #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
 
                 #bb = annotations['bboxes'][idx]
                 #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
@@ -121,7 +124,7 @@ def anchor_targets_bbox(
         #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
         #cv2.imwrite(name, image_raw)
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(boxes_batch), tf.convert_to_tensor(labels_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch)
 
 
 def layer_shapes(image_shape, model):
@@ -252,7 +255,7 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        std = np.full(16, 0.7)
+        std = np.full(16, 150.0)
         # avg obj_dimension
         #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
@@ -291,7 +294,7 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     #targets_dy8 = locations[:, 1] - box[17]
 
     targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=1)
-    targets = (targets - mean) / (std * obj_diameter)
+    targets = (targets - mean) / std #(std * obj_diameter)
 
     return targets
 

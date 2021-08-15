@@ -186,7 +186,7 @@ def pyrapose(
     name                    = 'pyrapose'
 ):
     regression_branch = default_regression_model(16)
-    boxes_branch = default_regression_model(4)
+    #boxes_branch = default_regression_model(4)
     location_branch = default_classification_model(num_classes)
 
     b1, b2, b3 = backbone_layers
@@ -199,11 +199,11 @@ def pyrapose(
     regression = keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5])
     pyramids.append(regression)
 
-    boxes_P3 = boxes_branch(P3)
-    boxes_P4 = boxes_branch(P4)
-    boxes_P5 = boxes_branch(P5)
-    boxes = keras.layers.Concatenate(axis=1, name='boxes')([boxes_P3, boxes_P4, boxes_P5])
-    pyramids.append(boxes)
+    #boxes_P3 = boxes_branch(P3)
+    #boxes_P4 = boxes_branch(P4)
+    #boxes_P5 = boxes_branch(P5)
+    #boxes = keras.layers.Concatenate(axis=1, name='boxes')([boxes_P3, boxes_P4, boxes_P5])
+    #pyramids.append(boxes)
 
     #residuals_P3 = regression_branch[1](P3)
     #residuals_P4 = regression_branch[1](P4)
@@ -246,8 +246,8 @@ def inference_model(
     #locations = __build_locations(features)
 
     regression = model.outputs[0]
-    residuals = model.outputs[1][:, :, 18:]
-    classification = model.outputs[2]
+    #residuals = model.outputs[1][:, :, 18:]
+    classification = model.outputs[1]
 
     #print(centers.shape)
 
@@ -257,4 +257,4 @@ def inference_model(
 
     # construct the model
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, residuals], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
