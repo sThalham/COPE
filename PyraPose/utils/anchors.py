@@ -57,6 +57,11 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
+
         image_locations = locations_for_shape(image.shape)
         # w/o mask
         mask = annotations['mask'][0]
@@ -105,6 +110,16 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, cls] = 1
                 boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
+
+                #bb = annotations['bboxes'][idx]
+                #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
+                #              (255, 255, 255), 2)
+                #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
+                #              (255, 0, 0), 1)
+
+        #rind = np.random.randint(0, 1000)
+        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
+        #cv2.imwrite(name, image_raw)
 
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(boxes_batch), tf.convert_to_tensor(labels_batch)
 
@@ -290,7 +305,7 @@ def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
         mean = np.full(4, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        std = np.full(4, 0.4)
+        std = np.full(4, 0.5)
         # avg obj_dimension
         #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
