@@ -255,7 +255,7 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        std = np.full(16, 130.0)
+        std = np.full(16, 0.7)
         # avg obj_dimension
         #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
@@ -294,7 +294,7 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     #targets_dy8 = locations[:, 1] - box[17]
 
     targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=1)
-    targets = (targets - mean) / std #(std * obj_diameter)
+    targets = (targets - mean) / (std * obj_diameter)
 
     return targets
 
