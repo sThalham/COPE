@@ -84,12 +84,9 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
     training_model.compile(
         loss={
             'points'        : losses.focal_l1(num_classes=num_classes, weight=0.6),
-            # obj_diameter
-            'res': losses.residual_loss(weight=0.2),
-            # avg obj_dimension
-            #'conf'          : losses.residual_loss(weight=0.25),
+            'boxes'        : losses.focal_l1(num_classes=num_classes, weight=1.0),
+            #'res': losses.residual_loss(weight=0.2),
             'cls'           : losses.focal(),
-            #'center'        : losses.smooth_l1(weight=6.0),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -222,8 +219,8 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    #backbone = models.backbone('resnet50')
-    backbone = models.backbone('resnet101')
+    backbone = models.backbone('resnet50')
+    #backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
     #backbone = models.backbone('xception')

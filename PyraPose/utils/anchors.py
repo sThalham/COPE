@@ -37,6 +37,7 @@ def anchor_targets_bbox(
     assert(len(image_group) == len(annotations_group)), "The length of the images and annotations need to be equal."
     assert(len(annotations_group) > 0), "No data received to compute anchor targets for."
     for annotations in annotations_group:
+        assert('bboxes' in annotations), "Annotations should contain boxes."
         assert('labels' in annotations), "Annotations should contain labels."
         assert('poses' in annotations), "Annotations should contain labels."
         assert('segmentations' in annotations), "Annotations should contain poses"
@@ -48,15 +49,13 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 18 + 1), dtype=keras.backend.floatx())
-    residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
+    boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    #center_batch = np.zeros((batch_size, location_shape, 1 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
-
-        #VISU = Visualizer(image)
 
         image_locations = locations_for_shape(image.shape)
         # w/o mask
@@ -68,7 +67,7 @@ def anchor_targets_bbox(
             masks_level.append(mask_level.flatten())
         #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
 
-        calculated_boxes = np.empty((0, 18))
+        calculated_boxes = np.empty((0, 16))
 
         for idx, pose in enumerate(annotations['poses']):
 
@@ -76,16 +75,6 @@ def anchor_targets_bbox(
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
-
-            # pyramid_index from surface, single level
-            #surf_count = np.sum(mask.flatten() == mask_id)
-            #if surf_count > 20480:
-            #    reso_idx = 2
-            #elif surf_count > 5120:
-            #    reso_idx = 1
-            #else:
-            #    reso_idx = 0
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
             # pyrmid_index from diameter
             ex = obj_diameter / pose[2]
@@ -95,264 +84,29 @@ def anchor_targets_bbox(
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
-            # pyrmid_index from avg dimension
-            #ex = obj_diameter / pose[2]
-            #reso_van = np.round(np.log(ex) / np.log(4))
-            #if reso_van < -2:
-            #    reso_van = -2
-            #reso_idx = int(2 + reso_van)
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
-
-            # multi pyramid levels from surface
-            #surf_count = np.sum(mask.flatten() == mask_id)
-            #if surf_count > 20480:
-            #    reso_levels = [2]
-            #elif 8192 < surf_count <= 20480:
-            #    reso_levels = [2, 1]
-            #elif 5120 < surf_count <= 8192:
-            #    reso_levels = [1]
-            #elif 2048 < surf_count <= 5120:
-            #    reso_levels = [1, 0]
-            #else:
-            #    reso_levels = [0]
-            '''
-            surf_count = np.sum(mask.flatten() == mask_id) / img_area
-            if surf_count > 0.1:
-                reso_levels = [2]
-            elif 0.05 < surf_count <= 0.1:
-                reso_levels = [2, 1]
-            elif 0.025 < surf_count <= 0.05:
-                reso_levels = [2, 1, 0]
-            elif 0.005 < surf_count <= 0.025:
-                reso_levels = [1, 0]
-            else:
-                reso_levels = [0]
-            locations_positive_obj = []
-            for reso_idx in reso_levels:
-                locations_positive_obj.append(np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
-            locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
-            '''
-
-            '''
-            # test Hamming and bilinear bicubic
-            locations_positive_bilinear = []
-            values_bilinear = []
-            locations_positive_hamming = []
-            values_hamming = []
-            locations_positive_bicubic = []
-            values_bicubic = []
-            mask_now = np.where(mask == int(mask_id), 255, 0).astype(np.uint8)
-            for jdx, resx in enumerate(image_shapes):
-
-                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.BILINEAR)).flatten()
-                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
-                locations_positive_bilinear.append(locations_level)
-                values_bilinear.append(mask_level * 1/255)
-                print(np.nanmin((mask_level * 1/255).astype(np.uint8)), np.nanmax((mask_level * 1/255).astype(np.uint8)))
-                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.HAMMING)).flatten()
-                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
-                locations_positive_hamming.append(locations_level)
-                values_hamming.append(mask_level * 1/255)
-                mask_level = np.asarray(Image.fromarray(mask_now).resize((resx[1], resx[0]), Image.BICUBIC)).flatten()
-                locations_level = np.where(mask_level > 127)[0] + location_offset[jdx]
-                locations_positive_bicubic.append(locations_level)
-                values_bicubic.append(mask_level * 1/255)
-            locations_positive_bilinear = np.concatenate(locations_positive_bilinear, axis=0)
-            locations_positive_hamming = np.concatenate(locations_positive_hamming, axis=0)
-            locations_positive_bicubic = np.concatenate(locations_positive_bicubic, axis=0)
-            values_bilinear = np.concatenate(values_bilinear, axis=0)
-            values_hamming = np.concatenate(values_hamming, axis=0)
-            values_bicubic = np.concatenate(values_bicubic, axis=0)
-            '''
-
-            # multi-level prediction making
-            #fuzzy_level = np.log(ex) / np.log(3.5)
-            #if fuzzy_level < -1.75:
-            #    reso_levels = [0]
-            #elif fuzzy_level > -1.75 and fuzzy_level < -1.25:
-            #    reso_levels = [0, 1]
-            #elif fuzzy_level > -1.25 and fuzzy_level < -0.75:
-            #    reso_levels = [1]
-            #elif fuzzy_level > -0.75 and fuzzy_level < -0.25:
-            #    reso_levels = [1, 2]
-            #elif fuzzy_level > -0.25:
-            #    reso_levels = [2]
-            #else:
-            #    print('The hell... implossible data range')
-
-            #for jdx in reso_levels:
-            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-            #    locations_positive.append(locations_level)
-            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
-
-            #for jdx, resx in enumerate(image_shapes):
-            #    locations_level = np.where(masks_level[jdx] == int(mask_id))[0] + location_offset[jdx]
-            #    locations_positive.append(locations_level)
-            #locations_positive_obj = np.concatenate(locations_positive, axis=0)
-
             if locations_positive_obj.shape[0] > 1:
-                # nearest location sampling
-
-                # continuous locations
-                #labels_batch[index, locations_positive_obj, -1] = 1
-                #labels_batch[index, locations_positive_obj, cls] = values_location[locations_positive_obj - location_offset[reso_idx]]
-
-                #labels_batch[index, labels_positive_obj, -1] = 1
-                #labels_batch_bilinear[index, locations_positive_bilinear, -1] = values_bilinear[locations_positive_bilinear]
-                #labels_batch_hamming[index, locations_positive_hamming, -1] = values_hamming[locations_positive_hamming]
-                #labels_batch_bicubic[index, locations_positive_bicubic, -1] = values_bicubic[locations_positive_bicubic]
-
-                #regression_batch[index, locations_positive_obj, -1] = 1 # commented for now since we use highest 50% centerness
-
-                #
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = pose[:3]
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
-                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 9, axis=0)
+                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
                 box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                                            cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
-                box3D = np.reshape(box3D, (18))
+                box3D = np.reshape(box3D, (16))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                # project object diameter
-                proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
-
-                # top 50% centerness
-                #index_filt, boxes, centers =  box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #regression_batch[index, locations_positive_obj[index_filt], :-1] = boxes
-                #regression_batch[index, locations_positive_obj[index_filt], -1] = 1
-                #center_batch[index, locations_positive_obj, :-1] = centers
-                #center_batch[index, locations_positive_obj, -1] = 1
-
-                # vanilla
-                #regression_batch[index, locations_positive_obj, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter) # regression_batch[index, anchors_spec, :-1], center_batch[index, anchors_spec, :-1] = box3D_transform(box3D, locations_spec)
-
-                # per class anno
-                #regression_batch[index, locations_positive_obj, cls, :-1], center_batch[index, locations_positive_obj, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #regression_batch[index, locations_positive_obj, cls, :-1] = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-
-                # with residual regression
-                #boxes = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #regression_batch[index, locations_positive_obj, cls, :-1] = boxes
-                #
-
-                # with centerness for multi-instance
-                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
                 regression_batch[index, locations_positive_obj, cls, :-1] = points
-                residual_batch[index, locations_positive_obj, -1] = 1
-                residual_batch[index, locations_positive_obj, :-1] = points
+                #residual_batch[index, locations_positive_obj, -1] = 1
+                #residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
-                #center_batch[index, locations_positive_obj, -1] = 1
-                #center_batch[index, locations_positive_obj, :-1] = centers
+                boxes_batch[index, locations_positive_obj, cls, -1] = 1
+                boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
 
-        '''
-        random_idx = str(np.random.randint(0, 1000))
-        labels_img = (np.max(labels_batch[index, 0:4800, :-1], axis=1) * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((60, 80))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (np.max(labels_batch[index, 4800:6000, :-1], axis=1) * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((30, 40))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (np.max(labels_batch[index, 6000:6300, :-1], axis=1) * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((15, 20))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
-        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
-        cv2.imwrite(img_name, img_viz)
-        '''
-
-        '''
-        #visualize centerness
-        random_idx = str(np.random.randint(0, 1000))
-        labels_img = (center_batch[index, 0:4800, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((60, 80))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (center_batch[index, 4800:6000, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((30, 40))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (center_batch[index, 6000:6300, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((15, 20))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '.png'
-        img_viz = np.concatenate([image+100, labels_img3, labels_img4, labels_img5], axis=1)
-        cv2.imwrite(img_name, img_viz)
-        '''
-
-        #labels_img = (labels_batch_bilinear[index, 0:4800, -1] * 255).astype(np.uint8)
-        #labels_img = labels_img.reshape((60, 80))
-        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        #labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        #labels_img = (labels_batch_bilinear[index, 4800:6000, -1] * 255).astype(np.uint8)
-        #labels_img = labels_img.reshape((30, 40))
-        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        #labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        #labels_img = (labels_batch_bilinear[index, 6000:6300, -1] * 255).astype(np.uint8)
-        #labels_img = labels_img.reshape((15, 20))
-        #labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        #labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        #img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_bilinear.png'
-        #img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
-        #cv2.imwrite(img_name, img_viz)
-
-        '''
-        labels_img = (center_batch_hamming[index, 0:4800, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((60, 80))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch_hamming[index, 4800:6000, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((30, 40))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch_hamming[index, 6000:6300, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((15, 20))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_hamming.png'
-        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
-        cv2.imwrite(img_name, img_viz)
-
-        labels_img = (center_batch_bicubic[index, 0:4800, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((60, 80))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img3 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch_bicubic[index, 4800:6000, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((30, 40))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img4 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        labels_img = (labels_batch_bicubic[index, 6000:6300, -1] * 255).astype(np.uint8)
-        labels_img = labels_img.reshape((15, 20))
-        labels_img = np.repeat(labels_img[:, :, np.newaxis], repeats=3, axis=2)
-        labels_img5 = np.asarray(Image.fromarray(labels_img).resize((640, 480), Image.NEAREST))
-        img_name = '/home/stefan/PyraPose_viz/' + random_idx + '_bicubic.png'
-        img_viz = np.concatenate([image + 100, labels_img3, labels_img4, labels_img5], axis=1)
-        cv2.imwrite(img_name, img_viz)
-        '''
-
-        #img_inv = image
-        #img_inv[..., 0] += 103.939
-        #img_inv[..., 1] += 116.779
-        #img_inv[..., 2] += 123.68
-        #img_inv = img_inv.astype(np.uint8)
-        #img_name = '/home/stefan/PyraPose_viz/image_' + str(np.random.randint(0, 1000)) + '.png'
-        #cv2.imwrite(img_name, img_inv)
-
-    #print('regression: ', regression_batch.shape)
-    #print('residual: ', residual_batch.shape)
-    #print('labels: ', labels_batch.shape)
-    #print('center: ', center_batch.shape)
-
-    #return regression_batch, labels_batch, center_batch
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(residual_batch), tf.convert_to_tensor(labels_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(boxes_batch), tf.convert_to_tensor(labels_batch)
 
 
 def layer_shapes(image_shape, model):
@@ -474,16 +228,16 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
-def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=None):
+def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
     #np.seterr(invalid='raise')
 
     if mean is None:
-        mean = np.full(18, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        std = np.full(18, 0.7)
+        std = np.full(16, 0.7)
         # avg obj_dimension
         #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
@@ -518,26 +272,50 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets_dy6 = locations[:, 1] - box[13]
     targets_dx7 = locations[:, 0] - box[14]
     targets_dy7 = locations[:, 1] - box[15]
-    targets_dx8 = locations[:, 0] - box[16]
-    targets_dy8 = locations[:, 1] - box[17]
+    #targets_dx8 = locations[:, 0] - box[16]
+    #targets_dy8 = locations[:, 1] - box[17]
 
-    targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7, targets_dx8, targets_dy8), axis=1)
+    targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
 
-    # exponential targets
-    #targets = np.where(targets > 0, np.exp(targets) - 1.0, targets)
-    #targets = np.where(targets < 0, -np.exp(-targets) + 1.0, targets)
-    #print('pos targets: ', np.nanmin(targets[targets > 0]), np.nanmax(targets[targets > 0]))
-    #print('neg targets: ', np.nanmin(targets[targets < 0]), np.nanmax(targets[targets < 0]))
+    return targets
 
-    #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
-    #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    # obj_diameter
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
-    # avg obj_dimension
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.015)
-    #centerness = np.exp(-centerness)
-    #return targets, centerness[:, np.newaxis]
+
+def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
+    """Compute bounding-box regression targets for an image."""
+
+    #np.seterr(invalid='raise')
+
+    if mean is None:
+        mean = np.full(4, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    if std is None:
+        # obj_diameter
+        std = np.full(4, 0.4)
+        # avg obj_dimension
+        #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+        #std = np.full(16, 0.85) # with max dimension
+        #std = np.full(16, 1.5) # with min dimension
+
+    if isinstance(mean, (list, tuple)):
+        mean = np.array(mean)
+    elif not isinstance(mean, np.ndarray):
+        raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+    if isinstance(std, (list, tuple)):
+        std = np.array(std)
+    elif not isinstance(std, np.ndarray):
+        raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+    #print(box.shape)
+    #print(locations.shape)
+
+    targets_dx0 = locations[:, 0] - box[0]
+    targets_dy0 = locations[:, 1] - box[1]
+    targets_dx1 = locations[:, 0] - box[2]
+    targets_dy1 = locations[:, 1] - box[3]
+
+    targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1), axis=1)
+    targets = (targets - mean) / (std * obj_diameter)
 
     return targets
 

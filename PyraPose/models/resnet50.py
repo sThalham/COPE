@@ -103,7 +103,7 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    print("trainable_weights:", len(layer.trainable_weights))
         #    print("non_trainable_weights:", len(layer.non_trainable_weights))
 
-    resnet = replace_relu_with_swish(resnet)
+    #resnet = replace_relu_with_swish(resnet)
 
         # invoke modifier if given
     if modifier:
