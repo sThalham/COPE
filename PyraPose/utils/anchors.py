@@ -49,8 +49,8 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
-    regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
@@ -102,11 +102,16 @@ def anchor_targets_bbox(
                 box3D = np.reshape(box3D, (16))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
+                #proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
+                #points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
+                #locations_positive_obj = locations_positive_obj[index_filter]
+                #regression_batch[index, locations_positive_obj, cls, :-1] = points[index_filter]
+
                 points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                #regression_batch[index, locations_positive_obj, cls, -1] = 1
-                #regression_batch[index, locations_positive_obj, cls, :-1] = points
-                regression_batch[index, locations_positive_obj, -1] = 1
-                regression_batch[index, locations_positive_obj, :-1] = points
+                regression_batch[index, locations_positive_obj, cls, -1] = 1
+                regression_batch[index, locations_positive_obj, cls, :-1] = points
+                #regression_batch[index, locations_positive_obj, -1] = 1
+                #regression_batch[index, locations_positive_obj, :-1] = points
                 #residual_batch[index, locations_positive_obj, -1] = 1
                 #residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
@@ -211,6 +216,10 @@ def locations_for_shape(
 
         all_locations     = np.append(all_locations, locations_level, axis=0)
 
+    #print('P3: ', all_locations[0:5, :2])
+    #print('P4: ', all_locations[4800:4805, :2])
+    #print('P5: ', all_locations[6000:6005, :2])
+
     return all_locations
 
 
@@ -246,7 +255,7 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
-def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
+def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
     #np.seterr(invalid='raise')
@@ -272,7 +281,6 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
     #print(box.shape)
-    #print(locations.shape)
 
     targets_dx0 = locations[:, 0] - box[0]
     targets_dy0 = locations[:, 1] - box[1]
@@ -296,7 +304,14 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
 
-    return targets
+    x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
+    y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
+    centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
+
+    #med_cent = np.median(centerness)
+    indices_cent = np.argwhere(centerness>0.66)
+
+    return targets, indices_cent
 
 
 def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
