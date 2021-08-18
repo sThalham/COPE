@@ -2,8 +2,8 @@
 from __future__ import division
 import numpy as np
 import cv2
-from PIL import Image
-
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 #import pyfastnoisesimd as fns
 import random
 from scipy import ndimage
