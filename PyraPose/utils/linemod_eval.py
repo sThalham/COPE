@@ -150,6 +150,7 @@ def toPix_array(translation):
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
 
+'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -181,7 +182,6 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
-'''
 
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
@@ -233,7 +233,7 @@ def boxoverlap(a, b):
 def denorm_box(locations, regression, obj_diameter):
     mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
-    std = np.full(18, 0.7)
+    std = np.full(16, 0.65)
     #std = np.full(18, 0.95)
 
     #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
@@ -257,11 +257,11 @@ def denorm_box(locations, regression, obj_diameter):
     y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
     x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
     y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
-    x9 = locations[:, :, 0] - (regression[:, :, 16] * (std[16] * obj_diameter) + mean[0])
-    y9 = locations[:, :, 1] - (regression[:, :, 17] * (std[17] * obj_diameter) + mean[1])
+    #x9 = locations[:, :, 0] - (regression[:, :, 16] * (std[16] * obj_diameter) + mean[0])
+    #y9 = locations[:, :, 1] - (regression[:, :, 17] * (std[17] * obj_diameter) + mean[1])
 
-    #pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
-    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9], axis=2)
+    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+    #pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9], axis=2)
 
     return pred_boxes
 
@@ -269,7 +269,7 @@ def denorm_box(locations, regression, obj_diameter):
 def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.yml")
-    threeD_boxes = np.ndarray((31, 9, 3), dtype=np.float32)
+    threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
     avg_dimension = np.ndarray((16), dtype=np.float32)
 
@@ -284,7 +284,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         y_plus = value['size_y'] * fac + y_minus
         z_plus = value['size_z'] * fac + z_minus
         three_box_solo = np.array([
-                                    [0.0, 0.0, 0.0],
+                                    #[0.0, 0.0, 0.0],
                                     [x_plus, y_plus, z_plus],
                                   [x_plus, y_plus, z_minus],
                                   [x_plus, y_minus, z_minus],
@@ -359,7 +359,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #t_start = time.time()
 
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-        boxes3D, scores, residuals = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
 
         #print('forward: ', time.time() - t_start)
         for inv_cls in range(scores.shape[2]):
@@ -507,9 +507,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             #max_center = np.argmax(centerns)
             #pose_votes = pose_votes[:, max_center, :]
 
-            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 9), 1, 2))
+            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-            obj_points = obj_points.reshape((int(k_hyp * 9), 1, 3))
+            obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
             retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                imagePoints=est_points, cameraMatrix=K,
                                                                distCoeffs=None, rvec=None, tvec=None,
@@ -708,19 +708,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
 
             tDbox = R_gt.dot(ori_points.T).T
-            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 9, axis=1).T
+            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
             box3D = toPix_array(tDbox)
-            tDbox = np.reshape(box3D, (18))
+            tDbox = np.reshape(box3D, (16))
             tDbox = tDbox.astype(np.uint16)
 
             eDbox = R_est.dot(ori_points.T).T
             #print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
-            eDbox = eDbox + np.repeat(t_est, 9, axis=1).T
+            eDbox = eDbox + np.repeat(t_est, 8, axis=1).T
             #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
             #print(eDbox.shape)
             est3D = toPix_array(eDbox)
             #print(est3D)
-            eDbox = np.reshape(est3D, (18))
+            eDbox = np.reshape(est3D, (16))
             pose = eDbox.astype(np.uint16)
 
             colGT = (255, 0, 0)
