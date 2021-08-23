@@ -150,7 +150,6 @@ def toPix_array(translation):
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
 
-'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -183,6 +182,7 @@ def load_pcd(data_path, cat):
 
     return pcd_model, model_vsd, model_vsd_mm
 
+'''
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
 
