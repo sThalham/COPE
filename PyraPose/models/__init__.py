@@ -21,14 +21,11 @@ class Backbone(object):
             '_smooth_l1'       : losses.smooth_l1(),
             '_smooth_l1_weighted'  : losses.smooth_l1_weighted(),
             '_focal'           : losses.focal(),
-            '_focal_mask'      : losses.focal_mask(),
             '_cross'           : losses.cross(),
-            '_wMSE'            : losses.weighted_mse(),
-            '_wl1'            : losses.weighted_l1(),
-            '_msle'           : losses.weighted_msle(),
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
-            '_focal_l1'            : losses.focal_l1(),
+            '_per_cls_l1'       : losses.per_cls_l1(),
+            '_per_cls_cross'       : losses.per_cls_cross(),
             '_residual_loss'         : losses.residual_loss(),
         }
 
