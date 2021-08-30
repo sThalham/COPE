@@ -87,8 +87,8 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
             #'points'        : losses.smooth_l1(),
             #'boxes'        : losses.focal_l1(num_classes=num_classes, weight=1.0),
             #'res': losses.residual_loss(weight=0.2),
-            'cls'        : losses.per_cls_cross(num_classes=num_classes, weight=60.0),
-            #'cls'           : losses.focal(),
+            #'cls'        : losses.per_cls_cross(num_classes=num_classes, weight=60.0),
+            'cls'           : losses.focal(),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )

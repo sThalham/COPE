@@ -361,6 +361,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
         boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
 
+        print(np.nanmax(scores))
+
         #print('forward: ', time.time() - t_start)
         for inv_cls in range(scores.shape[2]):
 

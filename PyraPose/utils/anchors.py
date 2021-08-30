@@ -53,8 +53,8 @@ def anchor_targets_bbox(
     #regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
-    labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
-    #labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
+    labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
 
 
     # compute labels and regression targets
@@ -106,20 +106,20 @@ def anchor_targets_bbox(
 
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
                 points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #locations_positive_obj = locations_positive_obj[index_filter]
-                #regression_batch[index, locations_positive_obj, cls, :-1] = points[index_filter]
+                locations_positive_obj = locations_positive_obj[index_filter]
+                regression_batch[index, locations_positive_obj, cls, :-1] = points[index_filter]
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, -1] = 1
-                regression_batch[index, locations_positive_obj, cls, :-1] = points
+                #regression_batch[index, locations_positive_obj, cls, :-1] = points
                 #regression_batch[index, locations_positive_obj, -1] = 1
                 #regression_batch[index, locations_positive_obj, :-1] = points
                 #residual_batch[index, locations_positive_obj, -1] = 1
                 #residual_batch[index, locations_positive_obj, :-1] = points
-                #labels_batch[index, locations_positive_obj, -1] = 1
-                #labels_batch[index, locations_positive_obj, cls] = 1
-                labels_batch[index, locations_positive_obj, cls, -1] = 1
-                labels_batch[index, locations_positive_obj, cls, cls] = 1
+                labels_batch[index, locations_positive_obj, -1] = 1
+                labels_batch[index, locations_positive_obj, cls] = 1
+                #labels_batch[index, locations_positive_obj, cls, -1] = 1
+                #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
 
@@ -313,7 +313,7 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
 
     #med_cent = np.median(centerness)
-    indices_cent = np.argwhere(centerness>0.66)
+    indices_cent = np.argwhere(centerness>0.5)
 
     return targets, indices_cent
 

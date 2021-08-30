@@ -356,7 +356,7 @@ class LinemodDataset(tf.data.Dataset):
                                                             (tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
                                               tf.TensorShape([None, 6300, 15, 17]),
-                                              tf.TensorShape([None, 6300, 15, 16]))),
-                                              #tf.TensorShape([None, 6300, 16]))),
+                                              #tf.TensorShape([None, 6300, 15, 16]))),
+                                              tf.TensorShape([None, 6300, 16]))),
                                               args=(data_dir, set_name, batch_size))
 
