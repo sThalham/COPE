@@ -1,16 +1,19 @@
 
 #from pycocotools.cocoeval import COCOeval
 
+import os
 import numpy as np
 import transforms3d as tf3d
 import copy
 import cv2
 import open3d
 from ..utils import ply_loader
+from ..utils.anchors import locations_for_shape
 from .pose_error import reproj, add, adi, re, te, vsd
 import yaml
-
-from PIL import Image
+import sys
+import matplotlib.pyplot as plt
+import time
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -133,12 +136,9 @@ def toPix_array(translation):
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
 
-def load_pcd(cat):
+def load_pcd(data_path, cat):
     # load meshes
-    #mesh_path ="/RGBDPose/Meshes/linemod_13/"
-    mesh_path = "/home/stefan/data/Meshes/linemod_13/"
-    #mesh_path = "/home/sthalham/data/Meshes/linemod_13/"
-    ply_path = mesh_path + 'obj_' + cat + '.ply'
+    ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
     model_vsd = ply_loader.load_ply(ply_path)
     pcd_model = open3d.PointCloud()
     pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
@@ -147,9 +147,27 @@ def load_pcd(cat):
     # open3d.draw_geometries([pcd_model])
     model_vsd_mm = copy.deepcopy(model_vsd)
     model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
-    pcd_model = open3d.read_point_cloud(ply_path)
+    #pcd_model = open3d.read_point_cloud(ply_path)
 
     return pcd_model, model_vsd, model_vsd_mm
+'''
+
+def load_pcd(data_path, cat):
+    # load meshes
+    ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
+    model_vsd = ply_loader.load_ply(ply_path)
+    pcd_model = open3d.geometry.PointCloud()
+    pcd_model.points = open3d.utility.Vector3dVector(model_vsd['pts'])
+    pcd_model.estimate_normals(search_param=open3d.geometry.KDTreeSearchParamHybrid(
+        radius=0.1, max_nn=30))
+    # open3d.draw_geometries([pcd_model])
+    model_vsd_mm = copy.deepcopy(model_vsd)
+    model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
+    #pcd_model = open3d.read_point_cloud(ply_path)
+    #pcd_model = None
+
+    return pcd_model, model_vsd, model_vsd_mm
+'''
 
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
@@ -197,16 +215,50 @@ def boxoverlap(a, b):
 
     return ovlap
 
+def denorm_box(locations, regression, obj_diameter):
+    mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
+    std = np.full(16, 0.65)
+    #std = np.full(18, 0.95)
 
-def evaluate_occlusion(generator, model, threshold=0.05):
-    threshold = 0.5
+    #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
+    #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
 
-    # mesh_info = '/RGBDPose/Meshes/linemod_13/models_info.yml'
-    mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
-    # mesh_info = '/home/sthalham/data/Meshes/linemod_13/models_info.yml'
+    obj_diameter = obj_diameter * 1000.0
 
+    x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
+    y1 = locations[:, :, 1] - (regression[:, :, 1] * (std[1] * obj_diameter) + mean[1])
+    x2 = locations[:, :, 0] - (regression[:, :, 2] * (std[2] * obj_diameter) + mean[2])
+    y2 = locations[:, :, 1] - (regression[:, :, 3] * (std[3] * obj_diameter) + mean[3])
+    x3 = locations[:, :, 0] - (regression[:, :, 4] * (std[4] * obj_diameter) + mean[4])
+    y3 = locations[:, :, 1] - (regression[:, :, 5] * (std[5] * obj_diameter) + mean[5])
+    x4 = locations[:, :, 0] - (regression[:, :, 6] * (std[6] * obj_diameter) + mean[6])
+    y4 = locations[:, :, 1] - (regression[:, :, 7] * (std[7] * obj_diameter) + mean[7])
+    x5 = locations[:, :, 0] - (regression[:, :, 8] * (std[8] * obj_diameter) + mean[8])
+    y5 = locations[:, :, 1] - (regression[:, :, 9] * (std[9] * obj_diameter) + mean[9])
+    x6 = locations[:, :, 0] - (regression[:, :, 10] * (std[10] * obj_diameter) + mean[10])
+    y6 = locations[:, :, 1] - (regression[:, :, 11] * (std[11] * obj_diameter) + mean[11])
+    x7 = locations[:, :, 0] - (regression[:, :, 12] * (std[12] * obj_diameter) + mean[12])
+    y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
+    x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
+    y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
+    #x9 = locations[:, :, 0] - (regression[:, :, 16] * (std[16] * obj_diameter) + mean[0])
+    #y9 = locations[:, :, 1] - (regression[:, :, 17] * (std[17] * obj_diameter) + mean[1])
+
+    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+    #pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9], axis=2)
+
+    return pred_boxes
+
+
+def evaluate_occlusion(generator, model, data_path, threshold=0.3):
+
+    mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
+    avg_dimension = np.ndarray((16), dtype=np.float32)
+
+    image_locations = locations_for_shape((480, 640))
 
     for key, value in yaml.load(open(mesh_info)).items():
         fac = 0.001
@@ -216,31 +268,34 @@ def evaluate_occlusion(generator, model, threshold=0.05):
         x_plus = value['size_x'] * fac + x_minus
         y_plus = value['size_y'] * fac + y_minus
         z_plus = value['size_z'] * fac + z_minus
-        three_box_solo = np.array([[x_plus, y_plus, z_plus],
-                                   [x_plus, y_plus, z_minus],
-                                   [x_plus, y_minus, z_minus],
-                                   [x_plus, y_minus, z_plus],
-                                   [x_minus, y_plus, z_plus],
-                                   [x_minus, y_plus, z_minus],
-                                   [x_minus, y_minus, z_minus],
-                                   [x_minus, y_minus, z_plus]])
+        three_box_solo = np.array([
+                                    #[0.0, 0.0, 0.0],
+                                    [x_plus, y_plus, z_plus],
+                                  [x_plus, y_plus, z_minus],
+                                  [x_plus, y_minus, z_minus],
+                                  [x_plus, y_minus, z_plus],
+                                  [x_minus, y_plus, z_plus],
+                                  [x_minus, y_plus, z_minus],
+                                  [x_minus, y_minus, z_minus],
+                                  [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
         model_dia[int(key)] = value['diameter'] * fac
+        avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1, mv1_mm = load_pcd('01')
-    pc5, mv5, mv5_mm = load_pcd('05')
-    pc6, mv6, mv6_mm = load_pcd('06')
-    pc8, mv8, mv8_mm = load_pcd('08')
-    pc9, mv9, mv9_mm = load_pcd('09')
-    pc10, mv10, mv10_mm = load_pcd('10')
-    pc11, mv11, mv11_mm = load_pcd('11')
-    pc12, mv12, mv12_mm = load_pcd('12')
+    pc1, mv1, mv1_mm = load_pcd(data_path,'01')
+    pc5, mv5, mv5_mm = load_pcd(data_path,'05')
+    pc6, mv6, mv6_mm = load_pcd(data_path,'06')
+    pc8, mv8, mv8_mm = load_pcd(data_path,'08')
+    pc9, mv9, mv9_mm = load_pcd(data_path,'09')
+    pc10, mv10, mv10_mm = load_pcd(data_path,'10')
+    pc11, mv11, mv11_mm = load_pcd(data_path,'11')
+    pc12, mv12, mv12_mm = load_pcd(data_path,'12')
+
 
     allPoses = np.zeros((16), dtype=np.uint32)
-    trueDets = np.zeros((16), dtype=np.uint32)
-    falseDets = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
     falsePoses = np.zeros((16), dtype=np.uint32)
+    trueDets = np.zeros((16), dtype=np.uint32)
 
     for index in progressbar.progressbar(range(generator.size()), prefix='LineMOD evaluation: '):
         image_raw = generator.load_image(index)
@@ -269,7 +324,7 @@ def evaluate_occlusion(generator, model, threshold=0.05):
         images = []
         images.append(image)
         images.append(image_dep)
-        boxes3D, scores, mask = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
         image = image_raw
         image_mask = copy.deepcopy(image_raw)
@@ -337,39 +392,11 @@ def evaluate_occlusion(generator, model, threshold=0.05):
                 # falsePoses[int(cls)] += 1
                 continue
 
-            if len(cls_indices[0]) < 10:
+            if len(cls_indices[0]) < 1:
                 # print('not enough inlier')
                 continue
             trueDets[int(cls)] += 1
 
-            obj_mask = mask[0, :, inv_cls]
-            #print(np.nanmax(obj_mask))
-            if inv_cls == 0:
-                obj_col = [1, 255, 255]
-            elif inv_cls == 4:
-                obj_col = [1, 1, 128]
-            elif inv_cls == 5:
-                obj_col = [255, 255, 1]
-            elif inv_cls == 7:
-                obj_col = [220, 245, 245]
-            elif inv_cls == 8:
-                obj_col = [128, 1, 1]
-            elif inv_cls == 9:
-                obj_col = [30, 105, 210]
-            elif inv_cls == 10:
-                obj_col = [107, 142, 35]
-            elif inv_cls == 11:
-                obj_col = [1, 255, 1]
-            cls_img = np.where(obj_mask > 0.5, 1, 0)
-            cls_img = cls_img.reshape((60, 80)).astype(np.uint8)
-            cls_img = np.asarray(Image.fromarray(cls_img).resize((640, 480), Image.NEAREST))
-            cls_img = np.repeat(cls_img[:, :, np.newaxis], 3, 2)
-            cls_img = cls_img.astype(np.uint8)
-            cls_img[:, :, 0] *= obj_col[0]
-            cls_img[:, :, 1] *= obj_col[1]
-            cls_img[:, :, 2] *= obj_col[2]
-            image_mask = np.where(cls_img > 0
-                                  , cls_img, image_mask)
 
             '''
             # mask from anchors
@@ -438,7 +465,10 @@ def evaluate_occlusion(generator, model, threshold=0.05):
 
             ##############################
             # pnp
-            pose_votes = boxes3D[0, cls_indices, :]
+            #pose_votes = boxes3D[0, cls_indices, :]
+            pose_votes = denorm_box(image_locations[cls_indices, :], boxes3D[0, cls_indices, :], model_dia[cls])
+            k_hyp = len(cls_indices[0])
+
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
             obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))

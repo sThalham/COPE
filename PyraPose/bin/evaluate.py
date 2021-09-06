@@ -48,6 +48,16 @@ def create_generator(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
         )
+    elif args.dataset_type == 'occlusion':
+        # import here to prevent unnecessary dependency on cocoapi
+        from ..preprocessing.occlusion import OcclusionGenerator
+
+        validation_generator = OcclusionGenerator(
+            args.occlusion_path,
+            'val',
+            image_min_side=args.image_min_side,
+            image_max_side=args.image_max_side,
+        )
 
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -126,9 +136,13 @@ def main(args=None):
 
     if args.dataset_type == 'linemod':
         from ..utils.linemod_eval import evaluate_linemod
-        #from ..utils.index_eval import evaluate_linemod
 
         evaluate_linemod(generator, model, args.linemod_path, args.score_threshold)
+
+    if args.dataset_type == 'occlusion':
+        from ..utils.occlusion_eval import evaluate_occlusion
+
+        evaluate_occlusion(generator, model, args.occlusion_path, args.score_threshold)
 
     else:
          print('unknown dataset: ', args.dataset_type)
