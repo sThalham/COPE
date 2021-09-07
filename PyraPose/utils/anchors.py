@@ -106,12 +106,13 @@ def anchor_targets_bbox(
 
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
                 points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #locations_positive_obj = locations_positive_obj[index_filter]
-                #regression_batch[index, locations_positive_obj, cls, :-1] = points[index_filter]
+                locations_positive_obj_indexed = locations_positive_obj[index_filter]
+                regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
+                regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                regression_batch[index, locations_positive_obj, cls, -1] = 1
-                regression_batch[index, locations_positive_obj, cls, :-1] = points
+                #regression_batch[index, locations_positive_obj, cls, -1] = 1
+                #regression_batch[index, locations_positive_obj, cls, :-1] = points
                 #regression_batch[index, locations_positive_obj, -1] = 1
                 #regression_batch[index, locations_positive_obj, :-1] = points
                 #residual_batch[index, locations_positive_obj, -1] = 1
@@ -268,7 +269,7 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
         # obj_diameter
-        std = np.full(16, 0.5)
+        std = np.full(16, 0.65)
         # avg obj_dimension
         #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
         #std = np.full(16, 0.85) # with max dimension
@@ -313,7 +314,7 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
 
     #med_cent = np.median(centerness)
-    indices_cent = np.argwhere(centerness>0.5)
+    indices_cent = np.argwhere(centerness>0.33)
 
     return targets, indices_cent
 

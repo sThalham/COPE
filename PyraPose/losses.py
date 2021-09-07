@@ -617,8 +617,8 @@ def per_cls_l1(num_classes=0, weight=1.0):
         y_pred_exp = tf.expand_dims(y_pred, axis=0)
         y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
 
-        #loss_per_cls = tf.map_fn(instanced_smooth_l1, (y_true_perm, y_pred_rep))
-        loss_per_cls = tf.map_fn(instanced_orth_l1, (y_true_perm, y_pred_rep))
+        loss_per_cls = tf.map_fn(instanced_smooth_l1, (y_true_perm, y_pred_rep))
+        #loss_per_cls = tf.map_fn(instanced_orth_l1, (y_true_perm, y_pred_rep))
 
         return weight * (tf.math.reduce_sum(loss_per_cls) / num_classes)
 
