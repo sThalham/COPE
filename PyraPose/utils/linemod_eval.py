@@ -421,8 +421,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
             loc_img = np.concatenate([img_P3, img_P4, img_P5], axis=1)
             cv2.imwrite('/home/stefan/PyraPose_viz/pred_mask_' + str(index) + '.jpg', loc_img)
+            '''
 
-            
+            '''
             # centerness
             res_temp = np.ones((6300)) * 255
             obj_residuals = residuals[0, cls_indices, :]
@@ -550,9 +551,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             '''
 
             '''
-            res_der = obj_residuals[0, cls_indices, :]
-            res_der = np.mean(res_der, axis=2)
-            cen_der = centers[0, cls_indices, :]
+            #res_der = obj_residuals[0, cls_indices, :]
+            #res_der = np.mean(res_der, axis=2)
+            #cen_der = centers[0, cls_indices, :]
 
             # each separately
             k_hyp = 1
@@ -562,9 +563,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             for pdx in range(pose_votes.shape[1]):
                 pose_vote = pose_votes[:, pdx, :]
 
-                est_points = np.ascontiguousarray(pose_vote, dtype=np.float32).reshape((int(k_hyp * 9), 1, 2))
+                est_points = np.ascontiguousarray(pose_vote, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
-                obj_points = obj_points.reshape((int(k_hyp * 9), 1, 3))
+                obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
                 retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                    imagePoints=est_points, cameraMatrix=K,
                                                                    distCoeffs=None, rvec=None, tvec=None,
@@ -581,31 +582,35 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     truePoses[int(true_cat)] += 1
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
-                print('residual: ', res_der[0, pdx])
+                #print('residual: ', res_der[0, pdx])
                 error_vector.append(err_add)
-                residual_vector.append(res_der[0, pdx])
-                center_vector.append(cen_der[0, pdx])
+                #residual_vector.append(res_der[0, pdx])
+                #center_vector.append(cen_der[0, pdx])
 
             error_vector = np.array(error_vector)
-            residual_vector = np.array(residual_vector)
-            center_vector = np.array(center_vector)
+            #residual_vector = np.array(residual_vector)
+            #center_vector = np.array(center_vector)
             #error_vector = (error_vector - np.nanmin(error_vector)) / np.nanmax(error_vector)
             #error_vector = error_vector * (1 / np.nanmax(error_vector))
-            residual_vector = (residual_vector - np.nanmin(residual_vector)) * (1 / np.nanmax(residual_vector))
+            #residual_vector = (residual_vector - np.nanmin(residual_vector)) * (1 / np.nanmax(residual_vector))
             #center_vector = (center_vector - np.nanmin(center_vector)) * (1 / np.nanmax(center_vector))
-            center_vector = center_vector * (1 / np.nanmax(center_vector))
+            #center_vector = center_vector * (1 / np.nanmax(center_vector))
             sort = np.argsort(error_vector)
             error_vector = error_vector[sort]
-            residual_vector = residual_vector[sort]
-            center_vector = center_vector[sort]
-            x = np.arange(residual_vector.shape[0])
+            #residual_vector = residual_vector[sort]
+            #center_vector = center_vector[sort]
+            #x = np.arange(residual_vector.shape[0])
+            x = np.arange(error_vector.shape[0])
 
-            plt.plot(x, error_vector, 'r*-', residual_vector, 'b*-', center_vector, 'y*-')
+            #plt.plot(x, error_vector, 'r*-', residual_vector, 'b*-', center_vector, 'y*-')
+            plt.plot(x, error_vector, 'r*-')#, residual_vector, 'b*-', center_vector, 'y*-')
+            plt.axhline(y=model_dia[cls] * 0.1, color='b', linestyle='-')
             plt.xlabel('hypothesis')
-            plt.ylabel('error/residual')
+            plt.ylabel('error')
             plt.show()
-            
             '''
+            
+
             ##############################
             # pnp
 
