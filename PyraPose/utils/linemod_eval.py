@@ -518,7 +518,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                distCoeffs=None, rvec=None, tvec=None,
                                                                useExtrinsicGuess=False, iterationsCount=300,
                                                                reprojectionError=5.0, confidence=0.99,
-                                                               flags=cv2.SOLVEPNP_EPNP)
+                                                               flags=cv2.SOLVEPNP_ITERATIVE)
             print('pnp: ', time.time() - t_start)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
@@ -826,8 +826,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     detections = np.zeros((16), dtype=np.float32)
     for i in range(1, (allPoses.shape[0])):
         recall[i] = truePoses[i] / allPoses[i]
-        precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
+        #precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
         detections[i] = trueDets[i] / allPoses[i]
+        precision[i] = recall[i] / detections[i]
 
         if np.isnan(recall[i]):
             recall[i] = 0.0

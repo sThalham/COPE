@@ -585,8 +585,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
     detections = np.zeros((16), dtype=np.float32)
     for i in range(1, (allPoses.shape[0])):
         recall[i] = truePoses[i] / allPoses[i]
-        precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
+        #precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
         detections[i] = trueDets[i] / allPoses[i]
+        precision[i] = recall[i]/detections[i]
 
         if np.isnan(recall[i]):
             recall[i] = 0.0
