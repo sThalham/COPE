@@ -107,12 +107,12 @@ def anchor_targets_bbox(
 
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
                 points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                locations_positive_obj_indexed = locations_positive_obj[index_filter]
+                #locations_positive_obj_indexed = locations_positive_obj[index_filter]
                 #regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
                 #regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
 
-                regression_batch[index, locations_positive_obj_indexed, cls, :16] = points[index_filter]
-                regression_batch[index, locations_positive_obj_indexed, cls, 16:] = 1
+                regression_batch[index, locations_positive_obj, cls, :16] = points#[index_filter]
+                regression_batch[index, locations_positive_obj, cls, 16:] = 1
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 #regression_batch[index, locations_positive_obj, cls, -1] = 1
@@ -318,7 +318,7 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
 
     #med_cent = np.median(centerness)
-    indices_cent = np.argwhere(centerness>0.33)
+    indices_cent = np.argwhere(centerness>0.5)
 
     return targets, indices_cent
 
