@@ -27,6 +27,7 @@ class Backbone(object):
             '_per_cls_l1'       : losses.per_cls_l1(),
             '_per_cls_cross'       : losses.per_cls_cross(),
             '_residual_loss'         : losses.residual_loss(),
+            '_class_l1': losses.class_l1(),
         }
 
         self.backbone = backbone

@@ -49,7 +49,8 @@ def anchor_targets_bbox(
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
     #regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
@@ -107,8 +108,11 @@ def anchor_targets_bbox(
                 proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
                 points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
                 locations_positive_obj_indexed = locations_positive_obj[index_filter]
-                regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
-                regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
+                #regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
+                #regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
+
+                regression_batch[index, locations_positive_obj_indexed, cls, :16] = points[index_filter]
+                regression_batch[index, locations_positive_obj_indexed, cls, 16:] = 1
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 #regression_batch[index, locations_positive_obj, cls, -1] = 1

@@ -662,3 +662,40 @@ def residual_loss(weight=1.0, sigma=3.0):
         return weight * loss
 
     return _residual_loss
+
+
+def class_l1(num_classes=0, weight=1.0, sigma=3.0):
+
+    sigma_squared = sigma ** 2
+
+    def _class_l1(y_true, y_pred):
+
+        y_pred_exp = tf.expand_dims(y_pred, axis=2)
+        regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+
+        anchor_state = y_true[:, :, :, 16:]
+        regression_target = y_true[:, :, :, :16]
+        regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :16], 0.0)
+
+        # compute smooth L1 loss
+        # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
+        #        |x| - 0.5 / sigma / sigma    otherwise
+        regression_diff = regression - regression_target
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+
+        normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1, 3])
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1, 3])
+
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+        #cls_norm = tf.where(tf.math.not_equal(normalizer, 0.0), 1.0, 0.0)
+        #cls_norm = tf.reduce_sum(cls_norm, axis=0)
+        #cls_norm = tf.cast(cls_norm, dtype=tf.float32)
+
+        return weight * tf.math.reduce_sum(loss, axis=0)
+
+    return _class_l1
