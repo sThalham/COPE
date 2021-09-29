@@ -133,6 +133,10 @@ class LinemodGenerator(Generator):
 
         return len(self.classes)
 
+    def get_diameters(self):
+
+        return self.sphere_diameters
+
     def has_label(self, label):
         """ Return True if label is a known label.
         """

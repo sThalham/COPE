@@ -118,6 +118,7 @@ def main(args=None):
 
     # create the generator
     generator = create_generator(args)
+    obj_diameters = generator.get_diameters()
 
     # load the model
     print('Loading model, this may take a second...')
@@ -125,14 +126,10 @@ def main(args=None):
 
     # optionally convert the model
     if args.convert_model:
-        model = models.convert_model(model)
+        model = models.convert_model(model, diameters=obj_diameters)
 
     # print model summary
     print(model.summary())
-    #for i, layer in enumerate(model.layers):
-    #    print(i, layer.name)
-
-    # start evaluation
 
     if args.dataset_type == 'linemod':
         from ..utils.linemod_eval import evaluate_linemod

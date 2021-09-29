@@ -231,7 +231,10 @@ def __build_locations(features):
 
 def inference_model(
     model                 = None,
+    object_diameters      = None,
     name                  = 'pyrapose',
+    score_threshold       = 0.5,
+    max_detections        = 100,
     **kwargs
 ):
 
@@ -242,19 +245,22 @@ def inference_model(
         assert_training_model(model)
 
     # compute the anchors
-    #features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
-    #locations = __build_locations(features)
+    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    locations = __build_locations(features)
 
     regression = model.outputs[0]
     #residuals = model.outputs[1][:, :, 18:]
     classification = model.outputs[1]
 
-    #print(centers.shape)
+    detections = layers.FilterDetections(
+        name='filtered_detections',
+        score_threshold=score_threshold,
+        max_detections=max_detections,
+    )([regression, classification])
 
-    #boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations])
-
-    boxes3D = regression
+    boxes3D = layers.RegressBoxes3D(name='boxes3D', std=0.65, diameters=object_diameters)([regression, locations, detections[2]])
 
     # construct the model
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)

@@ -123,7 +123,7 @@ class RegressBoxes(keras.layers.Layer):
         if mean is None:
             mean = np.array([0, 0, 0, 0])
         if std is None:
-            std = np.array([0.2, 0.2, 0.2, 0.2])
+            std = np.full(16, 0.65)
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -160,7 +160,7 @@ class RegressBoxes3D(keras.layers.Layer):
     """ Keras layer for applying regression values to boxes.
     """
 
-    def __init__(self, mean=None, std=None, *args, **kwargs):
+    def __init__(self, mean=None, std=None, diameters=None, *args, **kwargs):
         """ Initializer for the RegressBoxes layer.
 
         Args
@@ -170,7 +170,11 @@ class RegressBoxes3D(keras.layers.Layer):
         if mean is None:
             mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         if std is None:
-            std = np.full(16, 150)  # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
+            std = np.full(16, 0.65)
+        else:
+            std = np.full(16, std)
+        if mean is None:
+            raise ValueError('Object diameters are required for de-standardization.')
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -184,11 +188,12 @@ class RegressBoxes3D(keras.layers.Layer):
 
         self.mean = mean
         self.std  = std
+        self.diameters = diameters
         super(RegressBoxes3D, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        regression, locations = inputs
-        return box3D_transform_inv(regression, locations, mean=self.mean, std=self.std)
+        regression, locations, labels = inputs
+        return box3D_transform_inv(regression, locations, labels, mean=self.mean, std=self.std, diameters=self.diameters)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
