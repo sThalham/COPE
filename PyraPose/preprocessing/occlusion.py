@@ -67,6 +67,7 @@ class OcclusionGenerator(Generator):
         self.load_classes()
 
         self.TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
+        self.sphere_diameters = np.ndarray((16), dtype=np.float32)
 
         for key, value in yaml.load(open(self.mesh_info)).items():
             x_minus = value['min_x']
@@ -84,6 +85,7 @@ class OcclusionGenerator(Generator):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             self.TDboxes[int(key), :, :] = three_box_solo
+            self.sphere_diameters[int(key)] = value['diameter']
 
         super(OcclusionGenerator, self).__init__(**kwargs)
 
@@ -118,6 +120,10 @@ class OcclusionGenerator(Generator):
     def num_classes(self):
 
         return len(self.classes)
+
+    def get_diameters(self):
+
+        return self.sphere_diameters
 
     def has_label(self, label):
         """ Return True if label is a known label.

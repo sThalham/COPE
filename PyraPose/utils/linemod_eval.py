@@ -149,7 +149,6 @@ def toPix_array(translation):
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
-'''
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
@@ -181,6 +180,7 @@ def load_pcd(data_path, cat):
     #pcd_model = None
 
     return pcd_model, model_vsd, model_vsd_mm
+'''
 
 
 def create_point_cloud(depth, fx, fy, cx, cy, ds):
@@ -358,9 +358,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #t_start = time.time()
 
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-        boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        #boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
 
-        print(labels)
+        #print(labels)
 
         #print('forward: ', time.time() - t_start)
         for inv_cls in range(scores.shape[2]):

@@ -29,8 +29,6 @@ def box3D_transform_inv(regression, locations, labels, mean=None, std=None, diam
     if std is None:
         std = [0.65, 0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65, 0.65, 0.65, 0.65, 0.65, 0.65]
 
-    for idx in labels:
-
     #obj_diameter = diameters[labels] * 1000.0
 
     x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
