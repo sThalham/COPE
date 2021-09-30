@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import tensorflow.keras as keras
+import tensorflow as tf
 from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv
 from ..utils import anchors as utils_anchors
 
@@ -160,7 +161,7 @@ class RegressBoxes3D(keras.layers.Layer):
     """ Keras layer for applying regression values to boxes.
     """
 
-    def __init__(self, mean=None, std=None, diameters=None, *args, **kwargs):
+    def __init__(self, mean=None, std=None, *args, **kwargs):
         """ Initializer for the RegressBoxes layer.
 
         Args
@@ -188,12 +189,11 @@ class RegressBoxes3D(keras.layers.Layer):
 
         self.mean = mean
         self.std  = std
-        self.diameters = diameters
         super(RegressBoxes3D, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        regression, locations, labels = inputs
-        return box3D_transform_inv(regression, locations, labels, mean=self.mean, std=self.std, diameters=self.diameters)
+        regression, locations, diameters = inputs
+        return box3D_transform_inv(regression, locations, diameters, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]

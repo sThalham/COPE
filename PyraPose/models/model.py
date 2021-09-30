@@ -252,15 +252,30 @@ def inference_model(
     #residuals = model.outputs[1][:, :, 18:]
     classification = model.outputs[1]
 
-    #detections = layers.FilterDetections(
-    #    name='filtered_detections',
-    #    score_threshold=score_threshold,
-    #    max_detections=max_detections,
-    #)([regression, classification])
+    detections = layers.FilterDetections(
+        name='filtered_detections',
+        score_threshold=score_threshold,
+        max_detections=max_detections,
+    )([regression, classification, locations])
 
-    #boxes3D = layers.RegressBoxes3D(name='boxes3D', std=0.65, diameters=object_diameters)([regression, locations, detections[2]])
+    print(detections[2])
+    tf_diameter = tf.convert_to_tensor(object_diameters)
+    #print(tf_diameter)
+    #rep_object_diameters = tf.zeros(max_detections)
+    #print(rep_object_diameters)
+    #rep_object_diameters = tf_diameter[detections[2]]
+
+    #c = lambda i: tf.less(i, max_detections+1)
+    #b = lambda i: detections[2][i]
+    #rep_object_diameters = tf.while_loop(
+    #    c, b, loop_vars=[detections[2], tf_diameter])
+
+    rep_object_diameters = tf.gather(tf_diameter,
+                indices=detections[3])
+
+    boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 
     # construct the model
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
-    #return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3]], name=name)

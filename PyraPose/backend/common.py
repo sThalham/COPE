@@ -22,14 +22,12 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
     return pred_boxes
 
 
-def box3D_transform_inv(regression, locations, labels, mean=None, std=None, diameters=None):
+def box3D_transform_inv(regression, locations, obj_diameter, mean=None, std=None):
 
     if mean is None:
         mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     if std is None:
         std = [0.65, 0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65, 0.65, 0.65, 0.65, 0.65, 0.65]
-
-    #obj_diameter = diameters[labels] * 1000.0
 
     x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
     y1 = locations[:, :, 1] - (regression[:, :, 1] * (std[1] * obj_diameter) + mean[1])
