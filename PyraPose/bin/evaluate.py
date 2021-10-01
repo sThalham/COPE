@@ -18,6 +18,7 @@ import argparse
 import os
 import sys
 import math
+import copy
 
 import tensorflow.keras as keras
 import tensorflow as tf
@@ -119,6 +120,12 @@ def main(args=None):
     # create the generator
     generator = create_generator(args)
     obj_diameters = generator.get_diameters()
+    #creating obj_diameter maaping to online class
+    obj_diameters = obj_diameters[1:]
+    #generator_diameter = copy.deepcopy(obj_diameters)
+    #generator_diameter[0:2] = obj_diameters[1:3]
+    #generator_diameter[2:5] = obj_diameters[4:7]
+    #generator_diameter[5:13] = obj_diameters[8:16]
 
     # load the model
     print('Loading model, this may take a second...')

@@ -234,7 +234,7 @@ def inference_model(
     object_diameters      = None,
     name                  = 'pyrapose',
     score_threshold       = 0.5,
-    max_detections        = 100,
+    max_detections        = 300,
     **kwargs
 ):
 
@@ -258,7 +258,6 @@ def inference_model(
         max_detections=max_detections,
     )([regression, classification, locations])
 
-    print(detections[2])
     tf_diameter = tf.convert_to_tensor(object_diameters)
     #print(tf_diameter)
     #rep_object_diameters = tf.zeros(max_detections)
@@ -272,6 +271,8 @@ def inference_model(
 
     rep_object_diameters = tf.gather(tf_diameter,
                 indices=detections[3])
+    #rep_object_diameters = tf.gather(tf_diameter,
+    #                                 indices=tf.add(detections[3], 1))
 
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 

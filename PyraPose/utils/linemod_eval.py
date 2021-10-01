@@ -335,7 +335,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         for lab in checkLab:
             allPoses[int(lab) + 1] += 1
 
+        print(checkLab)
+
         cls = int(checkLab[0])
+        true_cls = cls + 1
 
         # run network
         t_start = time.time()
@@ -343,7 +346,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
         boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
-        print('forward pass: ', time.time() - t_start)
+        #print('forward pass: ', time.time() - t_start)
+        #print('labels: ', labels)
 
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
@@ -352,7 +356,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         if len(labels) < 1:
             continue
         else:
-            trueDets[cls] += 1
+            trueDets[true_cls] += 1
 
         anno_ind = np.argwhere(anno['labels'] == checkLab)
         t_tra = anno['poses'][anno_ind[0][0]][:3]
@@ -363,47 +367,47 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
         # print(cls)
 
-        if cls == 1:
+        if true_cls == 1:
             model_vsd = mv1
             model_vsd_mm = mv1_mm
-        elif cls == 2:
+        elif true_cls == 2:
             model_vsd = mv2
             model_vsd_mm = mv2_mm
-        elif cls == 4:
+        elif true_cls == 4:
             model_vsd = mv4
             model_vsd_mm = mv4_mm
-        elif cls == 5:
+        elif true_cls == 5:
             model_vsd = mv5
             model_vsd_mm = mv5_mm
-        elif cls == 6:
+        elif true_cls == 6:
             model_vsd = mv6
             model_vsd_mm = mv6_mm
-        elif cls == 8:
+        elif true_cls == 8:
             model_vsd = mv8
             model_vsd_mm = mv8_mm
-        elif cls == 9:
+        elif true_cls == 9:
             model_vsd = mv9
             model_vsd_mm = mv9_mm
-        elif cls == 10:
+        elif true_cls == 10:
             model_vsd = mv10
             model_vsd_mm = mv10_mm
-        elif cls == 11:
+        elif true_cls == 11:
             model_vsd = mv11
             model_vsd_mm = mv11_mm
-        elif cls == 12:
+        elif true_cls == 12:
             model_vsd = mv12
             model_vsd_mm = mv12_mm
-        elif cls == 13:
+        elif true_cls == 13:
             model_vsd = mv13
             model_vsd_mm = mv13_mm
-        elif cls == 14:
+        elif true_cls == 14:
             model_vsd = mv14
             model_vsd_mm = mv14_mm
-        elif cls == 15:
+        elif true_cls == 15:
             model_vsd = mv15
             model_vsd_mm = mv15_mm
 
-        ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
+        ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
         K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
         t_rot = tf3d.quaternions.quat2mat(t_rot)
         R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
@@ -437,10 +441,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
         else:
             err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-        if err_add < model_dia[cls] * 0.1:
-            truePoses[cls] += 1
+        if err_add < model_dia[true_cls] * 0.1:
+            truePoses[true_cls] += 1
         print(' ')
-        print('error: ', err_add, 'threshold', model_dia[cls] * 0.1)
+        print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
 
         t_est = t_est.T  # * 0.001
@@ -539,8 +543,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         '''
 
             #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        #cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
