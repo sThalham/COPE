@@ -78,7 +78,7 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
         training_model = model
 
     # make prediction model
-    prediction_model = inference_model(model=model)
+    #prediction_model = inference_model(model=model)
 
     # compile model
     training_model.compile(
@@ -94,23 +94,23 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
 
-    return model, training_model, prediction_model
+    return model, training_model#, prediction_model
 
 
-def create_callbacks(model, prediction_model, args, validation_generator=None, train_generator=None):
+def create_callbacks(model, args, validation_generator=None, train_generator=None):
     callbacks = []
 
     tensorboard_callback = None
 
-    if validation_generator:
-        if args.dataset_type == 'linemod':
-            from ..callbacks.linemod import LinemodEval
-            evaluation = LinemodEval(validation_generator, train_generator)
+    #if validation_generator:
+    #    if args.dataset_type == 'linemod':
+    #        from ..callbacks.linemod import LinemodEval
+    #        evaluation = LinemodEval(validation_generator, train_generator)
 
-        else:
-            evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
-        evaluation = RedirectModel(evaluation, prediction_model)
-        callbacks.append(evaluation)
+     #   else:
+     #       evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
+     #   evaluation = RedirectModel(evaluation, prediction_model)
+     #   callbacks.append(evaluation)
 
     # save the model
     if args.snapshots:
@@ -247,7 +247,7 @@ def main(args=None):
         weights = args.weights
 
         print('Creating model, this may take a second...')
-        model, training_model, prediction_model = create_models(
+        model, training_model = create_models(
             backbone_model=backbone.model,
             num_classes=num_classes,
             weights=weights,
@@ -262,7 +262,6 @@ def main(args=None):
     # create the callbacks
     callbacks = create_callbacks(
         model,
-        prediction_model,
         args,
     )
 
