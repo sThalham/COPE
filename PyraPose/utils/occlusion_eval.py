@@ -139,17 +139,15 @@ def toPix_array(translation):
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
-    model_vsd = ply_loader.load_ply(ply_path)
-    pcd_model = open3d.PointCloud()
-    pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
+    pcd_model = open3d.io.read_point_cloud(ply_path)
+    model_vsd = {}
+    model_vsd['pts'] = np.asarray(pcd_model.points)
     open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
         radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
-    model_vsd_mm = copy.deepcopy(model_vsd)
-    model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
-    #pcd_model = open3d.read_point_cloud(ply_path)
+    model_vsd['pts'] = model_vsd['pts'] * 0.001
 
-    return pcd_model, model_vsd, model_vsd_mm
+    return pcd_model, model_vsd
 '''
 
 def load_pcd(data_path, cat):
@@ -282,14 +280,14 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1, mv1_mm = load_pcd(data_path,'01')
-    pc5, mv5, mv5_mm = load_pcd(data_path,'05')
-    pc6, mv6, mv6_mm = load_pcd(data_path,'06')
-    pc8, mv8, mv8_mm = load_pcd(data_path,'08')
-    pc9, mv9, mv9_mm = load_pcd(data_path,'09')
-    pc10, mv10, mv10_mm = load_pcd(data_path,'10')
-    pc11, mv11, mv11_mm = load_pcd(data_path,'11')
-    pc12, mv12, mv12_mm = load_pcd(data_path,'12')
+    pc1, mv1 = load_pcd(data_path,'01')
+    pc5, mv5 = load_pcd(data_path,'05')
+    pc6, mv6 = load_pcd(data_path,'06')
+    pc8, mv8 = load_pcd(data_path,'08')
+    pc9, mv9 = load_pcd(data_path,'09')
+    pc10, mv10 = load_pcd(data_path,'10')
+    pc11, mv11 = load_pcd(data_path,'11')
+    pc12, mv12 = load_pcd(data_path,'12')
 
 
     allPoses = np.zeros((16), dtype=np.uint32)
@@ -384,28 +382,20 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
             if true_cls == 1:
                 model_vsd = mv1
-                model_vsd_mm = mv1_mm
             elif true_cls == 5:
                 model_vsd = mv5
-                model_vsd_mm = mv5_mm
             elif true_cls == 6:
                 model_vsd = mv6
-                model_vsd_mm = mv6_mm
             elif true_cls == 8:
                 model_vsd = mv8
-                model_vsd_mm = mv8_mm
             elif true_cls == 9:
                 model_vsd = mv9
-                model_vsd_mm = mv9_mm
             elif true_cls == 10:
                 model_vsd = mv10
-                model_vsd_mm = mv10_mm
             elif true_cls == 11:
                 model_vsd = mv11
-                model_vsd_mm = mv11_mm
             elif true_cls == 12:
                 model_vsd = mv12
-                model_vsd_mm = mv12_mm
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
             K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)

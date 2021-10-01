@@ -153,17 +153,15 @@ def toPix_array(translation):
 def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
-    model_vsd = ply_loader.load_ply(ply_path)
-    pcd_model = open3d.PointCloud()
-    pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
+    pcd_model = open3d.io.read_point_cloud(ply_path)
+    model_vsd = {}
+    model_vsd['pts'] = np.asarray(pcd_model.points)
     open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
         radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
-    model_vsd_mm = copy.deepcopy(model_vsd)
-    model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
-    #pcd_model = open3d.read_point_cloud(ply_path)
+    model_vsd['pts'] = model_vsd['pts'] * 0.001
 
-    return pcd_model, model_vsd, model_vsd_mm
+    return pcd_model, model_vsd
 '''
 
 def load_pcd(data_path, cat):
@@ -273,8 +271,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     model_dia = np.zeros((31), dtype=np.float32)
     avg_dimension = np.ndarray((16), dtype=np.float32)
 
-    image_locations = locations_for_shape((480, 640))
-
     for key, value in yaml.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x'] * fac
@@ -297,19 +293,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1, mv1_mm = load_pcd(data_path,'01')
-    pc2, mv2, mv2_mm = load_pcd(data_path,'02')
-    pc4, mv4, mv4_mm = load_pcd(data_path,'04')
-    pc5, mv5, mv5_mm = load_pcd(data_path,'05')
-    pc6, mv6, mv6_mm = load_pcd(data_path,'06')
-    pc8, mv8, mv8_mm = load_pcd(data_path,'08')
-    pc9, mv9, mv9_mm = load_pcd(data_path,'09')
-    pc10, mv10, mv10_mm = load_pcd(data_path,'10')
-    pc11, mv11, mv11_mm = load_pcd(data_path,'11')
-    pc12, mv12, mv12_mm = load_pcd(data_path,'12')
-    pc13, mv13, mv13_mm = load_pcd(data_path,'13')
-    pc14, mv14, mv14_mm = load_pcd(data_path,'14')
-    pc15, mv15, mv15_mm = load_pcd(data_path,'15')
+    pc1, mv1 = load_pcd(data_path,'000001')
+    pc2, mv2 = load_pcd(data_path,'000002')
+    pc4, mv4 = load_pcd(data_path,'000004')
+    pc5, mv5 = load_pcd(data_path,'000005')
+    pc6, mv6 = load_pcd(data_path,'000006')
+    pc8, mv8 = load_pcd(data_path,'000008')
+    pc9, mv9 = load_pcd(data_path,'000009')
+    pc10, mv10 = load_pcd(data_path,'000010')
+    pc11, mv11 = load_pcd(data_path,'000011')
+    pc12, mv12 = load_pcd(data_path,'000012')
+    pc13, mv13 = load_pcd(data_path,'000013')
+    pc14, mv14 = load_pcd(data_path,'000014')
+    pc15, mv15 = load_pcd(data_path,'000015')
 
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
@@ -334,8 +330,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         checkLab = anno['labels']  # +1 to real_class
         for lab in checkLab:
             allPoses[int(lab) + 1] += 1
-
-        print(checkLab)
 
         cls = int(checkLab[0])
         true_cls = cls + 1
@@ -369,43 +363,30 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
         if true_cls == 1:
             model_vsd = mv1
-            model_vsd_mm = mv1_mm
         elif true_cls == 2:
             model_vsd = mv2
-            model_vsd_mm = mv2_mm
         elif true_cls == 4:
             model_vsd = mv4
-            model_vsd_mm = mv4_mm
         elif true_cls == 5:
             model_vsd = mv5
-            model_vsd_mm = mv5_mm
         elif true_cls == 6:
             model_vsd = mv6
-            model_vsd_mm = mv6_mm
         elif true_cls == 8:
             model_vsd = mv8
-            model_vsd_mm = mv8_mm
         elif true_cls == 9:
             model_vsd = mv9
-            model_vsd_mm = mv9_mm
         elif true_cls == 10:
             model_vsd = mv10
-            model_vsd_mm = mv10_mm
         elif true_cls == 11:
             model_vsd = mv11
-            model_vsd_mm = mv11_mm
         elif true_cls == 12:
             model_vsd = mv12
-            model_vsd_mm = mv12_mm
         elif true_cls == 13:
             model_vsd = mv13
-            model_vsd_mm = mv13_mm
         elif true_cls == 14:
             model_vsd = mv14
-            model_vsd_mm = mv14_mm
         elif true_cls == 15:
             model_vsd = mv15
-            model_vsd_mm = mv15_mm
 
         ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
         K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
@@ -543,8 +524,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         '''
 
             #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        #cv2.imwrite(name, image_raw)
+        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
@@ -560,6 +541,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             recall[i] = 0.0
         if np.isnan(precision[i]):
             precision[i] = 0.0
+        if np.isnan(detections[i]):
+            precision[i] = 0.0
 
         print('CLS: ', i)
         print('true detections: ', detections[i])
@@ -568,7 +551,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     recall_all = np.sum(recall[1:]) / 13.0
     precision_all = np.sum(precision[1:]) / 13.0
-    detections_all = np.sum(detections[1:]) / 13.0
+    detections_all = np.nansum(detections[1:]) / 13.0
     print('ALL: ')
     print('true detections: ', detections_all)
     print('recall: ', recall_all)
