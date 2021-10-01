@@ -326,6 +326,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         images.append(image_dep)
         boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
 
+        boxes3D = boxes3D[labels != -1]
+        scores = scores[labels != -1]
+        labels = labels[labels != -1]
+
         image = image_raw
         image_mask = copy.deepcopy(image_raw)
 
