@@ -491,140 +491,6 @@ def orthogonal_l1(weight=1.0, sigma=3.0):
     return _orth_l1
 
 
-def instanced_smooth_l1(arg):
-    sigma_squared = 9.0
-
-    y_true, y_pred = arg
-
-    regression_target = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]
-    regression = y_pred
-
-    indices = tf.where(tf.math.equal(anchor_state, 1))
-    regression = tf.gather_nd(regression, indices)
-    regression_target = tf.gather_nd(regression_target, indices)
-
-    regression_diff = regression - regression_target
-    regression_diff = tf.math.abs(regression_diff)
-    regression_loss = tf.where(
-        tf.math.less(regression_diff, 1.0 / sigma_squared),
-        0.5 * sigma_squared * tf.math.pow(regression_diff, 2),
-        regression_diff - 0.5 / sigma_squared
-    )
-
-    # compute the normalizer: the number of positive anchors
-    normalizer = tf.math.maximum(1, tf.shape(indices)[0])
-    normalizer = tf.cast(normalizer, dtype=tf.float32)
-    loss = tf.math.reduce_sum(regression_loss) / normalizer
-
-    return (loss, loss)
-
-
-def instanced_orth_l1(arg):
-    weight_xy = 0.8
-    weight_orth = 0.2
-    sigma_squared = 9.0
-
-    y_true, y_pred = arg
-
-    regression_target = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]
-    regression = y_pred
-
-    indices = tf.where(tf.math.equal(anchor_state, 1))
-    regression = tf.gather_nd(regression, indices)
-    regression_target = tf.gather_nd(regression_target, indices)
-
-    x1 = (regression[:, 0] - regression[:, 6]) - (regression[:, 2] - regression[:, 4])
-    y1 = (regression[:, 1] - regression[:, 7]) - (regression[:, 3] - regression[:, 5])
-    x2 = (regression[:, 0] - regression[:, 6]) - (regression[:, 8] - regression[:, 14])
-    y2 = (regression[:, 1] - regression[:, 7]) - (regression[:, 9] - regression[:, 15])
-    x3 = (regression[:, 0] - regression[:, 2]) - (regression[:, 6] - regression[:, 4])
-    y3 = (regression[:, 1] - regression[:, 3]) - (regression[:, 7] - regression[:, 5])
-    x4 = (regression[:, 0] - regression[:, 2]) - (regression[:, 8] - regression[:, 10])
-    y4 = (regression[:, 1] - regression[:, 3]) - (regression[:, 9] - regression[:, 11])   # up to here ok
-    x5 = (regression[:, 0] - regression[:, 8]) - (regression[:, 2] - regression[:, 10])
-    y5 = (regression[:, 1] - regression[:, 9]) - (regression[:, 3] - regression[:, 11])
-    x6 = (regression[:, 0] - regression[:, 8]) - (regression[:, 6] - regression[:, 14])
-    y6 = (regression[:, 1] - regression[:, 9]) - (regression[:, 7] - regression[:, 15])   # half way done
-    x7 = (regression[:, 12] - regression[:, 10]) - (regression[:, 14] - regression[:, 8])
-    y7 = (regression[:, 13] - regression[:, 11]) - (regression[:, 15] - regression[:, 9])
-    x8 = (regression[:, 12] - regression[:, 10]) - (regression[:, 4] - regression[:, 2])
-    y8 = (regression[:, 13] - regression[:, 11]) - (regression[:, 5] - regression[:, 3])
-    x9 = (regression[:, 12] - regression[:, 4]) - (regression[:, 10] - regression[:, 2])
-    y9 = (regression[:, 13] - regression[:, 5]) - (regression[:, 11] - regression[:, 3])
-    x10 = (regression[:, 12] - regression[:, 4]) - (regression[:, 14] - regression[:, 6])
-    y10 = (regression[:, 13] - regression[:, 5]) - (regression[:, 15] - regression[:, 7])
-    x11 = (regression[:, 12] - regression[:, 14]) - (regression[:, 4] - regression[:, 6])
-    y11 = (regression[:, 13] - regression[:, 15]) - (regression[:, 5] - regression[:, 7])
-    x12 = (regression[:, 12] - regression[:, 14]) - (regression[:, 10] - regression[:, 8])
-    y12 = (regression[:, 13] - regression[:, 15]) - (regression[:, 11] - regression[:, 9])
-    orths = keras.backend.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9, x10, y10, x11, y11, x12, y12], axis=1)
-    xt1 = (regression_target[:, 0] - regression_target[:, 6]) - (regression_target[:, 2] - regression_target[:, 4])
-    yt1 = (regression_target[:, 1] - regression_target[:, 7]) - (regression_target[:, 3] - regression_target[:, 5])
-    xt2 = (regression_target[:, 0] - regression_target[:, 6]) - (regression_target[:, 8] - regression_target[:, 14])
-    yt2 = (regression_target[:, 1] - regression_target[:, 7]) - (regression_target[:, 9] - regression_target[:, 15])
-    xt3 = (regression_target[:, 0] - regression_target[:, 2]) - (regression_target[:, 6] - regression_target[:, 4])
-    yt3 = (regression_target[:, 1] - regression_target[:, 3]) - (regression_target[:, 7] - regression_target[:, 5])
-    xt4 = (regression_target[:, 0] - regression_target[:, 2]) - (regression_target[:, 8] - regression_target[:, 10])
-    yt4 = (regression_target[:, 1] - regression_target[:, 3]) - (regression_target[:, 9] - regression_target[:, 11])  # up to here ok
-    xt5 = (regression_target[:, 0] - regression_target[:, 8]) - (regression_target[:, 2] - regression_target[:, 10])
-    yt5 = (regression_target[:, 1] - regression_target[:, 9]) - (regression_target[:, 3] - regression_target[:, 11])
-    xt6 = (regression_target[:, 0] - regression_target[:, 8]) - (regression_target[:, 6] - regression_target[:, 14])
-    yt6 = (regression_target[:, 1] - regression_target[:, 9]) - (regression_target[:, 7] - regression_target[:, 15])  # half way done
-    xt7 = (regression_target[:, 12] - regression_target[:, 10]) - (regression_target[:, 14] - regression_target[:, 8])
-    yt7 = (regression_target[:, 13] - regression_target[:, 11]) - (regression_target[:, 15] - regression_target[:, 9])
-    xt8 = (regression_target[:, 12] - regression_target[:, 10]) - (regression_target[:, 4] - regression_target[:, 2])
-    yt8 = (regression_target[:, 13] - regression_target[:, 11]) - (regression_target[:, 5] - regression_target[:, 3])
-    xt9 = (regression_target[:, 12] - regression_target[:, 4]) - (regression_target[:, 10] - regression_target[:, 2])
-    yt9 = (regression_target[:, 13] - regression_target[:, 5]) - (regression_target[:, 11] - regression_target[:, 3])
-    xt10 = (regression_target[:, 12] - regression_target[:, 4]) - (regression_target[:, 14] - regression_target[:, 6])
-    yt10 = (regression_target[:, 13] - regression_target[:, 5]) - (regression_target[:, 15] - regression_target[:, 7])
-    xt11 = (regression_target[:, 12] - regression_target[:, 14]) - (regression_target[:, 4] - regression_target[:, 6])
-    yt11 = (regression_target[:, 13] - regression_target[:, 15]) - (regression_target[:, 5] - regression_target[:, 7])
-    xt12 = (regression_target[:, 12] - regression_target[:, 14]) - (regression_target[:, 10] - regression_target[:, 8])
-    yt12 = (regression_target[:, 13] - regression_target[:, 15]) - (regression_target[:, 11] - regression_target[:, 9])
-    orths_target = keras.backend.stack(
-        [xt1, yt1, xt2, yt2, xt3, yt3, xt4, yt4, xt5, yt5, xt6, yt6, xt7, yt7, xt8, yt8, xt9, yt9, xt10, yt10, xt11, yt11, xt12, yt12],
-        axis=1)
-
-    regression_diff = regression - regression_target
-    regression_diff = tf.math.abs(regression_diff)
-    regression_xy = tf.where(
-        tf.math.less(regression_diff, 1.0 / sigma_squared),
-        0.5 * sigma_squared * tf.math.pow(regression_diff, 2),
-        regression_diff - 0.5 / sigma_squared
-    )
-    regression_orth = keras.losses.mean_absolute_error(orths, orths_target)
-
-    # compute the normalizer: the number of positive anchors
-    normalizer = tf.math.maximum(1, tf.shape(indices)[0])
-    normalizer = tf.cast(normalizer, dtype=tf.float32)
-    regression_loss_xy = tf.math.reduce_sum(regression_xy) / normalizer
-    regression_loss_orth = keras.backend.sum(regression_orth) / normalizer
-
-    loss = weight_xy * regression_loss_xy + weight_orth * regression_loss_orth
-    return (loss, loss)
-
-
-def per_cls_l1(num_classes=0, weight=1.0):
-
-    def _per_cls_l1(y_true, y_pred):
-        #y_true_exp = tf.expand_dims(y_true, axis=0)
-        #y_true_rep = tf.tile(y_true_exp, [1, 1, num_classes, 1])
-        y_true_perm = tf.transpose(y_true, [2, 0, 1, 3])
-
-        y_pred_exp = tf.expand_dims(y_pred, axis=0)
-        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
-
-        loss_per_cls = tf.map_fn(instanced_smooth_l1, (y_true_perm, y_pred_rep))
-        #loss_per_cls = tf.map_fn(instanced_orth_l1, (y_true_perm, y_pred_rep))
-
-        return weight * (tf.math.reduce_sum(loss_per_cls) / num_classes)
-
-    return _per_cls_l1
-
-
 def residual_loss(weight=1.0, sigma=3.0):
 
     sigma_squared = sigma ** 2
@@ -664,18 +530,20 @@ def residual_loss(weight=1.0, sigma=3.0):
     return _residual_loss
 
 
-def class_l1(num_classes=0, weight=1.0, sigma=3.0):
+def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
 
     sigma_squared = sigma ** 2
 
-    def _class_l1(y_true, y_pred):
+    def _per_cls_l1(y_true, y_pred):
 
         y_pred_exp = tf.expand_dims(y_pred, axis=2)
         regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
 
         anchor_state = y_true[:, :, :, 16:]
         regression_target = y_true[:, :, :, :16]
+        # tf.where faster than element-wise multiplication
         regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :16], 0.0)
+        #regression = tf.math.multiply(anchor_state, regression[:, :, :, :16])
 
         # compute smooth L1 loss
         # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
@@ -688,7 +556,9 @@ def class_l1(num_classes=0, weight=1.0, sigma=3.0):
             regression_diff - 0.5 / sigma_squared
         )
 
+        # comp norm per class
         normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1, 3])
+        #retain per cls loss
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1, 3])
 
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
@@ -698,4 +568,4 @@ def class_l1(num_classes=0, weight=1.0, sigma=3.0):
 
         return weight * tf.math.reduce_sum(loss, axis=0)
 
-    return _class_l1
+    return _per_cls_l1
