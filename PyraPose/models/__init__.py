@@ -25,6 +25,7 @@ class Backbone(object):
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
             '_per_cls_l1'       : losses.per_cls_l1(),
+            '_class_l1': losses.per_cls_l1(),
             '_per_cls_cross'       : losses.per_cls_cross(),
             '_residual_loss'         : losses.residual_loss(),
         }

@@ -280,14 +280,14 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1 = load_pcd(data_path,'01')
-    pc5, mv5 = load_pcd(data_path,'05')
-    pc6, mv6 = load_pcd(data_path,'06')
-    pc8, mv8 = load_pcd(data_path,'08')
-    pc9, mv9 = load_pcd(data_path,'09')
-    pc10, mv10 = load_pcd(data_path,'10')
-    pc11, mv11 = load_pcd(data_path,'11')
-    pc12, mv12 = load_pcd(data_path,'12')
+    pc1, mv1 = load_pcd(data_path,'000001')
+    pc5, mv5 = load_pcd(data_path,'000005')
+    pc6, mv6 = load_pcd(data_path,'000006')
+    pc8, mv8 = load_pcd(data_path,'000008')
+    pc9, mv9 = load_pcd(data_path,'000009')
+    pc10, mv10 = load_pcd(data_path,'000010')
+    pc11, mv11 = load_pcd(data_path,'000011')
+    pc12, mv12 = load_pcd(data_path,'000012')
 
 
     allPoses = np.zeros((16), dtype=np.uint32)
@@ -435,6 +435,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
+            '''
             t_est = t_est.T  # * 0.001
             # print('pose: ', pose)
             # print(t_gt)
@@ -497,7 +498,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                  2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                  2)
-
+            '''
 
 
             '''
@@ -514,8 +515,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                 idx = idx+8
             '''
 
-        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        cv2.imwrite(name, image)
+        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        #cv2.imwrite(name, image)
         #cv2.imwrite('/home/stefan/occ_viz/pred_mask_' + str(index) + '_.jpg', image_mask)
         #print('break')
 
