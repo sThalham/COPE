@@ -311,7 +311,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             checkLab[idx] += 1
 
         # run network
+        t_start = time.time()
         boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        print('forward: ', time.time() - t_start)
 
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
@@ -375,6 +377,70 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             if true_cls not in checkLab or true_cls == 2:
                 # falsePoses[int(cls)] += 1
                 continue
+
+            '''
+            print(pose_votes.shape)
+            start_anc = time.time()
+            min_box_x = np.nanmin(pose_votes[:, ::2], axis=1)
+            min_box_y = np.nanmin(pose_votes[:, 1::2], axis=1)
+            max_box_x = np.nanmax(pose_votes[:, ::2], axis=1)
+            max_box_y = np.nanmax(pose_votes[:, 1::2], axis=1)
+
+            pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
+            print(pos_anchors.shape)
+
+            #pos_anchors = anchor_params[cls_indices, :]
+
+            ind_anchors = scores[labels == cls]
+            print(ind_anchors.shape)
+            #pos_anchors = pos_anchors[0]
+            per_obj_hyps = []
+
+            while pos_anchors.shape[0] > 0:
+                # make sure to separate objects
+                start_i = np.random.randint(pos_anchors.shape[0])
+                obj_ancs = [pos_anchors[start_i]]
+                obj_inds = [ind_anchors[start_i]]
+                pos_anchors = np.delete(pos_anchors, start_i, axis=0)
+                ind_anchors = np.delete(ind_anchors, start_i, axis=0)
+                # print('ind_anchors: ', ind_anchors)
+                same_obj = True
+                while same_obj == True:
+                    # update matrices based on iou
+                    same_obj = False
+                    indcs2rm = []
+                    for adx in range(pos_anchors.shape[0]):
+                        # loop through anchors
+                        box_b = pos_anchors[adx, :]
+                        if not np.all((box_b > 0)):  # need x_max or y_max here? maybe irrelevant due to positivity
+                            indcs2rm.append(adx)
+                            continue
+                        for qdx in range(len(obj_ancs)):
+                            # loop through anchors belonging to instance
+                            iou = boxoverlap(obj_ancs[qdx], box_b)
+                            if iou > 0.4:
+                                # print('anc_anchors: ', pos_anchors)
+                                # print('ind_anchors: ', ind_anchors)
+                                # print('adx: ', adx)
+                                obj_ancs.append(box_b)
+                                obj_inds.append(ind_anchors[adx])
+                                indcs2rm.append(adx)
+                                same_obj = True
+                                break
+                        if same_obj == True:
+                            break
+
+                    # print('pos_anchors: ', pos_anchors.shape)
+                    # print('ind_anchors: ', len(ind_anchors))
+                    # print('indcs2rm: ', indcs2rm)
+                    pos_anchors = np.delete(pos_anchors, indcs2rm, axis=0)
+                    ind_anchors = np.delete(ind_anchors, indcs2rm, axis=0)
+
+                print('obj_inds per instance: ', obj_inds)
+                per_obj_hyps.append(obj_inds)
+
+            print('mult_hyp: ', time.time() - start_anc)
+            '''
 
             anno_ind = np.argwhere(anno['labels'] == true_cls)
             t_tra = anno['poses'][anno_ind[0][0]][:3]

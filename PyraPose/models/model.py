@@ -221,7 +221,8 @@ def pyrapose(
 
 
 def __build_locations(features):
-    strides = [8, 16, 32]
+    #strides = [8, 16, 32]
+    strides = [8, 11, 16, 22,  32]
     locations = [
         layers.Locations(stride=strides[i], name='locations_{}'.format(i))(f) for i, f in enumerate(features)
     ]
@@ -245,7 +246,8 @@ def inference_model(
         assert_training_model(model)
 
     # compute the anchors
-    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    #features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    features = [model.get_layer(p_name).output for p_name in ['P3_con', 'P3_sub', 'P4_con', 'P4_sub', 'P5_con']]
     locations = __build_locations(features)
 
     regression = model.outputs[0]
