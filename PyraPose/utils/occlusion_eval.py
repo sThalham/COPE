@@ -301,6 +301,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         image, scale = generator.resize_image(image)
 
         anno = generator.load_annotations(index)
+        eval_line = []
+        eval
 
         if len(anno['labels']) < 1:
             continue
