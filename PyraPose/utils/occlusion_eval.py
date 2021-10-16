@@ -14,6 +14,7 @@ import yaml
 import sys
 import matplotlib.pyplot as plt
 import time
+import csv
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -256,8 +257,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
     model_dia = np.zeros((31), dtype=np.float32)
     avg_dimension = np.ndarray((16), dtype=np.float32)
 
-    image_locations = locations_for_shape((480, 640))
-
     for key, value in yaml.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x'] * fac
@@ -301,8 +300,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         image, scale = generator.resize_image(image)
 
         anno = generator.load_annotations(index)
-        eval_line = []
-        eval
 
         if len(anno['labels']) < 1:
             continue
@@ -314,6 +311,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
         # run network
         t_start = time.time()
+        eval_img = []
         boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         print('forward: ', time.time() - t_start)
 
@@ -367,9 +365,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         for cls in np.unique(labels):
 
             true_cls = cls + 1
+
             pose_votes = boxes3D[labels == cls, :]
             scores_votes = scores[labels == cls]
             labels_votes = labels[labels == cls]
+
+            eval_line = [anno['scene_id']]
+            eval_line.append(anno['im_id'])
+            eval_line.append(str(true_cls))
+            eval_line.append(str(np.max(scores_votes)))
 
             if len(labels_votes) < 1:
                 continue
@@ -494,6 +498,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_ITERATIVE)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
+
             if cls == 10 or cls == 11:
                 err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
             else:
@@ -502,6 +507,14 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                 truePoses[true_cls] += 1
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+
+            R_bop = [str(i) for i in R_est.flatten().tolist()]
+            R_bop = ' '.join(R_bop)
+            eval_line.append(R_bop)
+            t_bop = [str(i) for i in t_est.flatten().tolist()]
+            t_bop = ' '.join(t_bop)
+            eval_line.append(t_bop)
+            eval_img.append(eval_line)
 
             '''
             t_est = t_est.T  # * 0.001
@@ -587,6 +600,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         #cv2.imwrite(name, image)
         #cv2.imwrite('/home/stefan/occ_viz/pred_mask_' + str(index) + '_.jpg', image_mask)
         #print('break')
+        t_eval = time.time()-t_start
+        wd_path = os.getcwd()
+        csv_target = os.path.join(wd_path, 'results_occlusion.csv')
+
+        for line_indexed in eval_img:
+            line_indexed.append(str(t_eval))
+            with open(csv_target, 'a') as outfile:
+                myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
+                myWriter.writerow(line_indexed)
 
     recall = np.zeros((16), dtype=np.float32)
     precision = np.zeros((16), dtype=np.float32)

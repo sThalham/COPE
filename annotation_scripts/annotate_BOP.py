@@ -550,7 +550,7 @@ if __name__ == "__main__":
     if dataset == 'linemod':
         catsInt = range(1, 16)
     elif dataset == 'occlusion':
-        catsInt = range(1, 9)
+        catsInt = range(1, 16)
     elif dataset == 'ycbv':
         catsInt = range(1, 22)
     elif dataset == 'tless':

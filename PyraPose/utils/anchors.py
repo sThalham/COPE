@@ -201,8 +201,8 @@ def locations_for_shape(
 ):
 
     if pyramid_levels is None:
-        #pyramid_levels = [3, 4, 5]
-        pyramid_levels = [3, 3.5, 4, 4.5, 5]
+        pyramid_levels = [3, 4, 5]
+        #pyramid_levels = [3, 3.5, 4, 4.5, 5]
 
     if shapes_callback is None:
         shapes_callback = guess_shapes
