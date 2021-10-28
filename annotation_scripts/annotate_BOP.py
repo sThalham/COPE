@@ -179,7 +179,7 @@ if __name__ == "__main__":
     specific_object_set = False
     spec_objs = [5, 8, 9, 10, 21]
 
-    root = "/home/stefan/data/datasets/LMO_BOP_test/"  # path to train samples, depth + rgb
+    root = "/home/stefan/data/datasets/LMO_BOP_test/test"  # path to train samples, depth + rgb
     target = '/home/stefan/data/train_data/occlusion_BOP_test/'
 
     if dataset == 'linemod':

@@ -143,8 +143,8 @@ def load_pcd(data_path, cat):
     pcd_model = open3d.io.read_point_cloud(ply_path)
     model_vsd = {}
     model_vsd['pts'] = np.asarray(pcd_model.points)
-    open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=0.1, max_nn=30))
+    #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
+    #    radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
     model_vsd['pts'] = model_vsd['pts'] * 0.001
 
@@ -498,6 +498,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_ITERATIVE)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
+            t_bop = t_est * 1000.0
 
             if cls == 10 or cls == 11:
                 err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -511,7 +512,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             R_bop = [str(i) for i in R_est.flatten().tolist()]
             R_bop = ' '.join(R_bop)
             eval_line.append(R_bop)
-            t_bop = [str(i) for i in t_est.flatten().tolist()]
+            t_bop = [str(i) for i in t_bop.flatten().tolist()]
             t_bop = ' '.join(t_bop)
             eval_line.append(t_bop)
             eval_img.append(eval_line)
@@ -602,7 +603,13 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         #print('break')
         t_eval = time.time()-t_start
         wd_path = os.getcwd()
-        csv_target = os.path.join(wd_path, 'results_occlusion.csv')
+        #csv_target = os.path.join(wd_path, 'results_occlusion.csv')
+        csv_target = os.path.join(wd_path, 'sthalham-pp_lmo-test.csv')
+
+        line_head = ['scene_id','im_id','obj_id','score','R','t','time']
+        #with open(csv_target, 'a') as outfile:
+        #    myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
+        #    myWriter.writerow(line_head)
 
         for line_indexed in eval_img:
             line_indexed.append(str(t_eval))

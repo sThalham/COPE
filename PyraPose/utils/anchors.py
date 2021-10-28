@@ -43,16 +43,16 @@ def anchor_targets_bbox(
         assert('segmentations' in annotations), "Annotations should contain poses"
 
     batch_size = len(image_group)
-    #pyramid_levels = [3, 4, 5]
-    pyramid_levels = [3, 4.5, 4, 4.5, 5]
+    pyramid_levels = [3, 4, 5]
+    #pyramid_levels = [3, 4.5, 4, 4.5, 5]
     image_shapes = guess_shapes(image_group[0].shape[:2], pyramid_levels)
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
     img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
     #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
-    #regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
+    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
     #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
@@ -112,14 +112,14 @@ def anchor_targets_bbox(
                 #regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
                 #regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
 
-                regression_batch[index, locations_positive_obj, cls, :16] = points#[index_filter]
-                regression_batch[index, locations_positive_obj, cls, 16:] = 1
+                #regression_batch[index, locations_positive_obj, cls, :16] = points#[index_filter]
+                #regression_batch[index, locations_positive_obj, cls, 16:] = 1
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 #regression_batch[index, locations_positive_obj, cls, -1] = 1
                 #regression_batch[index, locations_positive_obj, cls, :-1] = points
-                #regression_batch[index, locations_positive_obj, -1] = 1
-                #regression_batch[index, locations_positive_obj, :-1] = points
+                regression_batch[index, locations_positive_obj, -1] = 1
+                regression_batch[index, locations_positive_obj, :-1] = points
                 #residual_batch[index, locations_positive_obj, -1] = 1
                 #residual_batch[index, locations_positive_obj, :-1] = points
                 labels_batch[index, locations_positive_obj, -1] = 1
@@ -217,8 +217,8 @@ def locations_for_shape(
         ny, nx = p
         sy = image_shape[0] / ny
         sx = image_shape[1] / nx
-        print('nxy: ', nx, ny)
-        print('sxy: ', sx, sy)
+        #print('nxy: ', nx, ny)
+        #print('sxy: ', sx, sy)
 
         y = np.linspace(0, image_shape[0]-sy, num=int(ny)) + sy/2
         x = np.linspace(0, image_shape[1]-sx, num=int(nx)) + sx/2
