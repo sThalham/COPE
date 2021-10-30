@@ -536,9 +536,9 @@ def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
 
     def _per_cls_l1(y_true, y_pred):
 
-        #y_pred_exp = tf.expand_dims(y_pred, axis=2)
-        #regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
-        regression = y_pred
+        y_pred_exp = tf.expand_dims(y_pred, axis=2)
+        regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+        #regression = y_pred
 
         anchor_state = y_true[:, :, :, 16:]
         regression_target = y_true[:, :, :, :16]

@@ -92,8 +92,9 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
     for i, layer in enumerate(resnet.layers):
         # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
         #    layer.trainable=False
-        if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
-            layer.trainable = False
+        #if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
+        #    layer.trainable = False
+        layer.trainable = False
         #print(i, layer.name, layer)
 
 
