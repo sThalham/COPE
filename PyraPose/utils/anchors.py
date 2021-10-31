@@ -100,6 +100,9 @@ def anchor_targets_bbox(
                 tra = pose[:3]
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
                 tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+                # add noise to pose
+                keypoint_noise = np.random.normal(loc=0.0, scale=2.0, size=tDbox.shape)
+                tDbox += keypoint_noise
                 box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                                            cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 box3D = np.reshape(box3D, (16))
