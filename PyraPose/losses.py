@@ -570,3 +570,178 @@ def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
         return weight * tf.math.reduce_sum(loss, axis=0)
 
     return _per_cls_l1
+
+
+def pcccl1(num_classes=0, weight=1.0, sigma=3.0):
+
+    sigma_squared = sigma ** 2
+
+    def _pcccl1(y_true, y_pred):
+
+        y_pred_exp = tf.expand_dims(y_pred, axis=2)
+        regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
+        #regression = y_pred
+
+        anchor_state = y_true[:, :, :, 16:]
+        regression_target = y_true[:, :, :, :16]
+        # tf.where faster than element-wise multiplication
+        regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :16], 0.0)
+        #regression = tf.math.multiply(anchor_state, regression[:, :, :, :16])
+
+        # compute smooth L1 loss
+        # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
+        #        |x| - 0.5 / sigma / sigma    otherwise
+        regression_diff = regression - regression_target
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+
+        # comp norm per class
+        normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1, 3])
+        #retain per cls loss
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1, 3])
+
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+
+        reg_x = regression[:, :, :, ::2]
+        reg_y = regression[:, :, :, 1::2]
+        gt_x = regression_target[:, :, :, ::2]
+        gt_y = regression_target[:, :, :, 1::2]
+
+        reg_area_1 = tf.math.abs(tf.math.reduce_max(reg_x[:, :, :, :4]) - tf.math.reduce_min(reg_x[:, :, :, :4])) * tf.math.abs(tf.math.reduce_max(reg_y[:, :, :, :4]) - tf.math.reduce_min(reg_y[:, :, :, :4]))
+        reg_area_2 = tf.math.abs(tf.math.reduce_max(reg_x[:, :, :, 4:]) - tf.math.reduce_min(reg_x[:, :, :, 4:])) * tf.math.abs(tf.math.reduce_max(reg_y[:, :, :, 4:]) - tf.math.reduce_min(reg_y[:, :, :, 4:]))
+        reg_area_3 = tf.math.abs(tf.math.reduce_max(tf.gather(reg_x, [2,3,6,7], axis=3)) - tf.math.reduce_min(tf.gather(reg_x, [2,3,6,7], axis=3))) * tf.math.abs(tf.math.reduce_max(tf.gather(reg_y, [2,3,6,7], axis=3)) - tf.math.reduce_min(tf.gather(reg_y, [2,3,6,7], axis=3)))
+        reg_area_4 = tf.math.abs(tf.math.reduce_max(tf.gather(reg_x, [0,1,4,5], axis=3)) - tf.math.reduce_min(tf.gather(reg_x, [0,1,4,5], axis=3))) * tf.math.abs(tf.math.reduce_max(tf.gather(reg_y, [0,1,4,5], axis=3)) - tf.math.reduce_min(tf.gather(reg_y, [0,1,4,5], axis=3)))
+        reg_area_5 = tf.math.abs(tf.math.reduce_max(tf.gather(reg_x, [0,3,4,7], axis=3)) - tf.math.reduce_min(tf.gather(reg_x, [0,3,4,7], axis=3))) * tf.math.abs(tf.math.reduce_max(tf.gather(reg_y, [0,3,4,7], axis=3)) - tf.math.reduce_min(tf.gather(reg_y, [0,3,4,7], axis=3)))
+        reg_area_6 = tf.math.abs(tf.math.reduce_max(tf.gather(reg_x, [1,2,5,6], axis=3)) - tf.math.reduce_min(tf.gather(reg_x, [1,2,5,6], axis=3))) * tf.math.abs(tf.math.reduce_max(tf.gather(reg_y, [1,2,5,6], axis=3)) - tf.math.reduce_min(tf.gather(reg_y, [1,2,5,6], axis=3)))
+        gt_area_1 = tf.math.abs(
+            tf.math.reduce_max(gt_x[:, :, :, :4]) - tf.math.reduce_min(gt_x[:, :, :, :4])) * tf.math.abs(
+            tf.math.reduce_max(gt_y[:, :, :, :4]) - tf.math.reduce_min(gt_y[:, :, :, :4]))
+        gt_area_2 = tf.math.abs(
+            tf.math.reduce_max(gt_x[:, :, :, 4:]) - tf.math.reduce_min(gt_x[:, :, :, 4:])) * tf.math.abs(
+            tf.math.reduce_max(gt_y[:, :, :, 4:]) - tf.math.reduce_min(gt_y[:, :, :, 4:]))
+        gt_area_3 = tf.math.abs(tf.math.reduce_max(tf.gather(gt_x, [2, 3, 6, 7], axis=3)) - tf.math.reduce_min(
+            tf.gather(gt_x, [2, 3, 6, 7], axis=3))) * tf.math.abs(
+            tf.math.reduce_max(tf.gather(gt_y, [2, 3, 6, 7], axis=3)) - tf.math.reduce_min(
+                tf.gather(gt_y, [2, 3, 6, 7], axis=3)))
+        gt_area_4 = tf.math.abs(tf.math.reduce_max(tf.gather(gt_x, [0, 1, 4, 5], axis=3)) - tf.math.reduce_min(
+            tf.gather(gt_x, [0, 1, 4, 5], axis=3))) * tf.math.abs(
+            tf.math.reduce_max(tf.gather(gt_y, [0, 1, 4, 5], axis=3)) - tf.math.reduce_min(
+                tf.gather(gt_y, [0, 1, 4, 5], axis=3)))
+        gt_area_5 = tf.math.abs(tf.math.reduce_max(tf.gather(gt_x, [0, 3, 4, 7], axis=3)) - tf.math.reduce_min(
+            tf.gather(gt_x, [0, 3, 4, 7], axis=3))) * tf.math.abs(
+            tf.math.reduce_max(tf.gather(gt_y, [0, 3, 4, 7], axis=3)) - tf.math.reduce_min(
+                tf.gather(gt_y, [0, 3, 4, 7], axis=3)))
+        gt_area_6 = tf.math.abs(tf.math.reduce_max(tf.gather(gt_x, [1, 2, 5, 6], axis=3)) - tf.math.reduce_min(
+            tf.gather(gt_x, [1, 2, 5, 6], axis=3))) * tf.math.abs(
+            tf.math.reduce_max(tf.gather(gt_y, [1, 2, 5, 6], axis=3)) - tf.math.reduce_min(
+                tf.gather(gt_y, [1, 2, 5, 6], axis=3)))
+
+        reg_corn_1 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 0]) - tf.math.abs(reg_x[:, :, :, 1])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 0]) - tf.math.abs(reg_y[:, :, :, 1])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 1]) - tf.math.abs(reg_x[:, :, :, 2])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 1]) - tf.math.abs(reg_y[:, :, :, 2])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 2]) - tf.math.abs(reg_x[:, :, :, 3])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 2]) - tf.math.abs(reg_y[:, :, :, 3])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 3]) - tf.math.abs(reg_x[:, :, :, 0])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 3]) - tf.math.abs(reg_y[:, :, :, 0]))
+        reg_corn_2 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 4]) - tf.math.abs(reg_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 4]) - tf.math.abs(reg_y[:, :, :, 5])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 5]) - tf.math.abs(reg_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 5]) - tf.math.abs(reg_y[:, :, :, 6]))
+        + tf.math.abs(tf.math.abs(reg_x[:, :, :, 6]) - tf.math.abs(reg_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 6]) - tf.math.abs(reg_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 7]) - tf.math.abs(reg_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 7]) - tf.math.abs(reg_y[:, :, :, 4]))
+        reg_corn_3 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 2]) - tf.math.abs(reg_x[:, :, :, 3])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 2]) - tf.math.abs(reg_y[:, :, :, 3])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 3]) - tf.math.abs(reg_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 3]) - tf.math.abs(reg_y[:, :, :, 6]))
+        + tf.math.abs(tf.math.abs(reg_x[:, :, :, 6]) - tf.math.abs(reg_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 6]) - tf.math.abs(reg_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 7]) - tf.math.abs(reg_x[:, :, :, 2])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 7]) - tf.math.abs(reg_y[:, :, :, 2]))
+        reg_corn_4 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 0]) - tf.math.abs(reg_x[:, :, :, 1])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 0]) - tf.math.abs(reg_y[:, :, :, 1])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 1]) - tf.math.abs(reg_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 1]) - tf.math.abs(reg_y[:, :, :, 4]))
+        + tf.math.abs(tf.math.abs(reg_x[:, :, :, 4]) - tf.math.abs(reg_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 4]) - tf.math.abs(reg_y[:, :, :, 5])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 5]) - tf.math.abs(reg_x[:, :, :, 0])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 5]) - tf.math.abs(reg_y[:, :, :, 0]))
+        reg_corn_5 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 0]) - tf.math.abs(reg_x[:, :, :, 3])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 0]) - tf.math.abs(reg_y[:, :, :, 3])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 3]) - tf.math.abs(reg_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 3]) - tf.math.abs(reg_y[:, :, :, 4]))
+        + tf.math.abs(tf.math.abs(reg_x[:, :, :, 4]) - tf.math.abs(reg_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 4]) - tf.math.abs(reg_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 7]) - tf.math.abs(reg_x[:, :, :, 0])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 7]) - tf.math.abs(reg_y[:, :, :, 0]))
+        reg_corn_6 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 1]) - tf.math.abs(reg_x[:, :, :, 2])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 1]) - tf.math.abs(reg_y[:, :, :, 2])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 2]) - tf.math.abs(reg_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 2]) - tf.math.abs(reg_y[:, :, :, 5]))
+        + tf.math.abs(tf.math.abs(reg_x[:, :, :, 5]) - tf.math.abs(reg_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 5]) - tf.math.abs(reg_y[:, :, :, 6])) + tf.math.abs(
+            tf.math.abs(reg_x[:, :, :, 6]) - tf.math.abs(reg_x[:, :, :, 1])) * tf.math.abs(
+            tf.math.abs(reg_y[:, :, :, 6]) - tf.math.abs(reg_y[:, :, :, 1]))
+
+        gt_corn_1 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 0]) - tf.math.abs(gt_x[:, :, :, 1])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 0]) - tf.math.abs(gt_y[:, :, :, 1])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 1]) - tf.math.abs(gt_x[:, :, :, 2])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 1]) - tf.math.abs(gt_y[:, :, :, 2])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 2]) - tf.math.abs(gt_x[:, :, :, 3])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 2]) - tf.math.abs(gt_y[:, :, :, 3])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 3]) - tf.math.abs(gt_x[:, :, :, 0])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 3]) - tf.math.abs(gt_y[:, :, :, 0]))
+        gt_corn_2 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 4]) - tf.math.abs(gt_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 4]) - tf.math.abs(gt_y[:, :, :, 5])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 5]) - tf.math.abs(gt_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 5]) - tf.math.abs(gt_y[:, :, :, 6]))
+        + tf.math.abs(tf.math.abs(gt_x[:, :, :, 6]) - tf.math.abs(gt_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 6]) - tf.math.abs(gt_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 7]) - tf.math.abs(gt_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 7]) - tf.math.abs(gt_y[:, :, :, 4]))
+        gt_corn_3 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 2]) - tf.math.abs(gt_x[:, :, :, 3])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 2]) - tf.math.abs(gt_y[:, :, :, 3])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 3]) - tf.math.abs(gt_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 3]) - tf.math.abs(gt_y[:, :, :, 6]))
+        + tf.math.abs(tf.math.abs(gt_x[:, :, :, 6]) - tf.math.abs(gt_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 6]) - tf.math.abs(gt_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 7]) - tf.math.abs(gt_x[:, :, :, 2])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 7]) - tf.math.abs(gt_y[:, :, :, 2]))
+        gt_corn_4 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 0]) - tf.math.abs(gt_x[:, :, :, 1])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 0]) - tf.math.abs(gt_y[:, :, :, 1])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 1]) - tf.math.abs(gt_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 1]) - tf.math.abs(gt_y[:, :, :, 4]))
+        + tf.math.abs(tf.math.abs(gt_x[:, :, :, 4]) - tf.math.abs(gt_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 4]) - tf.math.abs(gt_y[:, :, :, 5])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 5]) - tf.math.abs(gt_x[:, :, :, 0])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 5]) - tf.math.abs(gt_y[:, :, :, 0]))
+        gt_corn_5 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 0]) - tf.math.abs(gt_x[:, :, :, 3])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 0]) - tf.math.abs(gt_y[:, :, :, 3])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 3]) - tf.math.abs(gt_x[:, :, :, 4])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 3]) - tf.math.abs(gt_y[:, :, :, 4]))
+        + tf.math.abs(tf.math.abs(gt_x[:, :, :, 4]) - tf.math.abs(gt_x[:, :, :, 7])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 4]) - tf.math.abs(gt_y[:, :, :, 7])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 7]) - tf.math.abs(gt_x[:, :, :, 0])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 7]) - tf.math.abs(gt_y[:, :, :, 0]))
+        gt_corn_6 = tf.math.abs(tf.math.abs(gt_x[:, :, :, 1]) - tf.math.abs(gt_x[:, :, :, 2])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 1]) - tf.math.abs(gt_y[:, :, :, 2])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 2]) - tf.math.abs(gt_x[:, :, :, 5])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 2]) - tf.math.abs(gt_y[:, :, :, 5]))
+        + tf.math.abs(tf.math.abs(gt_x[:, :, :, 5]) - tf.math.abs(gt_x[:, :, :, 6])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 5]) - tf.math.abs(gt_y[:, :, :, 6])) + tf.math.abs(
+            tf.math.abs(gt_x[:, :, :, 6]) - tf.math.abs(gt_x[:, :, :, 1])) * tf.math.abs(
+            tf.math.abs(gt_y[:, :, :, 6]) - tf.math.abs(gt_y[:, :, :, 1]))
+
+        reg_area_corners = tf.stack([reg_corn_1, reg_corn_2, reg_corn_3, reg_corn_4, reg_corn_5, reg_corn_6], axis=3) * 0.5
+        gt_area_corners = tf.stack([gt_corn_1, gt_corn_2, gt_corn_3, gt_corn_4, gt_corn_5, gt_corn_6], axis=3) * 0.5
+        reg_area_all = tf.stack([reg_area_1, reg_area_2, reg_area_3, reg_area_4, reg_area_5, reg_area_6], axis=3)
+        gt_area_all = tf.stack([gt_area_1, gt_area_2, gt_area_3, gt_area_4, gt_area_5, gt_area_6], axis=3)
+        reg_area = reg_area_all - reg_area_corners
+        gt_area = gt_area_all - gt_area_corners
+
+        denom = tf.math.sqrt(tf.tensordot(reg_area, reg_area) + tf.tensordot(gt_area, gt_area))
+        cross_corr_loss = tf.math.divide_no_nan(tf.tensordot(reg_surf, gt_surf, axis=3), denom)
+        cross_corr_loss = tf.math.divide_no_nan(cross_corr_loss, normalizer)
+
+        return weight * tf.math.reduce_sum(loss, axis=0)
+
+    return _pcccl1
