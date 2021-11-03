@@ -90,11 +90,10 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         include_top=False, weights='imagenet', input_tensor=inputs, classes=num_classes)
 
     for i, layer in enumerate(resnet.layers):
-        # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
-        #    layer.trainable=False
-        #if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
-        #    layer.trainable = False
-        layer.trainable = False
+        if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
+        #if i < 81 or 'bn' in layer.name:  # freezing first 2 stages
+            layer.trainable = False
+        #layer.trainable = False
         #print(i, layer.name, layer)
 
 
