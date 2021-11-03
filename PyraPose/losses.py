@@ -641,6 +641,8 @@ def pcccl1(num_classes=0, weight=1.0, sigma=3.0):
                 tf.gather(gt_y, [1, 2, 5, 6], axis=3)))
 
         reg_corn_1 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 0]) - tf.math.abs(reg_x[:, :, :, 1])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 0]) - tf.math.abs(reg_y[:, :, :, 1])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 1]) - tf.math.abs(reg_x[:, :, :, 2])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 1]) - tf.math.abs(reg_y[:, :, :, 2])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 2]) - tf.math.abs(reg_x[:, :, :, 3])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 2]) - tf.math.abs(reg_y[:, :, :, 3])) + tf.math.abs(tf.math.abs(reg_x[:, :, :, 3]) - tf.math.abs(reg_x[:, :, :, 0])) * tf.math.abs(tf.math.abs(reg_y[:, :, :, 3]) - tf.math.abs(reg_y[:, :, :, 0]))
+        print(reg_corn_1)
+        print(tf.math.abs(tf.math.abs(reg_x[:, :, :, 4])))
         reg_corn_2 = tf.math.abs(tf.math.abs(reg_x[:, :, :, 4]) - tf.math.abs(reg_x[:, :, :, 5])) * tf.math.abs(
             tf.math.abs(reg_y[:, :, :, 4]) - tf.math.abs(reg_y[:, :, :, 5])) + tf.math.abs(
             tf.math.abs(reg_x[:, :, :, 5]) - tf.math.abs(reg_x[:, :, :, 6])) * tf.math.abs(
@@ -738,9 +740,22 @@ def pcccl1(num_classes=0, weight=1.0, sigma=3.0):
         reg_area = reg_area_all - reg_area_corners
         gt_area = gt_area_all - gt_area_corners
 
-        denom = tf.math.sqrt(tf.tensordot(reg_area, reg_area) + tf.tensordot(gt_area, gt_area))
-        cross_corr_loss = tf.math.divide_no_nan(tf.tensordot(reg_surf, gt_surf, axis=3), denom)
-        cross_corr_loss = tf.math.divide_no_nan(cross_corr_loss, normalizer)
+        surface_diff = reg_area - gt_area
+        surface_diff = keras.backend.abs(surface_diff)
+        surface_loss = backend.where(
+            keras.backend.less(surface_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(surface_diff, 2),
+            surface_diff - 0.5 / sigma_squared
+        )
+
+        # retain per cls loss
+        per_cls_surf_dev = tf.math.reduce_sum(surface_loss, axis=[0, 1, 3])
+
+        loss_surf = tf.math.divide_no_nan(per_cls_surf_dev, normalizer)
+
+        #denom = tf.math.sqrt(tf.tensordot(reg_area, reg_area) + tf.tensordot(gt_area, gt_area))
+        #cross_corr_loss = tf.math.divide_no_nan(tf.tensordot(reg_surf, gt_surf, axis=3), denom)
+        #cross_corr_loss = tf.math.divide_no_nan(cross_corr_loss, normalizer)
 
         return weight * tf.math.reduce_sum(loss, axis=0)
 
