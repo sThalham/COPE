@@ -222,11 +222,11 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    backbone = models.backbone('resnet50')
+    #backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
-    #backbone = models.backbone('xception')
+    backbone = models.backbone('xception')
     #backbone = models.backbone('densenet')
     #backbone = models.backbone('nasnetmobile')
 

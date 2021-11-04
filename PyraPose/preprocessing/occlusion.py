@@ -229,7 +229,11 @@ class OcclusionGenerator(Generator):
         # mask = None
         mask = cv2.imread(path, -1)
 
-        annotations     = {'scene_id': anns[0]['scene_id'], 'im_id': anns[0]['im_id'], 'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
+        #annotations     = {'scene_id': anns[0]['scene_id'], 'im_id': anns[0]['im_id'], 'mask': mask, 'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
+
+        annotations = {'mask': mask,
+                       'labels': np.empty((0,)), 'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)),
+                       'segmentations': np.empty((0, 8, 3)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
 
         for idx, a in enumerate(anns):
             if self.set_name == 'train':

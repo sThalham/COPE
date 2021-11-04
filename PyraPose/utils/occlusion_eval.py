@@ -370,10 +370,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             scores_votes = scores[labels == cls]
             labels_votes = labels[labels == cls]
 
-            eval_line = [anno['scene_id']]
-            eval_line.append(anno['im_id'])
-            eval_line.append(str(true_cls))
-            eval_line.append(str(np.max(scores_votes)))
+            #eval_line = [anno['scene_id']]
+            #eval_line.append(anno['im_id'])
+            #eval_line.append(str(true_cls))
+            #eval_line.append(str(np.max(scores_votes)))
 
             if len(labels_votes) < 1:
                 continue
@@ -487,6 +487,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             # max_center = np.argmax(centerns)
             # pose_votes = pose_votes[:, max_center, :]
 
+            #print(pose_votes[:, :, cls, :].shape)
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
             obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
             obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -509,6 +510,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
+            '''
             R_bop = [str(i) for i in R_est.flatten().tolist()]
             R_bop = ' '.join(R_bop)
             eval_line.append(R_bop)
@@ -517,7 +519,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             eval_line.append(t_bop)
             eval_img.append(eval_line)
 
-            '''
             t_est = t_est.T  # * 0.001
             # print('pose: ', pose)
             # print(t_gt)
@@ -606,16 +607,16 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         #csv_target = os.path.join(wd_path, 'results_occlusion.csv')
         csv_target = os.path.join(wd_path, 'sthalham-pp_lmo-test.csv')
 
-        line_head = ['scene_id','im_id','obj_id','score','R','t','time']
+        #line_head = ['scene_id','im_id','obj_id','score','R','t','time']
         #with open(csv_target, 'a') as outfile:
         #    myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
         #    myWriter.writerow(line_head)
 
-        for line_indexed in eval_img:
-            line_indexed.append(str(t_eval))
-            with open(csv_target, 'a') as outfile:
-                myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
-                myWriter.writerow(line_indexed)
+        #for line_indexed in eval_img:
+        #    line_indexed.append(str(t_eval))
+        #    with open(csv_target, 'a') as outfile:
+        #        myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
+        #        myWriter.writerow(line_indexed)
 
     recall = np.zeros((16), dtype=np.float32)
     precision = np.zeros((16), dtype=np.float32)
