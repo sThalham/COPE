@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from tensorflowcv.model_provider import get_model as tfcv_get_model
-from tensorflowcv.model_provider import init_variables_from_state_dict as tfcv_init_variables_from_state_dict
 import tensorflow.keras as keras
 import tensorflow as tf
 
@@ -97,7 +95,7 @@ def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
     for i, layer in enumerate(xception.layers):
         # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
         #    layer.trainable=False
-        if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
+        if i < 22 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
         print(i, layer.name, layer)
 
@@ -114,7 +112,7 @@ def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
         xception = modifier(xception)
 
     #resnet_outputs = [xception.layers[80].output, xception.layers[142].output, xception.layers[174].output]
-    xception_outputs = [xception.layers[30].output, xception.layers[120].output, xception.layers[131].output]
+    xception_outputs = [xception.layers[29].output, xception.layers[119].output, xception.layers[129].output]
 
     # create the full model
     return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=xception_outputs, **kwargs)

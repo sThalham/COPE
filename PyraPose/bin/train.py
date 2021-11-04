@@ -83,8 +83,8 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
     # compile model
     training_model.compile(
         loss={
-            'points': losses.pcccl1(num_classes=num_classes),
-            #'points': losses.per_cls_l1(num_classes=num_classes, weight=1.3),
+            #'points': losses.pcccl1(num_classes=num_classes),
+            'points': losses.per_cls_l1(num_classes=num_classes, weight=1.3),
             #'points'        : losses.smooth_l1(),
             #'boxes'        : losses.focal_l1(num_classes=num_classes, weight=1.0),
             #'res': losses.residual_loss(weight=0.2),
