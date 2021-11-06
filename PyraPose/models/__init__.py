@@ -25,6 +25,7 @@ class Backbone(object):
             '_orth_l1'         : losses.orthogonal_l1(),
             'RegressBoxes3D'   : layers.RegressBoxes3D(),
             '_per_cls_l1'       : losses.per_cls_l1(),
+            '_per_cls_l1_pose': losses.per_cls_l1_pose(),
             '_pcccl1'           : losses.pcccl1(),
             '_class_l1': losses.per_cls_l1(),
             '_per_cls_cross'       : losses.per_cls_cross(),
@@ -69,8 +70,6 @@ def backbone(backbone_name):
 def load_model(filepath, backbone_name='resnet50'):
     import tensorflow.keras.models
 
-    backbone_name='resnet101'
-
     return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 
 
@@ -81,7 +80,8 @@ def convert_model(model, diameters):
 
 def assert_training_model(model):
     #assert (all(output in model.output_names for output in ['points', 'conf', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    assert (all(output in model.output_names for output in ['points', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    #assert (all(output in model.output_names for output in ['points', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'poses'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
     #assert (all(output in model.output_names for output in ['points', 'cls', 'P3', 'P4', 'P5'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 

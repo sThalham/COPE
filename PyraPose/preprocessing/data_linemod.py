@@ -359,6 +359,6 @@ class LinemodDataset(tf.data.Dataset):
                                               tf.TensorShape([None, 6300, 15, 32]),
                                               #tf.TensorShape([None, 6300, 15, 16]))),
                                               tf.TensorShape([None, 6300, 16]),
-                                              tf.TensorShape([None, 6300, 15, 7]))),
+                                              tf.TensorShape([None, 6300, 15, 14]))),
                                               args=(data_dir, set_name, batch_size))
 

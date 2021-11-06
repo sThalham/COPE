@@ -180,10 +180,8 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     rotation = tf.math.l2_normalize(rotation, axis=3)
 
     regress = tf.concat([translation, rotation], axis=3)
-    print(regress)
 
     return keras.models.Model(inputs=inputs, outputs=regress, name='poses')
-
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):

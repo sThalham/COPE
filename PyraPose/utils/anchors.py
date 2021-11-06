@@ -57,7 +57,7 @@ def anchor_targets_bbox(
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    poses_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 16), dtype=keras.backend.floatx())
+    poses_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 7), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -132,10 +132,14 @@ def anchor_targets_bbox(
                 #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :2] = pose[:2]
-                regression_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                regression_batch[index, locations_positive_obj, cls, 3:7] = pose[3:]
-                regression_batch[index, locations_positive_obj, cls, 7:] = 1
+                poses_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                poses_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                poses_batch[index, locations_positive_obj, cls, 3:7] = pose[3:]
+                poses_batch[index, locations_positive_obj, cls, 7:] = 1
+
+                #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
+                #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))
+                #print('depth: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, 2] > 0.0)))
 
                 #bb = annotations['bboxes'][idx]
                 #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
@@ -147,7 +151,7 @@ def anchor_targets_bbox(
         #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
         #cv2.imwrite(name, image_raw)
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(poses_batch)
 
 
 def layer_shapes(image_shape, model):
