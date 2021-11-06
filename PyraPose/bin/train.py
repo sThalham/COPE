@@ -19,7 +19,8 @@ limitations under the License.
 import argparse
 import os
 import sys
-import warnings
+import yaml
+import numpy as np
 
 import tensorflow.keras as keras
 import tensorflow.keras.preprocessing.image
@@ -60,7 +61,7 @@ def model_with_weights(model, weights, skip_mismatch):
     return model
 
 
-def create_models(backbone_model, num_classes, weights, multi_gpu=0,
+def create_models(backbone_model, num_classes, obj_diameters, weights, multi_gpu=0,
                   freeze_backbone=False, lr=1e-5):
 
     modifier = freeze_model if freeze_backbone else None
@@ -71,10 +72,10 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
     if multi_gpu > 1:
         from tensorflow.keras.utils import multi_gpu_model
         with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_model(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
+            model = model_with_weights(backbone_model(num_classes, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = multi_gpu_model(model, gpus=multi_gpu)
     else:
-        model          = model_with_weights(backbone_model(num_classes, modifier=modifier), weights=weights, skip_mismatch=True)
+        model          = model_with_weights(backbone_model(num_classes, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
     # make prediction model
@@ -90,6 +91,7 @@ def create_models(backbone_model, num_classes, weights, multi_gpu=0,
             #'res': losses.residual_loss(weight=0.2),
             #'cls'        : losses.per_cls_cross(num_classes=num_classes, weight=60.0),
             'cls'           : losses.focal(),
+            'poses': losses.per_cls_l1_pose(num_classes=num_classes, weight=0.5),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -173,11 +175,16 @@ def create_generators(args, preprocess_image):
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
             num_parallel_calls=args.workers
         )
-
+        mesh_info = os.path.join(args.linemod_path, 'annotations', 'models_info' + '.yml')
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            sphere_diameters[int(key-1)] = value['diameter']
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return dataset, num_classes, train_samples
+
+
+    return dataset, num_classes, sphere_diameters, train_samples
 
 
 def parse_args(args):
@@ -222,11 +229,11 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    #backbone = models.backbone('resnet50')
+    backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
-    backbone = models.backbone('xception')
+    #backbone = models.backbone('xception')
     #backbone = models.backbone('densenet')
     #backbone = models.backbone('nasnetmobile')
 
@@ -235,7 +242,7 @@ def main(args=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     # create the generators
-    dataset, num_classes, train_samples = create_generators(args, backbone.preprocess_image)
+    dataset, num_classes, obj_diameters, train_samples = create_generators(args, backbone.preprocess_image)
 
     # create the model
     if args.snapshot is not None:
@@ -250,6 +257,7 @@ def main(args=None):
         model, training_model = create_models(
             backbone_model=backbone.model,
             num_classes=num_classes,
+            obj_diameters=obj_diameters,
             weights=weights,
             multi_gpu=0,
             freeze_backbone=args.freeze_backbone,

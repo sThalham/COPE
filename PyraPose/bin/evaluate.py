@@ -129,7 +129,7 @@ def main(args=None):
 
     # load the model
     print('Loading model, this may take a second...')
-    model = models.load_model(args.model, backbone_name='resnet')
+    model = models.load_model(args.model, backbone_name='resnet50')
 
     # optionally convert the model
     if args.convert_model:

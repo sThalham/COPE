@@ -148,6 +148,44 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     return keras.models.Model(inputs=inputs, outputs=regress)#, keras.models.Model(inputs=inputs, outputs=conf)
 
 
+def default_pose_model(num_classes, prior_probability=0.01, regression_feature_size=512):
+    options = {
+        'kernel_size'        : 3,
+        'strides'            : 1,
+        'padding'            : 'same',
+        'kernel_initializer' : keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
+        'bias_initializer'   : 'zeros',
+        'kernel_regularizer' : keras.regularizers.l2(0.001),
+    }
+
+    if keras.backend.image_data_format() == 'channels_first':
+        inputs  = keras.layers.Input(shape=(16, num_classes, None))
+    else:
+        inputs  = keras.layers.Input(shape=(None, num_classes, 16))
+
+    outputs = inputs
+    outputs = translation = keras.layers.Reshape((-1, num_classes * 16))(outputs)
+    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
+
+    translation = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        translation = keras.layers.Permute((2, 3, 1))(translation)
+    translation = keras.layers.Reshape((-1, num_classes, 3))(translation)
+
+    rotation = keras.layers.Conv1D(num_classes * 4, **options)(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        rotation = keras.layers.Permute((2, 3, 1))(rotation)
+    rotation = keras.layers.Reshape((-1, num_classes, 4))(rotation)
+    rotation = tf.math.l2_normalize(rotation, axis=3)
+
+    regress = tf.concat([translation, rotation], axis=3)
+    print(regress)
+
+    return keras.models.Model(inputs=inputs, outputs=regress, name='poses')
+
+
+
 def __create_PFPN(C3, C4, C5, feature_size=256):
     options = {
         #'kernel_regularizer': keras.regularizers.l2(0.001),
@@ -182,10 +220,12 @@ def pyrapose(
     inputs,
     backbone_layers,
     num_classes,
+    obj_diameters      = None,
     create_pyramid_features = __create_PFPN,
     name                    = 'pyrapose'
 ):
     regression_branch = default_regression_model(16)
+    pose_branch = default_pose_model(num_classes)
     #boxes_branch = default_regression_model(4)
     location_branch = default_classification_model(num_classes)
 
@@ -217,6 +257,21 @@ def pyrapose(
     location_P5 = location_branch(P5)
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
 
+    location_coordinates = __build_destd([P3, P4, P5], [8, 16, 32])
+    locations_tiled = tf.tile(location_coordinates[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    tf_diameter = tf.convert_to_tensor(obj_diameters)
+    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, :], [6300, 1])
+    #rep_object_diameters = tf.keras.layers.Input(shape=(6300, num_classes), name='rep_diameters', dtype='float32')
+    #rep_object_diameters = {"rep_diameters": inputs_embeds}
+    regression_tiled = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    print(regression_tiled)
+    print(locations_tiled)
+    print(rep_object_diameters)
+    reproject_boxes = layers.DenormRegression(diameter_tensor=rep_object_diameters)([regression_tiled, locations_tiled])
+
+    pose = pose_branch(reproject_boxes)
+    pyramids.append(pose)
+
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
@@ -226,6 +281,14 @@ def __build_locations(features, strides):
     ]
 
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
+
+
+def __build_destd(features, strides):
+    locations = [
+        layers.Locations(stride=strides[i], name='denorm_locations_{}'.format(i))(f) for i, f in enumerate(features)
+    ]
+
+    return keras.layers.Concatenate(axis=1, name='denorm_locations')(locations)
 
 
 def inference_model(
@@ -260,20 +323,8 @@ def inference_model(
     )([regression, classification, locations])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
-    #print(tf_diameter)
-    #rep_object_diameters = tf.zeros(max_detections)
-    #print(rep_object_diameters)
-    #rep_object_diameters = tf_diameter[detections[2]]
-
-    #c = lambda i: tf.less(i, max_detections+1)
-    #b = lambda i: detections[2][i]
-    #rep_object_diameters = tf.while_loop(
-    #    c, b, loop_vars=[detections[2], tf_diameter])
-
     rep_object_diameters = tf.gather(tf_diameter,
                 indices=detections[3])
-    #rep_object_diameters = tf.gather(tf_diameter,
-    #                                 indices=tf.add(detections[3], 1))
 
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 

@@ -57,6 +57,7 @@ def anchor_targets_bbox(
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    poses_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 16), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -131,6 +132,10 @@ def anchor_targets_bbox(
                 #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :2] = pose[:2]
+                regression_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                regression_batch[index, locations_positive_obj, cls, 3:7] = pose[3:]
+                regression_batch[index, locations_positive_obj, cls, 7:] = 1
 
                 #bb = annotations['bboxes'][idx]
                 #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
