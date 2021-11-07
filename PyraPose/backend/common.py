@@ -58,6 +58,10 @@ def box3D_denorm(regression, locations, obj_diameter, mean=None, std=None):
     if std is None:
         std = [0.65, 0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65, 0.65, 0.65, 0.65, 0.65, 0.65]
 
+    #tf.print('locations: ', tf.shape(locations))
+    #tf.print('regression: ', tf.shape(regression))
+    #tf.print('obj_diameter: ', tf.shape(obj_diameter))
+
     x1 = locations[:, :, :, 0] - (regression[:, :, :, 0] * (std[0] * obj_diameter) + mean[0])
     y1 = locations[:, :, :, 1] - (regression[:, :, :, 1] * (std[1] * obj_diameter) + mean[1])
     x2 = locations[:, :, :, 0] - (regression[:, :, :, 2] * (std[2] * obj_diameter) + mean[2])

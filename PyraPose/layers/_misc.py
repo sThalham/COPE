@@ -33,7 +33,6 @@ class Locations(keras.layers.Layer):
         super(Locations, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        print("call")
         features = inputs
         features_shape = keras.backend.shape(features)
 
@@ -44,7 +43,6 @@ class Locations(keras.layers.Layer):
         else:
             shape = features_shape[1:3]
             #anchors = shift(features_shape[1:3], self.stride, self.anchors)
-        print("shape: ", shape)
 
         shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
         shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
@@ -63,10 +61,13 @@ class Locations(keras.layers.Layer):
 
         #shifts = keras.backend.reshape(shifts, [1, k, 2]) + keras.backend.cast(keras.backend.reshape(shifts, [k, 1, 2]), keras.backend.floatx())
         shifts = keras.backend.cast(keras.backend.reshape(shifts, [1, k, 2]), keras.backend.floatx())
-        shifted_anchors = keras.backend.reshape(shifts, [k, 2])
-        anchors = keras.backend.tile(keras.backend.expand_dims(shifted_anchors, axis=0), (features_shape[0], 1, 1))
-
+        #shifted_anchors = keras.backend.reshape(shifts, [k, 2])
+        #anchors = keras.backend.tile(keras.backend.expand_dims(shifted_anchors, axis=0), (features_shape[0], 1, 1))
         return shifts
+
+        #anchors = keras.backend.tile(shifts, (features_shape[0], 1, 1))
+
+        #return anchors
 
     def compute_output_shape(self, input_shape):
         if None not in input_shape[1:]:
@@ -74,8 +75,6 @@ class Locations(keras.layers.Layer):
                 total = np.prod(input_shape[2:4])
             else:
                 total = np.prod(input_shape[1:3])
-            print("Total: ", total)
-            print("return: ", (input_shape[0], total, 2))
 
             return (input_shape[0], total, 2)
         else:

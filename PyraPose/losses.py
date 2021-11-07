@@ -585,9 +585,9 @@ def per_cls_l1_pose(num_classes=0, weight=1.0, sigma=3.0):
         anchor_state = y_true[:, :, :, 7:]
         regression_target = y_true[:, :, :, :7]
         # tf.where faster than element-wise multiplication
-        print('anchor_state: ', anchor_state)
-        print('regression_target: ', regression_target)
-        print('regression: ', regression)
+        #print('anchor_state: ', anchor_state)
+        #print('regression_target: ', regression_target)
+        #print('regression: ', regression)
         regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :7], 0.0)
 
         # compute smooth L1 loss
