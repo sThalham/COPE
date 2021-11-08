@@ -262,9 +262,6 @@ def pyrapose(
     #rep_object_diameters = tf.keras.layers.Input(shape=(6300, num_classes), name='rep_diameters', dtype='float32')
     #rep_object_diameters = {"rep_diameters": inputs_embeds}
     regression_tiled = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-    print(regression_tiled)
-    print(locations_tiled)
-    print(rep_object_diameters)
     reproject_boxes = layers.DenormRegression(diameter_tensor=rep_object_diameters)([regression_tiled, locations_tiled])
 
     pose = pose_branch(reproject_boxes)
@@ -313,6 +310,7 @@ def inference_model(
     regression = model.outputs[0]
     #residuals = model.outputs[1][:, :, 18:]
     classification = model.outputs[1]
+    poses = model.outputs[2]
 
     detections = layers.FilterDetections(
         name='filtered_detections',
@@ -329,4 +327,4 @@ def inference_model(
     # construct the model
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
     #return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3]], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses], name=name)

@@ -16,6 +16,8 @@ class Backbone(object):
             'UpsampleLike'     : layers.UpsampleLike,
             'PriorProbability' : initializers.PriorProbability,
             'RegressBoxes'     : layers.RegressBoxes,
+            'denorm_regression': layers.DenormRegression,
+            'Locations'         : layers.Locations(),
             'FilterDetections' : layers.FilterDetections,
             'ClipBoxes'        : layers.ClipBoxes,
             '_smooth_l1'       : losses.smooth_l1(),

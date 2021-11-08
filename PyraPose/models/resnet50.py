@@ -94,7 +94,7 @@ def resnet_model(num_classes, obj_diameters, inputs=None, modifier=None, **kwarg
         #if i < 81 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
         #layer.trainable = False
-        #print(i, layer.name, layer)
+        print(i, layer.name, layer)
 
 
         # if 'bn' in layer.name:

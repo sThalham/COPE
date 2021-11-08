@@ -26,7 +26,7 @@ class Locations(keras.layers.Layer):
     """ Keras layer for generating locations for a given shape.
     """
 
-    def __init__(self, stride, *args, **kwargs):
+    def __init__(self, stride=[8, 16, 32], *args, **kwargs):
         """ Initializer for an Locations layer.
         """
         self.stride = stride

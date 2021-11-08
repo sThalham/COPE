@@ -346,6 +346,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
         labels = labels[labels == cls]
+        poses = poses[labels == cls]
+
+        print(poses.shape)
 
         if len(labels) < 1:
             continue
