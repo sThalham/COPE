@@ -51,7 +51,7 @@ def box3D_transform_inv(regression, locations, obj_diameter, mean=None, std=None
     return pred_boxes
 
 
-def box3D_denorm(regression, locations, obj_diameter, mean=None, std=None):
+def box3D_denorm(regression, locations, obj_diameter=None, mean=None, std=None):
 
     if mean is None:
         mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

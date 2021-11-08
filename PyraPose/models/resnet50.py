@@ -63,9 +63,10 @@ class ResNetBackbone(Backbone):
     """ Describes backbone information and provides utility functions.
     """
 
-    def __init__(self, backbone):
+    def __init__(self, backbone, obj_diameter=None):
         super(ResNetBackbone, self).__init__(backbone)
-        self.custom_objects.update()
+        from .. import layers
+        self.custom_objects.update({'DenormRegression': layers.DenormRegression(diameter_tensor=obj_diameter)})
 
     def model(self, *args, **kwargs):
         """ Returns PyraPose using the correct backbone.

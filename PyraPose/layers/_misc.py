@@ -22,6 +22,7 @@ from ..utils import anchors as utils_anchors
 import numpy as np
 from tensorflow import meshgrid
 
+
 class Locations(keras.layers.Layer):
     """ Keras layer for generating locations for a given shape.
     """
@@ -244,7 +245,7 @@ class DenormRegression(keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         regression, locations = inputs
-        return box3D_denorm(regression, locations, self.obj_diameters, mean=self.mean, std=self.std)
+        return box3D_denorm(regression, locations, obj_diameter=self.obj_diameters, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]

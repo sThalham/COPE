@@ -261,7 +261,7 @@ def pyrapose(
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, :], [6300, 1])
     #rep_object_diameters = tf.keras.layers.Input(shape=(6300, num_classes), name='rep_diameters', dtype='float32')
     #rep_object_diameters = {"rep_diameters": inputs_embeds}
-    regression_tiled = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    regression_tiled = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1], name='regression_tiled')
     reproject_boxes = layers.DenormRegression(diameter_tensor=rep_object_diameters)([regression_tiled, locations_tiled])
 
     pose = pose_branch(reproject_boxes)

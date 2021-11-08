@@ -120,16 +120,13 @@ def main(args=None):
     # create the generator
     generator = create_generator(args)
     obj_diameters = generator.get_diameters()
-    #creating obj_diameter maaping to online class
     obj_diameters = obj_diameters[1:]
-    #generator_diameter = copy.deepcopy(obj_diameters)
-    #generator_diameter[0:2] = obj_diameters[1:3]
-    #generator_diameter[2:5] = obj_diameters[4:7]
-    #generator_diameter[5:13] = obj_diameters[8:16]
+    tf_diameter = tf.convert_to_tensor(obj_diameters)
+    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, :], [6300, 1])
 
     # load the model
     print('Loading model, this may take a second...')
-    model = models.load_model(args.model, backbone_name='resnet50')
+    model = models.load_model(args.model, backbone_name='resnet50', obj_diameter=rep_object_diameters)
 
     # optionally convert the model
     if args.convert_model:

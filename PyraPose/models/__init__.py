@@ -13,25 +13,24 @@ class Backbone(object):
         from .. import initializers
         from . import model
         self.custom_objects = {
-            'UpsampleLike'     : layers.UpsampleLike,
-            'PriorProbability' : initializers.PriorProbability,
-            'RegressBoxes'     : layers.RegressBoxes,
-            'denorm_regression': layers.DenormRegression,
-            'Locations'         : layers.Locations(),
-            'FilterDetections' : layers.FilterDetections,
-            'ClipBoxes'        : layers.ClipBoxes,
-            '_smooth_l1'       : losses.smooth_l1(),
-            '_smooth_l1_weighted'  : losses.smooth_l1_weighted(),
-            '_focal'           : losses.focal(),
-            '_cross'           : losses.cross(),
-            '_orth_l1'         : losses.orthogonal_l1(),
-            'RegressBoxes3D'   : layers.RegressBoxes3D(),
-            '_per_cls_l1'       : losses.per_cls_l1(),
-            '_per_cls_l1_pose': losses.per_cls_l1_pose(),
-            '_pcccl1'           : losses.pcccl1(),
-            '_class_l1': losses.per_cls_l1(),
-            '_per_cls_cross'       : losses.per_cls_cross(),
-            '_residual_loss'         : losses.residual_loss(),
+            'UpsampleLike'              : layers.UpsampleLike,
+            'PriorProbability'          : initializers.PriorProbability,
+            'RegressBoxes'              : layers.RegressBoxes,
+            'FilterDetections'          : layers.FilterDetections,
+            'ClipBoxes'                 : layers.ClipBoxes,
+            '_smooth_l1'                : losses.smooth_l1(),
+            '_smooth_l1_weighted'       : losses.smooth_l1_weighted(),
+            '_focal'                    : losses.focal(),
+            '_cross'                    : losses.cross(),
+            '_orth_l1'                  : losses.orthogonal_l1(),
+            'RegressBoxes3D'            : layers.RegressBoxes3D(),
+            'Locations'                 : layers.Locations(),
+            '_per_cls_l1'               : losses.per_cls_l1(),
+            '_per_cls_l1_pose'          : losses.per_cls_l1_pose(),
+            '_pcccl1'                   : losses.pcccl1(),
+            '_class_l1'                 : losses.per_cls_l1(),
+            '_per_cls_cross'            : losses.per_cls_cross(),
+            '_residual_loss'            : losses.residual_loss(),
         }
 
         self.backbone = backbone
@@ -48,7 +47,7 @@ class Backbone(object):
         raise NotImplementedError('preprocess_image method not implemented.')
 
 
-def backbone(backbone_name):
+def backbone(backbone_name, obj_diameter=None):
     if 'resnet50' in backbone_name:
         from .resnet50 import ResNetBackbone as b
     elif 'resnet101' in backbone_name:
@@ -66,13 +65,13 @@ def backbone(backbone_name):
     else:
         raise NotImplementedError('Backbone class for  \'{}\' not implemented.'.format(backbone))
 
-    return b(backbone_name)
+    return b(backbone_name, obj_diameter=obj_diameter)
 
 
-def load_model(filepath, backbone_name='resnet50'):
+def load_model(filepath, backbone_name='resnet50', obj_diameter=None):
     import tensorflow.keras.models
 
-    return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
+    return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name, obj_diameter=obj_diameter).custom_objects)
 
 
 def convert_model(model, diameters):
