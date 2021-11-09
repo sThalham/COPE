@@ -212,7 +212,7 @@ class DenormRegression(keras.layers.Layer):
     """ Keras layer for applying regression values to boxes.
     """
 
-    def __init__(self, diameter_tensor, mean=None, std=None, *args, **kwargs):
+    def __init__(self, mean=None, std=None, *args, **kwargs):
         """ Initializer for the RegressBoxes layer.
 
         Args
@@ -240,12 +240,12 @@ class DenormRegression(keras.layers.Layer):
 
         self.mean = mean
         self.std  = std
-        self.obj_diameters = diameter_tensor
+        #self.obj_diameters = diameter_tensor
         super(DenormRegression, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        regression, locations = inputs
-        return box3D_denorm(regression, locations, obj_diameter=self.obj_diameters, mean=self.mean, std=self.std)
+        regression, locations, obj_diameters = inputs
+        return box3D_denorm(regression, locations, obj_diameter=obj_diameters, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]

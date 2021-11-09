@@ -24,6 +24,7 @@ class Backbone(object):
             '_cross'                    : losses.cross(),
             '_orth_l1'                  : losses.orthogonal_l1(),
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
+            'DenormRegression'          : layers.DenormRegression(),
             'Locations'                 : layers.Locations(),
             '_per_cls_l1'               : losses.per_cls_l1(),
             '_per_cls_l1_pose'          : losses.per_cls_l1_pose(),
@@ -65,7 +66,7 @@ def backbone(backbone_name, obj_diameter=None):
     else:
         raise NotImplementedError('Backbone class for  \'{}\' not implemented.'.format(backbone))
 
-    return b(backbone_name, obj_diameter=obj_diameter)
+    return b(backbone_name)
 
 
 def load_model(filepath, backbone_name='resnet50', obj_diameter=None):
