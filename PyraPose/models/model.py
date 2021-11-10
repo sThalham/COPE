@@ -164,7 +164,33 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         inputs = keras.layers.Input(shape=(None, num_classes, 16))
 
     outputs = inputs
-    outputs = translation = keras.layers.Reshape((-1, num_classes * 16))(outputs)
+
+    translations = []
+    rotations = []
+    for i in range(num_classes):
+        out_cls = outputs[:, :, i, :]
+        print(out_cls)
+        out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
+        out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
+
+        translation = keras.layers.Conv1D(3, **options)(out_cls)
+        if keras.backend.image_data_format() == 'channels_first':
+            translation = keras.layers.Permute((2, 3, 1))(translation)
+        translation = keras.layers.Reshape((-1, 1, 3))(translation)
+
+        rotation = keras.layers.Conv1D(4, **options)(out_cls)
+        if keras.backend.image_data_format() == 'channels_first':
+            rotation = keras.layers.Permute((2, 3, 1))(rotation)
+        rotation = keras.layers.Reshape((-1, 1, 4))(rotation)
+        rotation = tf.math.l2_normalize(rotation, axis=3)
+
+        translations.append(translation)
+        rotations.append(rotation)
+    translations = tf.concat(translations, axis=2)
+    rotations = tf.concat(rotations, axis=2)
+
+    '''
+    outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
 
@@ -178,8 +204,9 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         rotation = keras.layers.Permute((2, 3, 1))(rotation)
     rotation = keras.layers.Reshape((-1, num_classes, 4))(rotation)
     rotation = tf.math.l2_normalize(rotation, axis=3)
+    '''
 
-    regress = tf.concat([translation, rotation], axis=3)
+    regress = tf.concat([translations, rotations], axis=3)
 
     return keras.models.Model(inputs=inputs, outputs=regress, name='poses')
 
@@ -244,44 +271,25 @@ def pyrapose(
     regression = keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5])
     pyramids.append(regression)
 
-    # boxes_P3 = boxes_branch(P3)
-    # boxes_P4 = boxes_branch(P4)
-    # boxes_P5 = boxes_branch(P5)
-    # boxes = keras.layers.Concatenate(axis=1, name='boxes')([boxes_P3, boxes_P4, boxes_P5])
-    # pyramids.append(boxes)
-
-    # residuals_P3 = regression_branch[1](P3)
-    # residuals_P4 = regression_branch[1](P4)
-    # residuals_P5 = regression_branch[1](P5)
-    # residuals = keras.layers.Concatenate(axis=1)([residuals_P3, residuals_P4, residuals_P5])
-    # residual_predictions = keras.layers.Concatenate(axis=2, name='res')([regression, residuals])
-    # pyramids.append(residual_predictions)
-
     location_P3 = location_branch(P3)
     location_P4 = location_branch(P4)
     location_P5 = location_branch(P5)
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
 
-    location_coordinates = __build_destd([P3, P4, P5], [8, 16, 32])
+    print(P3, P4, P5)
+    location_coordinates = layers.Locations_Hacked(name='denorm_locations')(P3)
+    print(location_coordinates)
     locations_tiled = tf.tile(tf.expand_dims(location_coordinates, axis=2, name='locations_expanded'),
                               [1, 1, num_classes, 1])
-    # locations_tiled = tf.tile(location_coordinates[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-    tf_diameter = tf.convert_to_tensor(obj_diameters)
-    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, :], [6300, 1])
-    # diameter_input = keras.layers.Input(shape=(None, None, None))
-    # input_denorm = diameter_input(rep_object_diameters)
-    inputs_embeds = tf.keras.layers.Input(tensor=rep_object_diameters)
-    # rep_object_diameters = {"rep_diameters": rep_object_diameters}
+    rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
+
     regression_tiled = tf.tile(tf.expand_dims(regression, axis=2, name='regression_expanded'), [1, 1, num_classes, 1],
                                name='regression_tiled')
-    # regression_tiled = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1], name='regression_tiled')
-    # reproject_boxes = layers.DenormRegression(diameter_tensor=rep_object_diameters)([regression_tiled, locations_tiled])
-    print(regression_tiled)
-    print(inputs_embeds)
-    reproject_boxes = layers.DenormRegression(name='DenormRegression')
-    reprojected_boxes = reproject_boxes([regression_tiled, locations_tiled, inputs_embeds])
+    regression_tiled = regression_tiled * rep_object_diameters
 
-    pose = pose_branch(reprojected_boxes)
+    reproject_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
+
+    pose = pose_branch(reproject_boxes)
     pyramids.append(pose)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
@@ -295,12 +303,12 @@ def __build_locations(features, strides):
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
 
 
-def __build_destd(features, strides):
-    locations = [
-        layers.Locations(stride=strides[i], name='denorm_locations_{}'.format(i))(f) for i, f in enumerate(features)
-    ]
+#def __build_destd(features, strides):
+#    locations = [
+#        layers.Locations(stride=strides[i], name='denorm_locations_{}'.format(i))(f) for i, f in enumerate(features)
+#    ]
 
-    return keras.layers.Concatenate(axis=1, name='denorm_locations')(locations)
+#    return keras.layers.Concatenate(axis=1, name='denorm_locations')(locations)
 
 
 def inference_model(

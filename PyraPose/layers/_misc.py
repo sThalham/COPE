@@ -67,7 +67,6 @@ class Locations(keras.layers.Layer):
         return shifts
 
         #anchors = keras.backend.tile(shifts, (features_shape[0], 1, 1))
-
         #return anchors
 
     def compute_output_shape(self, input_shape):
@@ -83,6 +82,83 @@ class Locations(keras.layers.Layer):
 
     def get_config(self):
         config = super(Locations, self).get_config()
+        #config.update({})
+
+        return config
+
+
+class Locations_Hacked(keras.layers.Layer):
+    """ Keras layer for generating locations for a given shape.
+    """
+
+    def __init__(self, shape=[[60, 80], [30, 40], [15, 20]], stride=[8, 16, 32], *args, **kwargs):
+        """ Initializer for an Locations layer.
+        """
+        self.stride = stride
+        self.shape = shape
+        super(Locations_Hacked, self).__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        features = inputs
+        features_shape = keras.backend.shape(features)
+
+        shift_x = (keras.backend.arange(0, self.shape[0][1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[0]
+        shift_y = (keras.backend.arange(0, self.shape[0][0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[0]
+        shift_x, shift_y = meshgrid(shift_x, shift_y)
+        shift_x = keras.backend.reshape(shift_x, [-1])
+        shift_y = keras.backend.reshape(shift_y, [-1])
+        shifts = keras.backend.stack([
+            shift_x,
+            shift_y
+        ], axis=0)
+        shifts = keras.backend.transpose(shifts)
+        k = keras.backend.shape(shifts)[0]
+        shifts_P3 = keras.backend.cast(keras.backend.reshape(shifts, [1, k, 2]), keras.backend.floatx())
+
+        shift_x = (keras.backend.arange(0, self.shape[1][1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[1]
+        shift_y = (keras.backend.arange(0, self.shape[1][0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[1]
+        shift_x, shift_y = meshgrid(shift_x, shift_y)
+        shift_x = keras.backend.reshape(shift_x, [-1])
+        shift_y = keras.backend.reshape(shift_y, [-1])
+        shifts = keras.backend.stack([
+            shift_x,
+            shift_y
+        ], axis=0)
+        shifts = keras.backend.transpose(shifts)
+        k = keras.backend.shape(shifts)[0]
+        shifts_P4 = keras.backend.cast(keras.backend.reshape(shifts, [1, k, 2]), keras.backend.floatx())
+
+        shift_x = (keras.backend.arange(0, self.shape[2][1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[2]
+        shift_y = (keras.backend.arange(0, self.shape[2][0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5,
+                                                                                                      dtype=keras.backend.floatx())) * self.stride[2]
+        shift_x, shift_y = meshgrid(shift_x, shift_y)
+        shift_x = keras.backend.reshape(shift_x, [-1])
+        shift_y = keras.backend.reshape(shift_y, [-1])
+        shifts = keras.backend.stack([
+            shift_x,
+            shift_y
+        ], axis=0)
+        shifts = keras.backend.transpose(shifts)
+        k = keras.backend.shape(shifts)[0]
+        shifts_P5 = keras.backend.cast(keras.backend.reshape(shifts, [1, k, 2]), keras.backend.floatx())
+
+        shifts = keras.layers.Concatenate(axis=1)([shifts_P3, shifts_P4, shifts_P5])
+        anchors = keras.backend.tile(shifts, (features_shape[0], 1, 1))
+        return anchors
+
+    def compute_output_shape(self, input_shape):
+        if None not in input_shape[1:]:
+            return (input_shape[0], 6300, 2)
+        else:
+            return (input_shape[0], None, 2)
+
+    def get_config(self):
+        config = super(Locations_Hacked, self).get_config()
         #config.update({})
 
         return config
@@ -244,8 +320,8 @@ class DenormRegression(keras.layers.Layer):
         super(DenormRegression, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        regression, locations, obj_diameters = inputs
-        return box3D_denorm(regression, locations, obj_diameter=obj_diameters, mean=self.mean, std=self.std)
+        regression, locations = inputs
+        return box3D_denorm(regression, locations, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]

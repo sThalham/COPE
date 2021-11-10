@@ -113,8 +113,6 @@ class OcclusionGenerator(Generator):
         for key, value in self.classes.items():
             self.labels_rev[value] = key
 
-        print(self.classes)
-
     def size(self):
 
         return len(self.image_ids)

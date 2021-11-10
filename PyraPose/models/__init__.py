@@ -26,11 +26,11 @@ class Backbone(object):
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
             'DenormRegression'          : layers.DenormRegression(),
             'Locations'                 : layers.Locations(),
+            'Locations_Hacked'          : layers.Locations_Hacked(),
             '_per_cls_l1'               : losses.per_cls_l1(),
             '_per_cls_l1_pose'          : losses.per_cls_l1_pose(),
             '_pcccl1'                   : losses.pcccl1(),
             '_class_l1'                 : losses.per_cls_l1(),
-            '_per_cls_cross'            : losses.per_cls_cross(),
             '_residual_loss'            : losses.residual_loss(),
         }
 
@@ -48,7 +48,7 @@ class Backbone(object):
         raise NotImplementedError('preprocess_image method not implemented.')
 
 
-def backbone(backbone_name, obj_diameter=None):
+def backbone(backbone_name):
     if 'resnet50' in backbone_name:
         from .resnet50 import ResNetBackbone as b
     elif 'resnet101' in backbone_name:
@@ -69,10 +69,10 @@ def backbone(backbone_name, obj_diameter=None):
     return b(backbone_name)
 
 
-def load_model(filepath, backbone_name='resnet50', obj_diameter=None):
+def load_model(filepath, backbone_name='resnet50'):
     import tensorflow.keras.models
 
-    return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name, obj_diameter=obj_diameter).custom_objects)
+    return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 
 
 def convert_model(model, diameters):
