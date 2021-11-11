@@ -91,7 +91,7 @@ def create_models(backbone_model, num_classes, obj_diameters, weights, multi_gpu
             #'res': losses.residual_loss(weight=0.2),
             #'cls'        : losses.per_cls_cross(num_classes=num_classes, weight=60.0),
             'cls'           : losses.focal(),
-            'poses': losses.per_cls_l1_pose(num_classes=num_classes, weight=0.075),
+            'poses': losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -281,10 +281,10 @@ def main(args=None):
 
     training_model.fit(
         x=dataset,
-        #steps_per_epoch=train_samples / args.batch_size,
-        steps_per_epoch=10,
-        #epochs=args.epochs,
-        epochs=1,
+        steps_per_epoch=train_samples / args.batch_size,
+        #steps_per_epoch=10,
+        epochs=args.epochs,
+        #epochs=1,
         verbose=1,
         callbacks=callbacks,
         workers=args.workers,

@@ -338,14 +338,18 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_start = time.time()
 
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-        boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('forward pass: ', time.time() - t_start)
         #print('labels: ', labels)
 
+        print(labels.shape)
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
         labels = labels[labels == cls]
+
+        print(poses.shape)
+        print(labels.shape)
         poses = poses[labels == cls]
 
         print(poses.shape)
