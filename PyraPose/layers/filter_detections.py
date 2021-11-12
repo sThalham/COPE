@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import tensorflow.keras as keras
+import tensorflow as tf
 from .. import backend
 
 
@@ -99,12 +100,20 @@ def filter_detections(
     labels      = backend.pad(labels, [[0, pad_size]], constant_values=-1)
     labels      = keras.backend.cast(labels, 'int32')
 
+    print('poses: ', poses)
+    labels_idx = tf.repeat(tf.repeat(labels[:, tf.newaxis, tf.newaxis], repeats=7, axis=2), repeats=15, axis=1)
+    #poses = tf.gather(poses, tf.repeat(labels[:, tf.newaxis, tf.newaxis], repeats=7, axis=2))
+    poses = tf.gather_nd(poses, labels_idx)
+
+    print('labels: ', labels)
+    print('poses: ', poses)
+
     # set shapes, since we know what they are
     boxes3D.set_shape([max_detections, 16])
-    locations.set_shape([max_detections,2])
+    locations.set_shape([max_detections, 2])
     scores.set_shape([max_detections])
     labels.set_shape([max_detections])
-    poses.set_shape([max_detections, 15, 7])
+    poses.set_shape([max_detections, 7])
 
     return [boxes3D, locations, scores, labels, poses]
 
