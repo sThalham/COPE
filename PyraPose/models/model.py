@@ -336,16 +336,20 @@ def inference_model(
     classification = model.outputs[1]
     poses = model.outputs[2]
 
+
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
-    )([regression, classification, locations])
+    )([regression, classification, locations, poses])
+
+    print('detections: ', detections)
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter,
                                      indices=detections[3])
 
+    poses = layers.DenormPoses(name='poses_world')(detections[4])
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 
     # construct the model

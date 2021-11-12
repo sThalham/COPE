@@ -101,6 +101,23 @@ def box3D_denorm(regression, locations, mean=None, std=None):
     return pred_boxes
 
 
+def poses_denorm(regression):
+
+    print(regression)
+
+    x = regression[:, :, :, 0] * 500.0
+    y = regression[:, :, :, 1] * 500.0
+    z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
+    q = regression[:, :, :, 3]
+    r = regression[:, :, :, 4]
+    p = regression[:, :, :, 5]
+    g = regression[:, :, :, 6]
+
+    pred_poses = keras.backend.stack([x, y, z, q, r, p, g], axis=3)
+
+    return pred_poses
+
+
 def shift(shape, stride, anchors):
     shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride
     shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride

@@ -16,7 +16,7 @@ limitations under the License.
 
 import tensorflow.keras as keras
 import tensorflow as tf
-from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm
+from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm, poses_denorm
 from ..utils import anchors as utils_anchors
 
 import numpy as np
@@ -332,6 +332,27 @@ class DenormRegression(keras.layers.Layer):
             'mean': self.mean.tolist(),
             'std' : self.std.tolist(),
         })
+
+        return config
+
+
+class DenormPoses(keras.layers.Layer):
+    """ Keras layer for applying regression values to boxes.
+    """
+
+    def __init__(self, *args, **kwargs):
+
+        super(DenormPoses, self).__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        pose_regression = inputs
+        return poses_denorm(pose_regression)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[1]
+
+    def get_config(self):
+        config = super(DenormPoses, self).get_config()
 
         return config
 
