@@ -105,6 +105,13 @@ def poses_denorm(regression):
 
     print(regression)
 
+    #x = regression[:, :, 0] * 500.0
+    #y = regression[:, :, 1] * 500.0
+    #z = ((regression[:, :, 2] * (1/3)) + 1.0) * 1000.0
+    #q = regression[:, :, 3]
+    #r = regression[:, :, 4]
+    #p = regression[:, :, 5]
+    #g = regression[:, :, 6]
     x = regression[:, :, :, 0] * 500.0
     y = regression[:, :, :, 1] * 500.0
     z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0

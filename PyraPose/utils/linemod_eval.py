@@ -447,6 +447,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         tDbox = np.reshape(box3D, (16))
         tDbox = tDbox.astype(np.uint16)
 
+
         for hy in range(pose_set.shape[0]):
             R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
             t_est = pose_set[hy, :3] * 0.001
@@ -504,6 +505,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                              2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                              2)
+        
         '''
         hyp_mask = np.zeros((640, 480), dtype=np.float32)
         for idx in range(k_hyp):
