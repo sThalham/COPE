@@ -354,7 +354,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             trueDets[true_cls] += 1
 
         #poses_cls = poses[np.argmax(scores), cls, :]
-        poses_cls = np.mean(poses[:, cls, :], axis=0)
+        #poses_cls = np.mean(poses[:, cls, :], axis=0)
+        poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
 
         anno_ind = np.argwhere(anno['labels'] == checkLab)
@@ -540,8 +541,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         '''
 
             #image_viz = np.concatenate([image_raw, img_P3, cen_img], axis=1)
-        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        #cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
