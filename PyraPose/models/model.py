@@ -166,6 +166,7 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = inputs
 
     translations = []
+    depths = []
     rotations = []
     for i in range(num_classes):
         out_cls = outputs[:, :, i, :]
@@ -173,10 +174,15 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
         out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
 
-        translation = keras.layers.Conv1D(3, **options)(out_cls)
+        translation = keras.layers.Conv1D(2, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             translation = keras.layers.Permute((2, 3, 1))(translation)
-        translation = keras.layers.Reshape((-1, 1, 3))(translation)
+        translation = keras.layers.Reshape((-1, 1, 2))(translation)
+
+        depth = keras.layers.Conv1D(1, **options)(out_cls)
+        if keras.backend.image_data_format() == 'channels_first':
+            translation = keras.layers.Permute((2, 3, 1))(depth)
+        depth = keras.layers.Reshape((-1, 1, 1))(depth)
 
         rotation = keras.layers.Conv1D(4, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
@@ -185,8 +191,10 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         rotation = tf.math.l2_normalize(rotation, axis=3)
 
         translations.append(translation)
+        depths.append(depth)
         rotations.append(rotation)
     translations = tf.concat(translations, axis=2)
+    depths = tf.concat(depths, axis=2)
     rotations = tf.concat(rotations, axis=2)
 
     '''
@@ -206,9 +214,9 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     rotation = tf.math.l2_normalize(rotation, axis=3)
     '''
 
-    regress = tf.concat([translations, rotations], axis=3)
+    #regress = tf.concat([translations, rotations], axis=3)
 
-    return keras.models.Model(inputs=inputs, outputs=regress, name='poses')
+    return keras.models.Model(inputs=inputs, outputs=rotations, name='R'), keras.models.Model(inputs=inputs, outputs=translations, name='location'), keras.models.Model(inputs=inputs, outputs=depths, name='depth')
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):

@@ -401,6 +401,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_gt = np.array(t_tra, dtype=np.float32)
         t_gt = t_gt * 0.001
 
+        '''
         pose_votes = boxes3D
         k_hyp = boxes3D.shape[0]
         # min residual
@@ -413,7 +414,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # max_center = np.argmax(centerns)
         # pose_votes = pose_votes[:, max_center, :]
 
-        '''
         est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
         obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
         obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -426,8 +426,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
         '''
+
         R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
         t_est = poses_cls[:3] * 0.001
+        R_best = R_est
+        t_best = t_est
 
         if cls == 10 or cls == 11:
             err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -506,7 +509,31 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                              2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                              2)
-        
+
+        '''
+        eDbox = R_best.dot(ori_points.T).T
+        eDbox = eDbox + np.repeat(t_best[:, np.newaxis], 8, axis=1).T
+        est3D = toPix_array(eDbox)
+        eDbox = np.reshape(est3D, (16))
+        pose = eDbox.astype(np.uint16)
+        colEst = (0, 0, 255)
+        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                             2)
+        image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                             2)
+        image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                             2)
+        image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                             2)
+        '''
         '''
         hyp_mask = np.zeros((640, 480), dtype=np.float32)
         for idx in range(k_hyp):

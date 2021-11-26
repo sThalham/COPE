@@ -94,6 +94,8 @@ def anchor_targets_bbox(
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
+            allocentricR = convertQtoView(pose[3:])
+
             if locations_positive_obj.shape[0] > 1:
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
@@ -130,10 +132,13 @@ def anchor_targets_bbox(
                 #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
-                poses_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                poses_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                poses_batch[index, locations_positive_obj, cls, 3:7] = pose[3:]
-                poses_batch[index, locations_positive_obj, cls, 7:] = 1
+                translations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                translations_batch[index, locations_positive_obj, cls, 2:] = 1
+                depths_batch[index, locations_positive_obj, cls, 0] = ((pose[2] * 0.001) - 1.0) * 3.0
+                depths_batch[index, locations_positive_obj, cls, 1] = 1
+                rotations_batch[index, locations_positive_obj, cls, :3] = pose[3:]
+                depths_batch[index, locations_positive_obj, cls, :3] = allocentric
+
 
                 #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
                 #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))
@@ -382,3 +387,37 @@ def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
     ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy
 
     return np.stack((xpix, ypix), axis=1)
+
+
+def convertQtoView(pose, target, eye):
+    # eye is from
+    # target is to
+    # expects numpy arrays
+    eye = np.eye(4)
+    eye[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
+    eye[:3, 3] = pose[:3]
+
+    f = eye - target
+    f = f/np.linalg.norm(f)
+
+    s = np.cross(up, f)
+    s = s/np.linalg.norm(s)
+    u = np.cross(f, s)
+    u = u/np.linalg.norm(u)
+
+    tx = np.dot(s, eye.T)
+    ty = np.dot(u, eye.T)
+    tz = -np.dot(f, eye.T)
+
+    m = np.zeros((4, 4), dtype=np.float32)
+    m[0, :3] = s
+    m[1, :3] = u
+    m[2, :3] = f
+    m[:, 3] = [tx, ty, tz, 1]
+
+    #m[0, :-1] = s
+    #m[1, :-1] = u
+    #m[2, :-1] = -f
+    #m[-1, -1] = 1.0
+
+    return m
