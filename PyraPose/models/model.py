@@ -174,27 +174,27 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
         out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
 
-        translation = keras.layers.Conv1D(2, **options)(out_cls)
+        translation = keras.layers.Conv1D(3, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             translation = keras.layers.Permute((2, 3, 1))(translation)
-        translation = keras.layers.Reshape((-1, 1, 2))(translation)
+        translation = keras.layers.Reshape((-1, 1, 3))(translation)
 
-        depth = keras.layers.Conv1D(1, **options)(out_cls)
-        if keras.backend.image_data_format() == 'channels_first':
-            translation = keras.layers.Permute((2, 3, 1))(depth)
-        depth = keras.layers.Reshape((-1, 1, 1))(depth)
+        #depth = keras.layers.Conv1D(1, **options)(out_cls)
+        #if keras.backend.image_data_format() == 'channels_first':
+        #    translation = keras.layers.Permute((2, 3, 1))(depth)
+        #depth = keras.layers.Reshape((-1, 1, 1))(depth)
 
-        rotation = keras.layers.Conv1D(4, **options)(out_cls)
+        rotation = keras.layers.Conv1D(3, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             rotation = keras.layers.Permute((2, 3, 1))(rotation)
-        rotation = keras.layers.Reshape((-1, 1, 4))(rotation)
+        rotation = keras.layers.Reshape((-1, 1, 3))(rotation)
         rotation = tf.math.l2_normalize(rotation, axis=3)
 
         translations.append(translation)
-        depths.append(depth)
+        #depths.append(depth)
         rotations.append(rotation)
     translations = tf.concat(translations, axis=2)
-    depths = tf.concat(depths, axis=2)
+    #depths = tf.concat(depths, axis=2)
     rotations = tf.concat(rotations, axis=2)
 
     '''
@@ -216,7 +216,7 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
 
     #regress = tf.concat([translations, rotations], axis=3)
 
-    return keras.models.Model(inputs=inputs, outputs=rotations, name='R'), keras.models.Model(inputs=inputs, outputs=translations, name='location'), keras.models.Model(inputs=inputs, outputs=depths, name='depth')
+    return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
@@ -284,9 +284,7 @@ def pyrapose(
     location_P5 = location_branch(P5)
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
 
-    print(P3, P4, P5)
     location_coordinates = layers.Locations_Hacked(name='denorm_locations')(P3)
-    print(location_coordinates)
     locations_tiled = tf.tile(tf.expand_dims(location_coordinates, axis=2, name='locations_expanded'),
                               [1, 1, num_classes, 1])
     rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
@@ -297,8 +295,10 @@ def pyrapose(
 
     reproject_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
 
-    pose = pose_branch(reproject_boxes)
-    pyramids.append(pose)
+    location = pose_branch[1](reproject_boxes)
+    rotation = pose_branch[0](reproject_boxes)
+    pyramids.append(location)
+    pyramids.append(rotation)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 

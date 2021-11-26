@@ -57,7 +57,8 @@ def anchor_targets_bbox(
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    poses_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 7), dtype=keras.backend.floatx())
+    locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -94,7 +95,15 @@ def anchor_targets_bbox(
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
-            allocentricR = convertQtoView(pose[3:])
+            print('egocenric rotation: ', tf3d.euler.quat2euler(pose[3:]))
+            print('trans: ', pose[:3])
+            lookatObj = convertQtoView(np.array([0.0, 0.0, 0.0]), pose[:3], [0.0, -1.0, 0.0])
+            pose_lin = np.eye(4)
+            pose_lin[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
+            pose_lin[:3, 3] = pose[:3]
+            allocentric_pose = lookatObj @ pose_lin
+            allocentric_rotation = tf3d.euler.mat2euler(allocentric_pose[:3, :3])
+            print('allocentric_rot: ', allocentric_rotation)
 
             if locations_positive_obj.shape[0] > 1:
 
@@ -132,12 +141,11 @@ def anchor_targets_bbox(
                 #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
-                translations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                translations_batch[index, locations_positive_obj, cls, 2:] = 1
-                depths_batch[index, locations_positive_obj, cls, 0] = ((pose[2] * 0.001) - 1.0) * 3.0
-                depths_batch[index, locations_positive_obj, cls, 1] = 1
+                locations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                locations_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                locations_batch[index, locations_positive_obj, cls, 3:] = 1
                 rotations_batch[index, locations_positive_obj, cls, :3] = pose[3:]
-                depths_batch[index, locations_positive_obj, cls, :3] = allocentric
+                rotations_batch[index, locations_positive_obj, cls, :3] = allocentric_rotation
 
 
                 #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
@@ -154,7 +162,7 @@ def anchor_targets_bbox(
         #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
         #cv2.imwrite(name, image_raw)
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(poses_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch)
 
 
 def layer_shapes(image_shape, model):
@@ -389,13 +397,10 @@ def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
     return np.stack((xpix, ypix), axis=1)
 
 
-def convertQtoView(pose, target, eye):
+def convertQtoView(eye, target, up):
     # eye is from
     # target is to
     # expects numpy arrays
-    eye = np.eye(4)
-    eye[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
-    eye[:3, 3] = pose[:3]
 
     f = eye - target
     f = f/np.linalg.norm(f)
