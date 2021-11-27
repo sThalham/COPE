@@ -85,14 +85,15 @@ def create_models(backbone_model, num_classes, obj_diameters, weights, multi_gpu
     training_model.compile(
         loss={
             #'points': losses.pcccl1(num_classes=num_classes),
-            'points': losses.per_cls_l1(num_classes=num_classes, weight=1.3),
+            'points'        : losses.per_cls_l1(num_classes=num_classes, weight=1.3),
             #'points'        : losses.smooth_l1(),
             #'boxes'        : losses.focal_l1(num_classes=num_classes, weight=1.0),
             #'res': losses.residual_loss(weight=0.2),
             #'cls'        : losses.per_cls_cross(num_classes=num_classes, weight=60.0),
             'cls'           : losses.focal(),
-            'translations': losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
-            'rotations': losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
+            'translations'  : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
+            'rotations'     : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
+            'confidences'   : losses.confidence_loss(num_classes=num_classes, weight=1.0),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )

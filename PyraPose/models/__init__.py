@@ -32,6 +32,7 @@ class Backbone(object):
             '_pcccl1'                   : losses.pcccl1(),
             '_class_l1'                 : losses.per_cls_l1(),
             '_residual_loss'            : losses.residual_loss(),
+            '_confidence_loss'            : losses.confidence_loss(),
         }
 
         self.backbone = backbone
@@ -84,7 +85,8 @@ def assert_training_model(model):
     #assert (all(output in model.output_names for output in ['points', 'conf', 'cls', 'center'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
     #assert (all(output in model.output_names for output in ['points', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
     #assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    assert (all(output in model.output_names for output in ['points', 'cls', 'poses'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    #assert (all(output in model.output_names for output in ['points', 'cls', 'poses'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'confidences'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):

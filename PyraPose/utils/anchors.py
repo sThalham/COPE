@@ -60,6 +60,7 @@ def anchor_targets_bbox(
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
+    confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7+1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -143,7 +144,10 @@ def anchor_targets_bbox(
                 locations_batch[index, locations_positive_obj, cls, 3:] = 1
                 rotations_batch[index, locations_positive_obj, cls, :4] = allocentric_rotation
                 rotations_batch[index, locations_positive_obj, cls, 4:] = 1
-
+                confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                confidences_batch[index, locations_positive_obj, cls, 3:-1] = allocentric_rotation
+                confidences_batch[index, locations_positive_obj, cls, -1] = 1
 
                 #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
                 #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))
@@ -228,7 +232,7 @@ def anchor_targets_bbox(
         cv2.imwrite(name, image_raw)
         '''
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):

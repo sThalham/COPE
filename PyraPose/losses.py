@@ -530,6 +530,41 @@ def residual_loss(weight=1.0, sigma=3.0):
     return _residual_loss
 
 
+def confidence_loss(num_classes=0, weight=1.0):
+
+    def _confidence_loss(y_true, y_pred):
+
+        # separate target and state
+
+        regression_target = y_true[:, :, :, :-1]
+        anchor_state      = y_true[:, :, :, -1]
+        regression, confidence = tf.split(y_pred, num_or_size_splits=[num_classes * 7, 1], axis = 2)
+        regression = tf.reshape(regression, tf.shape(regression_target))
+
+        # filter out "ignore" anchors
+        indices           = backend.where(keras.backend.equal(anchor_state, 1))
+        regression        = backend.gather_nd(regression, indices)
+        confidence        = backend.gather_nd(confidence, indices)
+        regression_target = backend.gather_nd(regression_target, indices)
+
+        print('regression: ', regression)
+        print('regression_target: ', regression_target)
+        exp = tf.math.abs(regression - regression_target)
+        print('exp: ', exp)
+        exp = tf.math.reduce_sum(exp, axis=1)
+        print('confs: ', confidence)
+        conf_loss = 1.0 - tf.math.abs(tf.math.exp(-exp) - confidence)
+
+        # compute the normalizer: the number of positive anchors
+        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+        loss = keras.backend.sum(conf_loss) / normalizer
+
+        return weight * loss
+
+    return _confidence_loss
+
+
 def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
 
     sigma_squared = sigma ** 2
@@ -586,9 +621,6 @@ def per_cls_l1_pose(num_classes=0, weight=1.0, sigma=3.0):
         #regression_target = y_true[:, :, :, :3]
         regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=3)
         # tf.where faster than element-wise multiplication
-        print('anchor_state: ', anchor_state)
-        print('regression_target: ', regression_target)
-        print('regression: ', regression)
         regression = tf.where(tf.math.equal(anchor_state, 1), regression, 0.0)
 
         # compute smooth L1 loss

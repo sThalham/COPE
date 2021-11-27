@@ -217,6 +217,33 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
 
+def default_confidence_model(num_classes):
+    options = {
+        'kernel_size': 1,
+        'strides': 1,
+        'padding': 'same',
+        'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
+        'bias_initializer': 'zeros',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
+    }
+
+    if keras.backend.image_data_format() == 'channels_first':
+        inputs = keras.layers.Input(shape=(256 + num_classes * 7, None))
+    else:
+        inputs = keras.layers.Input(shape=(None, 256 + num_classes * 7))
+
+    outputs = inputs
+
+    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=1, **options)(outputs)
+    confidence = keras.layers.Activation('sigmoid')(outputs)
+
+    conf_out = tf.concat([inputs[:, :, 256:], confidence], axis=2)
+
+    return keras.models.Model(inputs=inputs, outputs=conf_out, name='confidences')
+
+
+
 def __create_PFPN(C3, C4, C5, feature_size=256):
     options = {
         # 'kernel_regularizer': keras.regularizers.l2(0.001),
@@ -266,6 +293,7 @@ def pyrapose(
     pose_branch = default_pose_model(num_classes)
     # boxes_branch = default_regression_model(4)
     location_branch = default_classification_model(num_classes)
+    confidence_branch = default_confidence_model(num_classes)
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
@@ -297,6 +325,24 @@ def pyrapose(
     rotation = pose_branch[0](reproject_boxes)
     pyramids.append(location)
     pyramids.append(rotation)
+
+    P3_flat = tf.reshape(P3, [-1, 4800, 256])
+    P4_flat = tf.reshape(P4, [-1, 1200, 256])
+    P5_flat = tf.reshape(P5, [-1, 300, 256])
+    print('P3_flat: ', P3_flat)
+    print('P4_flat: ', P4_flat)
+    print('P5_flat: ', P5_flat)
+    features_reshaped = tf.concat([P3_flat, P4_flat, P5_flat], axis=1)
+    print('features_re: ', features_reshaped)
+
+    poses = tf.concat([location, rotation], axis=3)
+    poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*7])
+    print('poses over classes: ', poses_over_classes)
+    poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
+    print('conditioned: ', poses_conditioned_to_features)
+
+    confidences = confidence_branch(poses_conditioned_to_features)
+    pyramids.append(confidences)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
