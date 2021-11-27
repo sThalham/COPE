@@ -312,12 +312,13 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         # run network
         t_start = time.time()
         eval_img = []
-        boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         print('forward: ', time.time() - t_start)
 
-        boxes3D = boxes3D[labels != -1, :]
-        scores = scores[labels != -1]
-        labels = labels[labels != -1]
+        #boxes3D = boxes3D[labels != -1, :]
+        #scores = scores[labels != -1]
+        #labels = labels[labels != -1]
+        #poses = poses[labels != -1]
 
         image = image_raw
 
@@ -362,27 +363,41 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             image = cv2.line(image, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                              colGT, 2)
 
-        for cls in np.unique(labels):
+        print('unique: ', np.unique(labels))
+        for inv_cls in np.unique(labels):
+        #for cls in range(scores.shape[2]):
 
-            true_cls = cls + 1
+            true_cls = inv_cls + 1
+            cls = true_cls
 
-            pose_votes = boxes3D[labels == cls, :]
-            scores_votes = scores[labels == cls]
-            labels_votes = labels[labels == cls]
+            print('inv_cls: ', inv_cls)
+
+            pose_votes = boxes3D[labels == inv_cls]
+            scores_votes = scores[labels == inv_cls]
+            poses_votes = poses[labels == inv_cls]
+            labels_votes = labels[labels == inv_cls]
+
+            cls_mask = scores_votes
+
+            cls_indices = np.where(cls_mask > threshold)
+
+            if cls not in checkLab:
+                continue
+
+            if len(cls_indices[0]) < 1:
+                continue
+
+            trueDets[true_cls] += 1
+
+            #poses_cls = poses_votes[np.argmax(scores_votes), inv_cls, :]
+            #poses_cls = np.mean(poses_votes[:, inv_cls, :], axis=0)
+            poses_cls = np.median(poses_votes[:, cls, :], axis=0)
+            print(poses_votes.shape)
 
             #eval_line = [anno['scene_id']]
             #eval_line.append(anno['im_id'])
             #eval_line.append(str(true_cls))
             #eval_line.append(str(np.max(scores_votes)))
-
-            if len(labels_votes) < 1:
-                continue
-            else:
-                trueDets[true_cls] += 1
-
-            if true_cls not in checkLab or true_cls == 2:
-                # falsePoses[int(cls)] += 1
-                continue
 
             '''
             print(pose_votes.shape)
@@ -448,7 +463,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             print('mult_hyp: ', time.time() - start_anc)
             '''
 
-            anno_ind = np.argwhere(anno['labels'] == true_cls)
+            anno_ind = np.argwhere(anno['labels'] == cls)
+            print(anno_ind)
             t_tra = anno['poses'][anno_ind[0][0]][:3]
             t_rot = anno['poses'][anno_ind[0][0]][3:]
 
@@ -496,9 +512,14 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                                                distCoeffs=None, rvec=None, tvec=None,
                                                                useExtrinsicGuess=False, iterationsCount=300,
                                                                reprojectionError=5.0, confidence=0.99,
-                                                               flags=cv2.SOLVEPNP_ITERATIVE)
+                                                               flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
+
+
+            #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+            #t_est = poses_cls[:3] * 0.001
+
             t_bop = t_est * 1000.0
 
             if cls == 10 or cls == 11:
