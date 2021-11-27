@@ -166,11 +166,9 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = inputs
 
     translations = []
-    depths = []
     rotations = []
     for i in range(num_classes):
         out_cls = outputs[:, :, i, :]
-        print(out_cls)
         out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
         out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
 
@@ -184,10 +182,10 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         #    translation = keras.layers.Permute((2, 3, 1))(depth)
         #depth = keras.layers.Reshape((-1, 1, 1))(depth)
 
-        rotation = keras.layers.Conv1D(3, **options)(out_cls)
+        rotation = keras.layers.Conv1D(4, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             rotation = keras.layers.Permute((2, 3, 1))(rotation)
-        rotation = keras.layers.Reshape((-1, 1, 3))(rotation)
+        rotation = keras.layers.Reshape((-1, 1, 4))(rotation)
         rotation = tf.math.l2_normalize(rotation, axis=3)
 
         translations.append(translation)

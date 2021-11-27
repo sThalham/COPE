@@ -582,13 +582,14 @@ def per_cls_l1_pose(num_classes=0, weight=1.0, sigma=3.0):
         #regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
         regression = y_pred
 
-        anchor_state = y_true[:, :, :, 3:]
-        regression_target = y_true[:, :, :, :3]
+        #anchor_state = y_true[:, :, :, 3:]
+        #regression_target = y_true[:, :, :, :3]
+        regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=3)
         # tf.where faster than element-wise multiplication
-        #print('anchor_state: ', anchor_state)
-        #print('regression_target: ', regression_target)
-        #print('regression: ', regression)
-        regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :3], 0.0)
+        print('anchor_state: ', anchor_state)
+        print('regression_target: ', regression_target)
+        print('regression: ', regression)
+        regression = tf.where(tf.math.equal(anchor_state, 1), regression, 0.0)
 
         # compute smooth L1 loss
         # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
