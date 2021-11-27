@@ -7,7 +7,6 @@ accessed: 27.11.2021
 
 import numpy as np
 import math
-import torch
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import axangle2quat, mat2quat, qmult, quat2mat
 
