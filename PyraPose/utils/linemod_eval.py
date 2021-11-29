@@ -401,7 +401,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_gt = np.array(t_tra, dtype=np.float32)
         t_gt = t_gt * 0.001
 
-
+        '''
         pose_votes = boxes3D
         k_hyp = boxes3D.shape[0]
         # min residual
@@ -425,10 +425,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                            flags=cv2.SOLVEPNP_ITERATIVE)
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
+        '''
 
-
-        #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
-        #t_est = poses_cls[:3] * 0.001
+        R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+        t_est = poses_cls[:3] * 0.001
+        print('Rot: ', R_est)
         R_best = R_est
         t_best = t_est
 

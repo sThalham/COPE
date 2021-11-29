@@ -182,10 +182,10 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         #    translation = keras.layers.Permute((2, 3, 1))(depth)
         #depth = keras.layers.Reshape((-1, 1, 1))(depth)
 
-        rotation = keras.layers.Conv1D(4, **options)(out_cls)
+        rotation = keras.layers.Conv1D(6, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             rotation = keras.layers.Permute((2, 3, 1))(rotation)
-        rotation = keras.layers.Reshape((-1, 1, 4))(rotation)
+        rotation = keras.layers.Reshape((-1, 1, 6))(rotation)
         rotation = tf.math.l2_normalize(rotation, axis=3)
 
         translations.append(translation)
@@ -293,7 +293,7 @@ def pyrapose(
     pose_branch = default_pose_model(num_classes)
     # boxes_branch = default_regression_model(4)
     location_branch = default_classification_model(num_classes)
-    confidence_branch = default_confidence_model(num_classes)
+    #confidence_branch = default_confidence_model(num_classes)
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
@@ -326,23 +326,20 @@ def pyrapose(
     pyramids.append(location)
     pyramids.append(rotation)
 
+    '''
+    # confidence regression
     P3_flat = tf.reshape(P3, [-1, 4800, 256])
     P4_flat = tf.reshape(P4, [-1, 1200, 256])
     P5_flat = tf.reshape(P5, [-1, 300, 256])
-    print('P3_flat: ', P3_flat)
-    print('P4_flat: ', P4_flat)
-    print('P5_flat: ', P5_flat)
     features_reshaped = tf.concat([P3_flat, P4_flat, P5_flat], axis=1)
-    print('features_re: ', features_reshaped)
 
     poses = tf.concat([location, rotation], axis=3)
     poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*7])
-    print('poses over classes: ', poses_over_classes)
     poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
-    print('conditioned: ', poses_conditioned_to_features)
 
     confidences = confidence_branch(poses_conditioned_to_features)
     pyramids.append(confidences)
+    '''
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
