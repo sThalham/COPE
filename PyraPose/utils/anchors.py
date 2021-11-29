@@ -59,8 +59,8 @@ def anchor_targets_bbox(
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
-    #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
-    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
+    #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -102,8 +102,6 @@ def anchor_targets_bbox(
             ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
             ego_pose[:3, 3] = pose[:3]
             allo_pose = egocentric_to_allocentric(ego_pose)
-            #print('allo_pose: ', allo_pose[:3, :3])
-            #print('R6: ', allo_pose[:3, :2].T.reshape(6))
             allocentric_rotation = tf3d.quaternions.mat2quat(allo_pose[:3, :3])
 
             if locations_positive_obj.shape[0] > 1:
@@ -113,7 +111,7 @@ def anchor_targets_bbox(
                 tra = pose[:3]
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
                 tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
-                # add noise to pose
+
                 box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                                            cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 box3D = np.reshape(box3D, (16))
@@ -145,10 +143,10 @@ def anchor_targets_bbox(
                 locations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
                 locations_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
                 locations_batch[index, locations_positive_obj, cls, 3:] = 1
-                #rotations_batch[index, locations_positive_obj, cls, :4] = allocentric_rotation
-                #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
-                rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
-                rotations_batch[index, locations_positive_obj, cls, 6:] = 1
+                rotations_batch[index, locations_positive_obj, cls, :4] = allocentric_rotation
+                rotations_batch[index, locations_positive_obj, cls, 4:] = 1
+                #rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
+                #rotations_batch[index, locations_positive_obj, cls, 6:] = 1
                 confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
                 confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
                 confidences_batch[index, locations_positive_obj, cls, 3:-1] = allocentric_rotation
@@ -237,7 +235,7 @@ def anchor_targets_bbox(
         cv2.imwrite(name, image_raw)
         '''
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch)#, tf.convert_to_tensor(confidences_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):
