@@ -29,6 +29,7 @@ import yaml
 import sys
 import matplotlib.pyplot as plt
 import time
+from dual_quaternions import DualQuaternion
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -353,10 +354,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         else:
             trueDets[true_cls] += 1
 
-        poses_cls = poses[np.argmax(scores), cls, :]
+        #poses_cls = poses[np.argmax(scores), cls, :]
         #poses_cls = np.mean(poses[:, cls, :], axis=0)
-        #poses_cls = np.median(poses[:, cls, :], axis=0)
+        poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
+        #dq = DualQuaternion.from_dq_array(poses_cls)
+        #poses_cls = dq.homogeneous_matrix()
 
         anno_ind = np.argwhere(anno['labels'] == checkLab)
         t_tra = anno['poses'][anno_ind[0][0]][:3]
@@ -401,7 +404,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_gt = np.array(t_tra, dtype=np.float32)
         t_gt = t_gt * 0.001
 
-        '''
+
         pose_votes = boxes3D
         k_hyp = boxes3D.shape[0]
         # min residual
@@ -425,11 +428,14 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                            flags=cv2.SOLVEPNP_ITERATIVE)
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
-        '''
 
-        R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+
+        #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+        #
         t_est = poses_cls[:3] * 0.001
-        print('Rot: ', R_est)
+        #R_est = poses_cls[:3, :3]
+        #t_est = poses_cls[:3, 3] * 0.001
+        #t_est = t_est * -1.0
         R_best = R_est
         t_best = t_est
 
@@ -444,16 +450,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
         t_est = t_est.T  # * 0.001
         #print('pose: ', pose)
-        #print(t_gt)
-        #print(t_est)
+        print(t_gt)
+        print(t_est)
         tDbox = R_gt.dot(ori_points.T).T
         tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
         box3D = toPix_array(tDbox)
         tDbox = np.reshape(box3D, (16))
         tDbox = tDbox.astype(np.uint16)
 
-
         for hy in range(pose_set.shape[0]):
+            #dq = DualQuaternion.from_dq_array(pose_set[hy, :])
+            #pose_cls = dq.homogeneous_matrix()
+            #R_est = pose_cls[:3, :3]
+            #t_est = pose_cls[:3, 3] * 0.001
             R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
             t_est = pose_set[hy, :3] * 0.001
             eDbox = R_est.dot(ori_points.T).T

@@ -172,10 +172,10 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
         out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
 
-        translation = keras.layers.Conv1D(3, **options)(out_cls)
+        translation = keras.layers.Conv1D(4, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             translation = keras.layers.Permute((2, 3, 1))(translation)
-        translation = keras.layers.Reshape((-1, 1, 3))(translation)
+        translation = keras.layers.Reshape((-1, 1, 4))(translation)
 
         #depth = keras.layers.Conv1D(1, **options)(out_cls)
         #if keras.backend.image_data_format() == 'channels_first':
@@ -326,6 +326,7 @@ def pyrapose(
     pyramids.append(location)
     pyramids.append(rotation)
 
+    '''
     # confidence regression
     P3_flat = tf.reshape(P3, [-1, 4800, 256])
     P4_flat = tf.reshape(P4, [-1, 1200, 256])
@@ -338,6 +339,7 @@ def pyrapose(
 
     confidences = confidence_branch(poses_conditioned_to_features)
     pyramids.append(confidences)
+    '''
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
@@ -381,22 +383,22 @@ def inference_model(
     regression = model.outputs[0]
     # residuals = model.outputs[1][:, :, 18:]
     classification = model.outputs[1]
-    poses = model.outputs[2]
-
+    #poses = model.outputs[2]
+    translations = model.outputs[2]
+    rotations = model.outputs[3]
 
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
-    )([regression, classification, locations, poses])
-
-    print('detections: ', detections)
+    )([regression, classification, locations, translations, rotations])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter,
                                      indices=detections[3])
 
-    poses = layers.DenormPoses(name='poses_world')(detections[4])
+    poses = tf.concat([detections[4], detections[5]], axis=3)
+    poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 
     # construct the model

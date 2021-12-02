@@ -389,9 +389,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
             trueDets[true_cls] += 1
 
-            #poses_cls = poses_votes[np.argmax(scores_votes), inv_cls, :]
+            poses_cls = poses_votes[np.argmax(scores_votes), inv_cls, :]
             #poses_cls = np.mean(poses_votes[:, inv_cls, :], axis=0)
-            poses_cls = np.median(poses_votes[:, cls, :], axis=0)
+            #poses_cls = np.median(poses_votes[:, cls, :], axis=0)
             print(poses_votes.shape)
 
             #eval_line = [anno['scene_id']]
@@ -492,6 +492,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             t_gt = np.array(t_tra, dtype=np.float32)
             t_gt = t_gt * 0.001
 
+            '''
             k_hyp = pose_votes.shape[0]
             # min residual
             # res_idx = np.argmin(res_sum)
@@ -515,10 +516,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
+            '''
 
-
-            #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
-            #t_est = poses_cls[:3] * 0.001
+            R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+            t_est = poses_cls[:3] * 0.001
 
             t_bop = t_est * 1000.0
 
