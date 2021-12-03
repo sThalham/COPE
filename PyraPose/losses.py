@@ -538,7 +538,8 @@ def confidence_loss(num_classes=0, weight=1.0):
 
         regression_target = y_true[:, :, :, :-1]
         anchor_state      = y_true[:, :, :, -1]
-        regression, confidence = tf.split(y_pred, num_or_size_splits=[num_classes * 7, 1], axis = 2)
+        #regression, confidence = tf.split(y_pred, num_or_size_splits=[num_classes * 7, 1], axis = 2)
+        regression, confidence = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=2)
         regression = tf.reshape(regression, tf.shape(regression_target))
 
         # filter out "ignore" anchors

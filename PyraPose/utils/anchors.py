@@ -59,10 +59,11 @@ def anchor_targets_bbox(
     #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    locations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
+    locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 1), dtype=keras.backend.floatx())
+    confidences_batch = np.zeros((batch_size, location_shape, num_classes, (16 + 7) * 2), dtype=keras.backend.floatx())
 
     dq_trans = []
 
@@ -106,9 +107,9 @@ def anchor_targets_bbox(
             ego_pose[:3, 3] = pose[:3]
             allo_pose = egocentric_to_allocentric(ego_pose)
             allocentric_rotation = tf3d.quaternions.mat2quat(allo_pose[:3, :3])
-            dq = DualQuaternion.from_homogeneous_matrix(allo_pose)
-            dq_array = dq.dq_array()
-            dq_array[4:] *= np.array([0.003, 0.002, 0.002, 0.003])
+            #dq = DualQuaternion.from_homogeneous_matrix(allo_pose)
+            #dq_array = dq.dq_array()
+            #dq_array[4:] *= np.array([0.003, 0.002, 0.002, 0.003])
 
             if locations_positive_obj.shape[0] > 1:
 
@@ -151,14 +152,19 @@ def anchor_targets_bbox(
                 #locations_batch[index, locations_positive_obj, cls, 3:] = 1
                 locations_batch[index, locations_positive_obj, cls, :4] = dq_array[4:]
                 locations_batch[index, locations_positive_obj, cls, 4:] = 1
-                rotations_batch[index, locations_positive_obj, cls, :4] = dq_array[:4]
-                rotations_batch[index, locations_positive_obj, cls, 4:] = 1
-                #rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
-                #rotations_batch[index, locations_positive_obj, cls, 6:] = 1
+                #rotations_batch[index, locations_positive_obj, cls, :4] = dq_array[:4]
+                #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
+                rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
+                rotations_batch[index, locations_positive_obj, cls, 6:] = 1
                 #confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
                 #confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
                 #confidences_batch[index, locations_positive_obj, cls, 3:-1] = allocentric_rotation
                 #confidences_batch[index, locations_positive_obj, cls, -1] = 1
+                confidences_batch[index, locations_positive_obj, cls, :16] = points
+                confidences_batch[index, locations_positive_obj, cls, 16:18] = pose[:2] * 0.002
+                confidences_batch[index, locations_positive_obj, cls, 18] = ((pose[2] * 0.001) - 1.0) * 3.0
+                confidences_batch[index, locations_positive_obj, cls, 19:23] = allocentric_rotation
+                confidences_batch[index, locations_positive_obj, cls, 23:] = 1
 
                 #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
                 #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))
@@ -242,7 +248,7 @@ def anchor_targets_bbox(
         name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
         cv2.imwrite(name, image_raw)
         '''
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch)#, tf.convert_to_tensor(confidences_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):

@@ -228,9 +228,11 @@ def default_confidence_model(num_classes):
     }
 
     if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(256 + num_classes * 7, None))
+        #inputs = keras.layers.Input(shape=(256 + num_classes * 7, None))
+        inputs = keras.layers.Input(shape=(num_classes * 16 * 7, None))
     else:
-        inputs = keras.layers.Input(shape=(None, 256 + num_classes * 7))
+        #inputs = keras.layers.Input(shape=(None, 256 + num_classes * 7))
+        inputs = keras.layers.Input(shape=(None, num_classes * 16 * 7))
 
     outputs = inputs
 
@@ -238,10 +240,10 @@ def default_confidence_model(num_classes):
     outputs = keras.layers.Conv1D(filters=1, **options)(outputs)
     confidence = keras.layers.Activation('sigmoid')(outputs)
 
-    conf_out = tf.concat([inputs[:, :, 256:], confidence], axis=2)
+    #conf_out = tf.concat([inputs[:, :, 256:], confidence], axis=2)
+    conf_out = tf.concat([inputs, confidence], axis=2)
 
     return keras.models.Model(inputs=inputs, outputs=conf_out, name='confidences')
-
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
@@ -326,20 +328,22 @@ def pyrapose(
     pyramids.append(location)
     pyramids.append(rotation)
 
-    '''
     # confidence regression
     P3_flat = tf.reshape(P3, [-1, 4800, 256])
     P4_flat = tf.reshape(P4, [-1, 1200, 256])
     P5_flat = tf.reshape(P5, [-1, 300, 256])
     features_reshaped = tf.concat([P3_flat, P4_flat, P5_flat], axis=1)
 
-    poses = tf.concat([location, rotation], axis=3)
-    poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*7])
-    poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
+    #poses = tf.concat([location, rotation], axis=3)
+    #poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*7])
+    #poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
+    #confidences = confidence_branch(poses_conditioned_on_boxes)
 
-    confidences = confidence_branch(poses_conditioned_to_features)
+    poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
+    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * 16 * 7])
+    confidences = confidence_branch(poses_conditioned_on_boxes)
+
     pyramids.append(confidences)
-    '''
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
