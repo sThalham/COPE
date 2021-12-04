@@ -157,8 +157,8 @@ def load_pcd(data_path, cat):
     pcd_model = open3d.io.read_point_cloud(ply_path)
     model_vsd = {}
     model_vsd['pts'] = np.asarray(pcd_model.points)
-    open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=0.1, max_nn=30))
+    #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
+    #    radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
     model_vsd['pts'] = model_vsd['pts'] * 0.001
 
@@ -312,6 +312,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     truePoses = np.zeros((16), dtype=np.uint32)
     falsePoses = np.zeros((16), dtype=np.uint32)
     trueDets = np.zeros((16), dtype=np.uint32)
+    e_x = []
+    e_y = []
+    e_z = []
+    e_roll = []
+    e_pitch = []
+    e_yaw = []
 
     for index in progressbar.progressbar(range(generator.size()), prefix='LineMOD evaluation: '):
         image_raw = generator.load_image(index)
@@ -439,6 +445,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         R_best = R_est
         t_best = t_est
 
+        e_x.append(abs(t_est[0]-t_gt[0]))
+        e_y.append(abs(t_est[1] - t_gt[1]))
+        e_z.append(abs(t_est[2] - t_gt[2]))
+        euler_est = tf3d.euler.mat2euler(R_est)
+        euler_gt = tf3d.euler.mat2euler(R_gt)
+        e_roll.append(abs(euler_est[0] - euler_gt[0]))
+        e_pitch.append(abs(euler_est[1] - euler_gt[1]))
+        e_yaw.append(abs(euler_est[2] - euler_gt[2]))
+
         if cls == 10 or cls == 11:
             err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
         else:
@@ -450,8 +465,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
         t_est = t_est.T  # * 0.001
         #print('pose: ', pose)
-        print(t_gt)
-        print(t_est)
         tDbox = R_gt.dot(ori_points.T).T
         tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
         box3D = toPix_array(tDbox)
@@ -507,7 +520,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                  2)
 
                 #est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
-                print(pose_votes.shape)
                 corres = np.ascontiguousarray(pose_votes[hy, :], dtype=np.float32).reshape((8, 1, 2))
                 #obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 refer = ori_points.reshape((8, 1, 3))
@@ -521,7 +533,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 t_est = otvec.T
                 pose = np.ascontiguousarray(pose_votes[hy, :], dtype=np.float32)
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-                print('viz add: ', err_add)
                 if err_add < model_dia[true_cls] * 0.1:
                     colEst = (0, 204, 0)
                 else:
@@ -601,7 +612,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_viz = cv2.line(image_viz, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                  colGT,
                                  2)
-            image_raw = np.concatenate([image_raw, image_viz], axis=1)
+            image_raw = np.concatenate([image_viz, image_raw], axis=1)
             name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
             cv2.imwrite(name, image_raw)
 
@@ -681,3 +692,17 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     print('true detections: ', detections_all)
     print('recall: ', recall_all)
     print('precision: ', precision_all)
+
+    print('Errors')
+    e_x = np.array(e_x)
+    print('e_x: ', np.mean(e_x), np.var(e_x))
+    e_y = np.array(e_y)
+    print('e_y: ', np.mean(e_y), np.var(e_y))
+    e_z = np.array(e_z)
+    print('e_z: ', np.mean(e_z), np.var(e_z))
+    e_roll = np.array(e_roll)
+    print('e_roll: ', np.mean(e_roll), np.var(e_roll))
+    e_pitch = np.array(e_pitch)
+    print('e_pitch: ', np.mean(e_pitch), np.var(e_pitch))
+    e_yaw = np.array(e_yaw)
+    print('e_yaw: ', np.mean(e_yaw), np.var(e_yaw))

@@ -60,8 +60,8 @@ def anchor_targets_bbox(
     #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
-    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
-    #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
+    #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 1), dtype=keras.backend.floatx())
     confidences_batch = np.zeros((batch_size, location_shape, num_classes, (16 + 7) * 2), dtype=keras.backend.floatx())
 
@@ -147,11 +147,11 @@ def anchor_targets_bbox(
                 #labels_batch[index, locations_positive_obj, cls, cls] = 1
                 #boxes_batch[index, locations_positive_obj, cls, -1] = 1
                 #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
-                #locations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                #locations_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                #locations_batch[index, locations_positive_obj, cls, 3:] = 1
-                locations_batch[index, locations_positive_obj, cls, :4] = dq_array[4:]
-                locations_batch[index, locations_positive_obj, cls, 4:] = 1
+                locations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                locations_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                locations_batch[index, locations_positive_obj, cls, 3:] = 1
+                #locations_batch[index, locations_positive_obj, cls, :4] = dq_array[4:]
+                #locations_batch[index, locations_positive_obj, cls, 4:] = 1
                 #rotations_batch[index, locations_positive_obj, cls, :4] = dq_array[:4]
                 #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
                 rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
