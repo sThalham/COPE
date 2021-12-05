@@ -538,30 +538,33 @@ def confidence_loss(num_classes=0, weight=1.0):
 
         regression_target = y_true[:, :, :, :-1]
         anchor_state      = y_true[:, :, :, -1]
+        #regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=3)
         #regression, confidence = tf.split(y_pred, num_or_size_splits=[num_classes * 7, 1], axis = 2)
-        regression, confidence = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=2)
+        regression, confidence = tf.split(y_pred, num_or_size_splits=[-1, num_classes], axis=2)
+        tf.print('regression: ', tf.shape(regression))
+        tf.print('confidence: ', tf.shape(confidence))
         regression = tf.reshape(regression, tf.shape(regression_target))
-
-        # filter out "ignore" anchors
-        indices           = backend.where(keras.backend.equal(anchor_state, 1))
-        regression        = backend.gather_nd(regression, indices)
-        confidence        = backend.gather_nd(confidence, indices)
-        regression_target = backend.gather_nd(regression_target, indices)
-
         print('regression: ', regression)
         print('regression_target: ', regression_target)
+
+        # filter out "ignore" anchors
+        #indices           = backend.where(keras.backend.equal(anchor_state, 1))
+        #regression        = backend.gather_nd(regression, indices)
+        #confidence        = backend.gather_nd(confidence, indices)
+        #regression_target = backend.gather_nd(regression_target, indices)
+
         exp = tf.math.abs(regression - regression_target)
-        print('exp: ', exp)
-        exp = tf.math.reduce_sum(exp, axis=1)
-        print('confs: ', confidence)
+        exp = tf.math.reduce_sum(exp, axis=3)
+        print('diff: ', exp)
         conf_loss = 1.0 - tf.math.abs(tf.math.exp(-exp) - confidence)
 
-        # compute the normalizer: the number of positive anchors
-        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
-        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
-        loss = keras.backend.sum(conf_loss) / normalizer
+        # comp norm per class
+        normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1])
+        tf.print('normalizer: ', normalizer)
+        per_cls_loss = tf.math.reduce_sum(conf_loss, axis=[0, 1])
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
 
-        return weight * loss
+        return weight * tf.math.reduce_sum(loss, axis=0)
 
     return _confidence_loss
 

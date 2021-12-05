@@ -63,7 +63,7 @@ def anchor_targets_bbox(
     #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 1), dtype=keras.backend.floatx())
-    confidences_batch = np.zeros((batch_size, location_shape, num_classes, (16 + 7) * 2), dtype=keras.backend.floatx())
+    confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 9 + 1), dtype=keras.backend.floatx())
 
     dq_trans = []
 
@@ -163,8 +163,8 @@ def anchor_targets_bbox(
                 confidences_batch[index, locations_positive_obj, cls, :16] = points
                 confidences_batch[index, locations_positive_obj, cls, 16:18] = pose[:2] * 0.002
                 confidences_batch[index, locations_positive_obj, cls, 18] = ((pose[2] * 0.001) - 1.0) * 3.0
-                confidences_batch[index, locations_positive_obj, cls, 19:23] = allocentric_rotation
-                confidences_batch[index, locations_positive_obj, cls, 23:] = 1
+                confidences_batch[index, locations_positive_obj, cls, 19:25] = allo_pose[:3, :2].T.reshape(6)
+                confidences_batch[index, locations_positive_obj, cls, -1] = 1
 
                 #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
                 #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))

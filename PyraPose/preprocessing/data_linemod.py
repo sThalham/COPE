@@ -363,6 +363,6 @@ class LinemodDataset(tf.data.Dataset):
                                               #tf.TensorShape([None, 6300, 15, 8]),
                                               tf.TensorShape([None, 6300, 15, 12]),
                                               #tf.TensorShape([None, 6300, 15, 8]))), #confidences
-                                              tf.TensorShape([None, 6300, 15, (16+7) * 2]))),# confidences
+                                              tf.TensorShape([None, 6300, 15, 16 + 9 + 1]))),# confidences
                                               args=(data_dir, set_name, batch_size))
 

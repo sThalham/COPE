@@ -229,19 +229,22 @@ def default_confidence_model(num_classes):
 
     if keras.backend.image_data_format() == 'channels_first':
         #inputs = keras.layers.Input(shape=(256 + num_classes * 7, None))
-        inputs = keras.layers.Input(shape=(num_classes * 16 * 7, None))
+        inputs = keras.layers.Input(shape=(num_classes * (16 + 9), None))
     else:
         #inputs = keras.layers.Input(shape=(None, 256 + num_classes * 7))
-        inputs = keras.layers.Input(shape=(None, num_classes * 16 * 7))
+        inputs = keras.layers.Input(shape=(None, num_classes * (16 + 9)))
 
     outputs = inputs
 
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=1, **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=num_classes, **options)(outputs)
     confidence = keras.layers.Activation('sigmoid')(outputs)
 
+    print('inputs: ', inputs)
+    print('confidence: ', confidence)
     #conf_out = tf.concat([inputs[:, :, 256:], confidence], axis=2)
     conf_out = tf.concat([inputs, confidence], axis=2)
+    print('conf_out: ', conf_out.shape)
 
     return keras.models.Model(inputs=inputs, outputs=conf_out, name='confidences')
 
@@ -339,7 +342,8 @@ def pyrapose(
     #confidences = confidence_branch(poses_conditioned_on_boxes)
 
     poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
-    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * 16 * 7])
+    print('poses_conditioned_on_boxes: ', poses_conditioned_on_boxes)
+    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 9)])
     confidences = confidence_branch(poses_conditioned_on_boxes)
 
     pyramids.append(confidences)
