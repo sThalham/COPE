@@ -182,11 +182,11 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         #    translation = keras.layers.Permute((2, 3, 1))(depth)
         #depth = keras.layers.Reshape((-1, 1, 1))(depth)
 
-        rotation = keras.layers.Conv1D(6, **options)(out_cls)
+        rotation = keras.layers.Conv1D(4, **options)(out_cls)
         if keras.backend.image_data_format() == 'channels_first':
             rotation = keras.layers.Permute((2, 3, 1))(rotation)
-        rotation = keras.layers.Reshape((-1, 1, 6))(rotation)
-        #rotation = tf.math.l2_normalize(rotation, axis=3)
+        rotation = keras.layers.Reshape((-1, 1, 4))(rotation)
+        rotation = tf.math.l2_normalize(rotation, axis=3)
 
         translations.append(translation)
         #depths.append(depth)
@@ -229,10 +229,10 @@ def default_confidence_model(num_classes):
 
     if keras.backend.image_data_format() == 'channels_first':
         #inputs = keras.layers.Input(shape=(256 + num_classes * 7, None))
-        inputs = keras.layers.Input(shape=(num_classes * (16 + 9), None))
+        inputs = keras.layers.Input(shape=(num_classes * (16 + 7), None))
     else:
         #inputs = keras.layers.Input(shape=(None, 256 + num_classes * 7))
-        inputs = keras.layers.Input(shape=(None, num_classes * (16 + 9)))
+        inputs = keras.layers.Input(shape=(None, num_classes * (16 + 7)))
 
     outputs = inputs
 
@@ -343,7 +343,7 @@ def pyrapose(
 
     poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
     print('poses_conditioned_on_boxes: ', poses_conditioned_on_boxes)
-    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 9)])
+    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 7)])
     confidences = confidence_branch(poses_conditioned_on_boxes)
 
     pyramids.append(confidences)
