@@ -361,11 +361,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             trueDets[true_cls] += 1
 
         #poses_cls = poses[np.argmax(scores), cls, :]
-        #poses_cls = np.mean(poses[:, cls, :], axis=0)
-        poses_cls = np.median(poses[:, cls, :], axis=0)
+        poses_cls = np.mean(poses[:, cls, :], axis=0)
+        #poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
         #poses_cls = dq.homogeneous_matrix()
+        #print(poses_cls)
 
         anno_ind = np.argwhere(anno['labels'] == checkLab)
         t_tra = anno['poses'][anno_ind[0][0]][:3]
@@ -437,11 +438,20 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_est = otvec.T
         '''
 
+        # quaternion
         R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
         t_est = poses_cls[:3] * 0.001
+        # dual_quaternion
         #R_est = poses_cls[:3, :3]
         #t_est = poses_cls[:3, 3] * 0.001
         #t_est = t_est * -1.0
+        # R6d
+        #R_est = np.eye(3)
+        #R_est[:3, 0] = np.linalg.norm(poses_cls[3:6])
+        #R_est[:3, 1] = np.linalg.norm(poses_cls[6:])
+        #R_est[:3, 2] = np.linalg.norm(R_est[:3, 0], np.cross(poses_cls[6:]))
+        #t_est = poses_cls[:3] * 0.001
+
         R_best = R_est
         t_best = t_est
 
@@ -453,6 +463,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         e_roll.append(abs(euler_est[0] - euler_gt[0]))
         e_pitch.append(abs(euler_est[1] - euler_gt[1]))
         e_yaw.append(abs(euler_est[2] - euler_gt[2]))
+
+        print('t_est: ', t_est)
+        print('t_gt: ', t_gt)
 
         if cls == 10 or cls == 11:
             err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -472,15 +485,26 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         tDbox = tDbox.astype(np.uint16)
 
         idx = 0
-        if true_cls == 9:
+        viz = True
+        #if true_cls == 9:
+        if viz:
 
             for hy in range(pose_set.shape[0]):
+                # dual quaternion
                 #dq = DualQuaternion.from_dq_array(pose_set[hy, :])
                 #pose_cls = dq.homogeneous_matrix()
                 #R_est = pose_cls[:3, :3]
-                #t_est = pose_cls[:3, 3] * 0.001
+                #t_est = pose_cls[:3, 3] * -0.001
+                # quaternion
                 R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
                 t_est = pose_set[hy, :3] * 0.001
+                # R6d
+                # R_est = np.eye(3)
+                #R_est[:3, 0] = np.linalg.norm(pose_set[hy, 3:6])
+                #R_est[:3, 1] = np.linalg.norm(pose_set[hy, 6:])
+                #R_est[:3, 2] = np.linalg.norm(R_est[:3, 0], np.cross(pose_set[hy, 6:]))
+                #t_est = pose_set[hy, :3] * 0.001
+
                 eDbox = R_est.dot(ori_points.T).T
                 #print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
                 #eDbox = eDbox + np.repeat(t_est, 8, axis=1).T
@@ -493,8 +517,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 pose = eDbox.astype(np.uint16)
                 colGT = (255, 0, 0)
 
-                R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
-                t_est = poses_cls[:3] * 0.001
+                #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+                #t_est = poses_cls[:3] * 0.001
 
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
                 if err_add < model_dia[true_cls] * 0.1:
@@ -614,7 +638,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                  2)
             image_raw = np.concatenate([image_viz, image_raw], axis=1)
             name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            cv2.imwrite(name, image_raw)
+            #cv2.imwrite(name, image_raw)
 
         '''
         eDbox = R_best.dot(ori_points.T).T

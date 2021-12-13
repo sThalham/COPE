@@ -393,6 +393,8 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
+    print(translations)
+    print(rotations)
 
     detections = layers.FilterDetections(
         name='filtered_detections',
