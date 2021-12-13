@@ -290,6 +290,7 @@ def pyrapose(
         inputs,
         backbone_layers,
         num_classes,
+        obj_correspondeces=None,
         obj_diameters=None,
         create_pyramid_features=__create_PFPN,
         name='pyrapose'
@@ -298,7 +299,7 @@ def pyrapose(
     pose_branch = default_pose_model(num_classes)
     # boxes_branch = default_regression_model(4)
     location_branch = default_classification_model(num_classes)
-    confidence_branch = default_confidence_model(num_classes)
+    #confidence_branch = default_confidence_model(num_classes)
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
@@ -324,12 +325,16 @@ def pyrapose(
                                name='regression_tiled')
     regression_tiled = regression_tiled * rep_object_diameters
 
-    reproject_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
+    destd_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
 
-    location = pose_branch[1](reproject_boxes)
-    rotation = pose_branch[0](reproject_boxes)
+    location = pose_branch[1](destd_boxes)
+    rotation = pose_branch[0](destd_boxes)
     pyramids.append(location)
     pyramids.append(rotation)
+
+    # transform box with pose
+    #rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [1, 6300, 1, 1, 1])
+    # project box
 
     # confidence regression
     #P3_flat = tf.reshape(P3, [-1, 4800, 256])
@@ -341,12 +346,12 @@ def pyrapose(
     #poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
     #confidences = confidence_branch(poses_conditioned_on_boxes)
 
-    poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
-    print('poses_conditioned_on_boxes: ', poses_conditioned_on_boxes)
-    poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 7)])
-    confidences = confidence_branch(poses_conditioned_on_boxes)
-
-    pyramids.append(confidences)
+    # confidence regression + pose conditioning
+    #poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
+    #print('poses_conditioned_on_boxes: ', poses_conditioned_on_boxes)
+    #poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 7)])
+    #confidences = confidence_branch(poses_conditioned_on_boxes)
+    #pyramids.append(confidences)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
@@ -394,17 +399,15 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
-    confidences = model.outputs[4]
-    _, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
-
-    print('confidence: ', confidences)
+    #confidences = model.outputs[4]
+    #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
 
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
-    )([regression, classification, locations, translations, rotations, confidences])
-    #)([regression, classification, locations, translations, rotations])
+    #)([regression, classification, locations, translations, rotations, confidences])
+    )([regression, classification, locations, translations, rotations])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter,
@@ -417,4 +420,6 @@ def inference_model(
     # construct the model
     # return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
     # return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
+    return keras.models.Model(inputs=model.inputs,
+                              outputs=[boxes3D, detections[2], detections[3], poses], name=name)

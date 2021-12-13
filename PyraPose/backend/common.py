@@ -104,14 +104,14 @@ def box3D_denorm(regression, locations, mean=None, std=None):
 def poses_denorm(regression):
 
     # quaternions and translation
-    x = regression[:, :, :, 0] * 500.0
-    y = regression[:, :, :, 1] * 500.0
-    z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
-    q = regression[:, :, :, 3]
-    r = regression[:, :, :, 4]
-    p = regression[:, :, :, 5]
-    g = regression[:, :, :, 6]
-    pred_poses = keras.backend.stack([x, y, z, q, r, p, g], axis=3)
+    #x = regression[:, :, :, 0] * 500.0
+    #y = regression[:, :, :, 1] * 500.0
+    #z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
+    #q = regression[:, :, :, 3]
+    #r = regression[:, :, :, 4]
+    #p = regression[:, :, :, 5]
+    #g = regression[:, :, :, 6]
+    #pred_poses = keras.backend.stack([x, y, z, q, r, p, g], axis=3)
 
     # dual quaternions
     #q = regression[:, :, :, 0]
@@ -123,6 +123,18 @@ def poses_denorm(regression):
     #y = regression[:, :, :, 6] / 0.002
     #z = regression[:, :, :, 7] / 0.003
     #pred_poses = keras.backend.stack([q, r, p, g, s, x, y, z], axis=3)
+
+    # r6d
+    x = regression[:, :, :, 0]
+    y = regression[:, :, :, 1]
+    z = regression[:, :, :, 2]
+    r00 = regression[:, :, :, 3]
+    r01 = regression[:, :, :, 4]
+    r02 = regression[:, :, :, 5]
+    r10 = regression[:, :, :, 6]
+    r11 = regression[:, :, :, 7]
+    r12 = regression[:, :, :, 8]
+    pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12], axis=3)
 
     return pred_poses
 

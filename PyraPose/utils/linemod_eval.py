@@ -345,15 +345,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_start = time.time()
 
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-        boxes3D, scores, labels, poses, confs = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('forward pass: ', time.time() - t_start)
-        print('confs: ', confs)
+        print('poses: ', poses.shape)
 
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
         poses = poses[labels == cls]
-        confs = confs[labels == cls]
+        #confs = confs[labels == cls]
         labels = labels[labels == cls]
 
         if len(labels) < 1:
@@ -361,6 +361,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         else:
             trueDets[true_cls] += 1
 
+        '''
         n_hyps = 5
         if confs.shape[0] < 5:
             n_hyps = confs.shape[0]
@@ -368,12 +369,13 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         confs_ranked = confs[conf_ranks, cls]
         poses_ranked = poses[conf_ranks, cls, :]
         print('conf_ranked: ', confs_ranked)
+        '''
 
-        #poses_cls = poses[np.argmax(scores), cls, :]
+        poses_cls = poses[np.argmax(scores), cls, :]
         #poses_cls = np.mean(poses[:, cls, :], axis=0)
         #poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
-        poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
+        #poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
         #poses_cls = dq.homogeneous_matrix()
         #print(poses_cls)
