@@ -43,6 +43,7 @@ def create_generator(args):
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.linemod import LinemodGenerator
 
+        num_classes = 15
         validation_generator = LinemodGenerator(
             args.linemod_path,
             'val',
@@ -63,7 +64,7 @@ def create_generator(args):
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return validation_generator
+    return validation_generator, num_classes
 
 
 def parse_args(args):
@@ -118,7 +119,7 @@ def main(args=None):
         os.makedirs(args.save_path)
 
     # create the generator
-    generator = create_generator(args)
+    generator, num_classes = create_generator(args)
     obj_diameters = generator.get_diameters()
     obj_diameters = obj_diameters[1:]
     #tf_diameter = tf.convert_to_tensor(obj_diameters)
@@ -130,7 +131,7 @@ def main(args=None):
 
     # optionally convert the model
     if args.convert_model:
-        model = models.convert_model(model, diameters=obj_diameters)
+        model = models.convert_model(model, diameters=obj_diameters, classes=num_classes)
 
     # print model summary
     print(model.summary())

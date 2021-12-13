@@ -345,14 +345,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_start = time.time()
 
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
-        boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores, labels, poses, confs = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('forward pass: ', time.time() - t_start)
-        #print('labels: ', labels)
+        print('confs: ', confs)
 
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
         poses = poses[labels == cls]
+        confs = confs[labels == cls]
         labels = labels[labels == cls]
 
         if len(labels) < 1:
@@ -360,10 +361,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         else:
             trueDets[true_cls] += 1
 
+        n_hyps = 5
+        if confs.shape[0] < 5:
+            n_hyps = confs.shape[0]
+        conf_ranks = np.argsort(confs[:, cls])
+        confs_ranked = confs[conf_ranks, cls]
+        poses_ranked = poses[conf_ranks, cls, :]
+        print('conf_ranked: ', confs_ranked)
+
         #poses_cls = poses[np.argmax(scores), cls, :]
-        poses_cls = np.mean(poses[:, cls, :], axis=0)
+        #poses_cls = np.mean(poses[:, cls, :], axis=0)
         #poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
+        poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
         #poses_cls = dq.homogeneous_matrix()
         #print(poses_cls)
@@ -427,6 +437,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
         obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
         obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+
         '''
         retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                            imagePoints=est_points, cameraMatrix=K,
@@ -436,6 +447,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                            flags=cv2.SOLVEPNP_ITERATIVE)
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
+        t_est = t_est[0]
         '''
 
         # quaternion
@@ -455,7 +467,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         R_best = R_est
         t_best = t_est
 
-        e_x.append(abs(t_est[0]-t_gt[0]))
+        e_x.append(abs(t_est[0] - t_gt[0]))
         e_y.append(abs(t_est[1] - t_gt[1]))
         e_z.append(abs(t_est[2] - t_gt[2]))
         euler_est = tf3d.euler.mat2euler(R_est)
@@ -463,9 +475,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         e_roll.append(abs(euler_est[0] - euler_gt[0]))
         e_pitch.append(abs(euler_est[1] - euler_gt[1]))
         e_yaw.append(abs(euler_est[2] - euler_gt[2]))
-
-        print('t_est: ', t_est)
-        print('t_gt: ', t_gt)
 
         if cls == 10 or cls == 11:
             err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])

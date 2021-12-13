@@ -370,6 +370,7 @@ def __build_locations(features, strides):
 def inference_model(
         model=None,
         object_diameters=None,
+        num_classes=None,
         name='pyrapose',
         score_threshold=0.5,
         max_detections=300,
@@ -393,14 +394,17 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
-    print(translations)
-    print(rotations)
+    confidences = model.outputs[4]
+    _, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
+
+    print('confidence: ', confidences)
 
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
-    )([regression, classification, locations, translations, rotations])
+    )([regression, classification, locations, translations, rotations, confidences])
+    #)([regression, classification, locations, translations, rotations])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter,
@@ -413,4 +417,4 @@ def inference_model(
     # construct the model
     # return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
     # return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)

@@ -184,8 +184,6 @@ def create_generators(args, preprocess_image):
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-
-
     return dataset, num_classes, sphere_diameters, train_samples
 
 

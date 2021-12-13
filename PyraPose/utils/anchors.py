@@ -63,7 +63,7 @@ def anchor_targets_bbox(
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 7 + 1), dtype=keras.backend.floatx())
-    confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 9 + 1), dtype=keras.backend.floatx())
+    #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 9 + 1), dtype=keras.backend.floatx())
     confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 7 + 1), dtype=keras.backend.floatx())
 
     dq_trans = []
@@ -245,11 +245,13 @@ def anchor_targets_bbox(
                 image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                      colGT,
                                      2)
-
+                                     
         rind = np.random.randint(0, 1000)
         name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
         cv2.imwrite(name, image_raw)
         '''
+        print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
+
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(confidences_batch)
 
 
