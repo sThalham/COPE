@@ -344,7 +344,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # run network
         t_start = time.time()
 
+        print('image: ', image.shape)
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
+        #boxes3D, scores, labels, poses = model.predict(image)
         boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('forward pass: ', time.time() - t_start)

@@ -72,10 +72,10 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
     if multi_gpu > 1:
         from tensorflow.keras.utils import multi_gpu_model
         with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_model(num_classes, obj_correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
+            model = model_with_weights(backbone_model(num_classes=num_classes, obj_correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = multi_gpu_model(model, gpus=multi_gpu)
     else:
-        model          = model_with_weights(backbone_model(num_classes, obj_correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
+        model          = model_with_weights(backbone_model(num_classes=num_classes, obj_correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
     # make prediction model

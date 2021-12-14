@@ -374,6 +374,7 @@ def __build_locations(features, strides):
 
 def inference_model(
         model=None,
+        correspondences=None,
         object_diameters=None,
         num_classes=None,
         name='pyrapose',
@@ -410,8 +411,7 @@ def inference_model(
     )([regression, classification, locations, translations, rotations])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
-    rep_object_diameters = tf.gather(tf_diameter,
-                                     indices=detections[3])
+    rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
 
     poses = tf.concat([detections[4], detections[5]], axis=3)
     poses = layers.DenormPoses(name='poses_world')(poses)
