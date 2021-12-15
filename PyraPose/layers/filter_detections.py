@@ -50,6 +50,7 @@ def filter_detections(
         In case there are less than max_detections detections, the tensors are padded with -1's.
     """
     def _filter_detections(scores, labels):
+        tf.print('start filter detections')
         # threshold based on score
         #indices = backend.where(keras.backend.greater(scores, score_threshold))
         indices = tf.where(tf.math.greater(scores, score_threshold))
@@ -66,13 +67,13 @@ def filter_detections(
             # filter indices based on NMS
             indices = keras.backend.gather(indices, nms_indices)
         '''
-
         # add indices to list of all indices
         #labels = backend.gather_nd(labels, indices)
         labels = tf.gather_nd(labels, indices)
         #indices = keras.backend.stack([indices[:, 0], labels], axis=1)
         indices = tf.stack([indices[:, 0], labels], axis=1)
 
+        tf.print('finish filter detections')
         return indices
 
     all_indices = []
@@ -84,12 +85,16 @@ def filter_detections(
 
         # concatenate indices to single tensor
     indices = tf.concat(all_indices, axis=0)
-    tf.print(tf.math.reduce_max(indices), tf.math.reduce_min(indices))
+
+    tf.print('indices: ', tf.shape(indices))
+    tf.print('indices 0: ', tf.math.reduce_max(indices[:, 0]), tf.math.reduce_min(indices[:, 0]))
+    tf.print('indices 1: ', tf.math.reduce_max(indices[:, 1]), tf.math.reduce_min(indices[:, 1]))
     #indices = keras.backend.concatenate(all_indices, axis=0)
 
     # select top k
     #scores              = backend.gather_nd(classification, indices)
     scores              = tf.gather_nd(classification, indices)
+    tf.print('scores: ', scores)
     labels              = indices[:, 1]
     #scores, top_indices = backend.top_k(scores, k=keras.backend.minimum(max_detections, keras.backend.shape(scores)[0]))
     scores, top_indices = tf.math.top_k(scores, k=tf.math.minimum(max_detections, tf.shape(scores)[0]))
@@ -109,6 +114,7 @@ def filter_detections(
     # confidence          = keras.backend.gather(confidence, indices)
     labels = tf.gather(labels, top_indices)
     locations = tf.gather(locations, indices)
+    tf.print('rotation: ', tf.shape(rotation))
 
     # zero pad the outputs
     pad_size = keras.backend.maximum(0, max_detections - keras.backend.shape(scores)[0])
@@ -137,8 +143,8 @@ def filter_detections(
     translation.set_shape([max_detections, 15, 3])
     rotation.set_shape([max_detections, 15, 6])
     #confidence.set_shape([max_detections, 15])
-    tf.print('rotation reshaped: ', tf.shape(rotation))
-    tf.print('labels reshaped: ', tf.unique_with_counts(labels))
+    #tf.print('rotation reshaped: ', tf.shape(rotation))
+    #tf.print('labels reshaped: ', tf.unique_with_counts(labels))
 
     return [boxes3D, locations, scores, labels, translation, rotation]
     #return [boxes3D, locations, scores, labels, translation, rotation, confidence]
@@ -205,7 +211,8 @@ class FilterDetections(keras.layers.Layer):
         outputs = tf.map_fn(
             _filter_detections,
             elems=[boxes3D, classification, locations, translation, rotation],
-            dtype=[keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx(), 'int32', keras.backend.floatx(), keras.backend.floatx()],
+            dtype=[tf.float32, tf.float32, tf.float32, tf.int32, tf.float32, tf.float32],
+            #dtype=[keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx(), 'int32', keras.backend.floatx(), keras.backend.floatx()],
             parallel_iterations=32
         )
 

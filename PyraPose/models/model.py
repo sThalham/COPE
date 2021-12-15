@@ -400,6 +400,7 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
+
     #confidences = model.outputs[4]
     #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
 
