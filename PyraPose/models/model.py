@@ -294,8 +294,9 @@ def pyrapose(
         inputs,
         backbone_layers,
         num_classes,
-        obj_correspondeces=None,
+        obj_correspondences=None,
         obj_diameters=None,
+        intrinsics=None,
         create_pyramid_features=__create_PFPN,
         name='pyrapose'
 ):
@@ -337,7 +338,12 @@ def pyrapose(
     pyramids.append(rotation)
 
     # transform box with pose
-    #rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [1, 6300, 1, 1, 1])
+    poses = tf.concat([location, rotation], axis=3)
+    rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [1, 6300, 1, 1, 1])
+    rep_intrinsics = tf.tile(intrinsics[tf.newaxis, tf.newaxis, :], [1, 6300, 1])
+    projected_poses = layers.ProjectBoxes(name='ProjectBoxes')([poses, rep_object_correspondences, rep_intrinsics])
+    discrepancy = tf.concat([regression_tiled, projected_poses], axis=3)
+    pyramids.append(discrepancy)
     # project box
 
     # confidence regression
