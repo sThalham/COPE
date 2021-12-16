@@ -54,6 +54,7 @@ def create_generator(args):
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.occlusion import OcclusionGenerator
 
+        num_classes = 15
         validation_generator = OcclusionGenerator(
             args.occlusion_path,
             'val',

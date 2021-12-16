@@ -344,19 +344,18 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # run network
         t_start = time.time()
 
-        print('image: ', image.shape)
         #boxes3D, scores, obj_residuals, centers = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(image_dep, axis=0)])
         #boxes3D, scores, labels, poses = model.predict(image)
         boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         #boxes3D, scores = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('forward pass: ', time.time() - t_start)
-        print('poses: ', poses.shape)
 
         boxes3D = boxes3D[labels == cls]
         scores = scores[labels == cls]
         poses = poses[labels == cls]
         #confs = confs[labels == cls]
         labels = labels[labels == cls]
+        print('poses: ', poses.shape)
 
         if len(labels) < 1:
             continue
@@ -373,9 +372,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         print('conf_ranked: ', confs_ranked)
         '''
 
-        poses_cls = poses[np.argmax(scores), cls, :]
+        #poses_cls = poses[np.argmax(scores), cls, :]
         #poses_cls = np.mean(poses[:, cls, :], axis=0)
-        #poses_cls = np.median(poses[:, cls, :], axis=0)
+        poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
         #poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
@@ -442,7 +441,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
         obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
 
-        '''
         retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
                                                            imagePoints=est_points, cameraMatrix=K,
                                                            distCoeffs=None, rvec=None, tvec=None,
@@ -452,21 +450,28 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
         t_est = t_est[0]
-        '''
 
         # quaternion
-        R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
-        t_est = poses_cls[:3] * 0.001
+        #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
+        #t_est = poses_cls[:3] * 0.001
         # dual_quaternion
         #R_est = poses_cls[:3, :3]
         #t_est = poses_cls[:3, 3] * 0.001
         #t_est = t_est * -1.0
         # R6d
         #R_est = np.eye(3)
-        #R_est[:3, 0] = np.linalg.norm(poses_cls[3:6])
-        #R_est[:3, 1] = np.linalg.norm(poses_cls[6:])
-        #R_est[:3, 2] = np.linalg.norm(R_est[:3, 0], np.cross(poses_cls[6:]))
+        #R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
+        #R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
+        #R3 = np.cross(R_est[:3, 0], poses_cls[6:])
+        #R_est[:3, 2] = R3 / np.linalg.norm(R3)
+        ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
         #t_est = poses_cls[:3] * 0.001
+       
+        print('poses_cls: ', poses_cls[3:])
+        print('R_est: ', R_est)
+        print('R_gt: ', R_gt)
+        print('t_est: ', t_est)
+        print('t_gt: ', t_gt)
 
         R_best = R_est
         t_best = t_est
@@ -509,14 +514,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 #R_est = pose_cls[:3, :3]
                 #t_est = pose_cls[:3, 3] * -0.001
                 # quaternion
-                R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
-                t_est = pose_set[hy, :3] * 0.001
-                # R6d
-                # R_est = np.eye(3)
-                #R_est[:3, 0] = np.linalg.norm(pose_set[hy, 3:6])
-                #R_est[:3, 1] = np.linalg.norm(pose_set[hy, 6:])
-                #R_est[:3, 2] = np.linalg.norm(R_est[:3, 0], np.cross(pose_set[hy, 6:]))
+                #R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
                 #t_est = pose_set[hy, :3] * 0.001
+                # R6d
+                R_est = np.eye(3)
+                R_est[:3, 0] = np.linalg.norm(pose_set[hy, 3:6])
+                R_est[:3, 1] = np.linalg.norm(pose_set[hy, 6:])
+                R_est[:3, 2] = np.linalg.norm(np.cross(R_est[:3, 0], pose_set[hy, 6:]))
+                #R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
+                t_est = pose_set[hy, :3] * 0.001
 
                 eDbox = R_est.dot(ori_points.T).T
                 #print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
