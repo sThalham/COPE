@@ -94,7 +94,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
             'cls'           : losses.focal(),
             'translations'  : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
             'rotations'     : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
-            'reprojection'  : losses.per_cls_l1(num_classes=num_classes, weight=1.0),
+            'reprojection'  : losses.projection_deviation(num_classes=num_classes, weight=1.0),
             #'confidences'   : losses.confidence_loss(num_classes=num_classes, weight=0.2),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
@@ -180,7 +180,7 @@ def create_generators(args, preprocess_image):
             num_parallel_calls=args.workers
         )
         mesh_info = os.path.join(args.linemod_path, 'annotations', 'models_info' + '.yml')
-        correspondences = np.ndarray((16, 8, 3), dtype=np.float32)
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in yaml.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -197,7 +197,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
-            correspondences[int(key), :, :] = three_box_solo
+            correspondences[int(key-1), :, :] = three_box_solo
             sphere_diameters[int(key-1)] = value['diameter']
         path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
