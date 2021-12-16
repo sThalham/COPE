@@ -125,9 +125,9 @@ def poses_denorm(regression):
     #pred_poses = keras.backend.stack([q, r, p, g, s, x, y, z], axis=3)
 
     # r6d
-    x = regression[:, :, :, 0]
-    y = regression[:, :, :, 1]
-    z = regression[:, :, :, 2]
+    x = regression[:, :, :, 0] * 500.0
+    y = regression[:, :, :, 1] * 500.0
+    z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
     r00 = regression[:, :, :, 3]
     r01 = regression[:, :, :, 4]
     r02 = regression[:, :, :, 5]
