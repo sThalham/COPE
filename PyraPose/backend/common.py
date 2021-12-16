@@ -171,23 +171,18 @@ def box_projection(poses, corres, intrinsics):
     r3 = tf.math.l2_normalize(r3, axis=3)
     rot = tf.stack([r1, r2, r3], axis=4)
 
-    print('rot: ', rot)
-    print('corres: ', corres)
-    print('trans: ', trans)
-
     #box3d = tf.tensordot(rot, corres, axes=[3, 4])
-    box3d = tf.einsum('blckv, blcpk->blcpk', rot, corres)
-    tf.print('box3d: ', box3d[0, 0, 0, :, :])
+
+    box3d = tf.einsum('blcij, blckj->blcki', rot, corres)
     box3d = tf.math.add(box3d, trans)
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
     projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
-    projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[1])
-    projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[2]
+    projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
+    projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[1]
     projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
     projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
-    pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=3)
-    tf.print(tf.shape(corres)[:2])
+    pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(poses)[0], tf.shape(poses)[1], tf.shape(poses)[2], 16])
 
     return pro_boxes
