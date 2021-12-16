@@ -353,7 +353,7 @@ class LinemodDataset(tf.data.Dataset):
 
         return tf.data.Dataset.from_generator(self._generate,
                                               output_types=(tf.dtypes.float32,
-                                                            (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
+                                                            (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
                                               #tf.TensorShape([None, 6300, 17]),
                                               tf.TensorShape([None, 6300, 15, 32]),

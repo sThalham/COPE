@@ -16,7 +16,7 @@ limitations under the License.
 
 import tensorflow.keras as keras
 import tensorflow as tf
-from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm, poses_denorm
+from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm, poses_denorm, box_projection
 from ..utils import anchors as utils_anchors
 
 import numpy as np

@@ -139,7 +139,7 @@ def poses_denorm(regression):
     return pred_poses
 
 
-def box_projection(poses, corres, intris):
+def box_projection(poses, corres, intrinsics):
 
     # todo
     #rot = tf3d.quaternions.quat2mat(pose[3:])
@@ -155,19 +155,35 @@ def box_projection(poses, corres, intris):
     #ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy
 
     # r6d
-    x = regression[:, :, :, 0] * 500.0
-    y = regression[:, :, :, 1] * 500.0
-    z = ((regression[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
+    x = poses[:, :, :, 0] * 500.0
+    y = poses[:, :, :, 1] * 500.0
+    z = ((poses[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
+    trans = tf.stack([x, y, z], axis=3)
+    trans = tf.tile(trans[:, :, :, tf.newaxis, :], [1, 1, 1, 8, 1])
 
-    r00 = regression[:, :, :, 3]
-    r01 = regression[:, :, :, 4]
-    r02 = regression[:, :, :, 5]
-    r10 = regression[:, :, :, 6]
-    r11 = regression[:, :, :, 7]
-    r12 = regression[:, :, :, 8]
-    pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12], axis=3)
+    #r1 = tf.stack([poses[:, :, :, 3], poses[:, :, :, 4], poses[:, :, :, 5]], axis=3)
+    #r1 = tf.math.l2_normalize(poses[:, :, :, 3:6], axis=3)
+    r1 = poses[:, :, :, 3:6]
+    #r2 = tf.stack([regression[:, :, :, 6], regression[:, :, :, 7], regression[:, :, :, 8]], axis=3)
+    #r2 = tf.math.l2_normalize(poses[:, :, :, 6:], axis=3)
+    r2 = poses[:, :, :, 6:]
+    r3 = tf.linalg.cross(r1, r2)
+    r3 = tf.math.l2_normalize(r3, axis=3)
+    rot = tf.stack([r1, r2, r3], axis=4)
 
-    return pred_poses
+    box3d = tf.tensordot(rot, corres, axes=[3, 4])
+    box3d = tf.math.add(box3d, trans)
+
+    projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
+    projected_boxes_x = tf.math.subdivide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
+    projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[1])
+    projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[2]
+    projected_boxes_y = tf.math.subdivide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
+    projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
+    pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=3)
+    pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape])
+
+    return pro_boxes
 
 
 def shift(shape, stride, anchors):

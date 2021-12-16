@@ -33,6 +33,7 @@ class Backbone(object):
             '_class_l1'                 : losses.per_cls_l1(),
             '_residual_loss'            : losses.residual_loss(),
             '_confidence_loss'            : losses.confidence_loss(),
+            '_projection_deviation'     : losses.projection_deviation()
         }
 
         self.backbone = backbone

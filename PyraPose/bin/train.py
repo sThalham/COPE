@@ -25,6 +25,7 @@ import numpy as np
 import tensorflow.keras as keras
 import tensorflow.keras.preprocessing.image
 import tensorflow as tf
+import json
 #from tensorflow.python.framework.ops import disable_eager_execution
 
 # Allow relative imports when being executed as script.
@@ -210,7 +211,6 @@ def create_generators(args, preprocess_image):
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
             break
-        print(intrinsics)
 
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
