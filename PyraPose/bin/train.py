@@ -61,7 +61,7 @@ def model_with_weights(model, weights, skip_mismatch):
     return model
 
 
-def create_models(backbone_model, num_classes, obj_correspondences, obj_diameters, weights, multi_gpu=0,
+def create_models(backbone_model, num_classes, obj_correspondences, obj_diameters, intrinsics, weights, multi_gpu=0,
                   freeze_backbone=False, lr=1e-5):
 
     modifier = freeze_model if freeze_backbone else None
@@ -72,10 +72,10 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
     if multi_gpu > 1:
         from tensorflow.keras.utils import multi_gpu_model
         with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
+            model = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = multi_gpu_model(model, gpus=multi_gpu)
     else:
-        model          = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, modifier=modifier), weights=weights, skip_mismatch=True)
+        model          = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
     # make prediction model
@@ -198,10 +198,24 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key), :, :] = three_box_solo
             sphere_diameters[int(key-1)] = value['diameter']
+        path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+        print(intrinsics)
+
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return dataset, num_classes, correspondences, sphere_diameters, train_samples
+    return dataset, num_classes, correspondences, sphere_diameters, train_samples, intrinsics
 
 
 def parse_args(args):
@@ -259,7 +273,7 @@ def main(args=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     # create the generators
-    dataset, num_classes, correspondences, obj_diameters, train_samples = create_generators(args, backbone.preprocess_image)
+    dataset, num_classes, correspondences, obj_diameters, train_samples, intrinsics = create_generators(args, backbone.preprocess_image)
 
     # create the model
     if args.snapshot is not None:
@@ -276,6 +290,7 @@ def main(args=None):
             num_classes=num_classes,
             obj_correspondences=correspondences,
             obj_diameters=obj_diameters,
+            intrinsics=intrinsics,
             weights=weights,
             multi_gpu=0,
             freeze_backbone=args.freeze_backbone,

@@ -79,7 +79,7 @@ class ResNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def resnet_model(num_classes, obj_diameters, correspondences=None, inputs=None, modifier=None, **kwargs):
+def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -114,6 +114,6 @@ def resnet_model(num_classes, obj_diameters, correspondences=None, inputs=None, 
     #xception_outputs = [resnet.layers[31].output, resnet.layers[121].output, resnet.layers[131].output]
 
     # create the full model
-    return model.pyrapose(inputs=inputs, num_classes=num_classes, obj_correspondeces=correspondences, obj_diameters=obj_diameters, backbone_layers=resnet_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, backbone_layers=resnet_outputs, **kwargs)
 
 

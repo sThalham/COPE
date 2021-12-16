@@ -336,6 +336,34 @@ class DenormRegression(keras.layers.Layer):
         return config
 
 
+class ProjectBoxes(keras.layers.Layer):
+    """ Keras layer for applying regression values to boxes.
+    """
+
+    def __init__(self, mean=None, std=None, *args, **kwargs):
+        """ Initializer for the RegressBoxes layer.
+
+        Args
+            mean: The mean value of the regression values which was used for normalization.
+            std: The standard value of the regression values which was used for normalization.
+        """
+
+        #self.obj_diameters = diameter_tensor
+        super(ProjectBoxes, self).__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        poses, rep_object_correspondences, rep_intrinsics = inputs
+        return box_projection(poses, rep_object_correspondences, rep_intrinsics)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[1]
+
+    def get_config(self):
+        config = super(ProjectBoxes, self).get_config()
+
+        return config
+
+
 class DenormPoses(keras.layers.Layer):
     """ Keras layer for applying regression values to boxes.
     """

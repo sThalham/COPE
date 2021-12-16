@@ -125,9 +125,39 @@ def poses_denorm(regression):
     #pred_poses = keras.backend.stack([q, r, p, g, s, x, y, z], axis=3)
 
     # r6d
-    x = regression[:, :, :, 0]
-    y = regression[:, :, :, 1]
-    z = regression[:, :, :, 2]
+    x = regression[:, :, :, 0] * 500.0
+    y = regression[:, :, :, 1] * 500.0
+    z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
+    r00 = regression[:, :, :, 3]
+    r01 = regression[:, :, :, 4]
+    r02 = regression[:, :, :, 5]
+    r10 = regression[:, :, :, 6]
+    r11 = regression[:, :, :, 7]
+    r12 = regression[:, :, :, 8]
+    pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12], axis=3)
+
+    return pred_poses
+
+
+def box_projection(poses, corres, intris):
+
+    # todo
+    #rot = tf3d.quaternions.quat2mat(pose[3:])
+    #rot = np.asarray(rot, dtype=np.float32)
+    #tra = pose[:3]
+    #tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
+    #tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+
+    #box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
+    #                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
+
+    #xpix = ((translation[:, 0] * fx) / translation[:, 2]) + cx
+    #ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy
+
+    # r6d
+    x = regression[:, :, :, 0] * 500.0
+    y = regression[:, :, :, 1] * 500.0
+    z = ((regression[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
     r00 = regression[:, :, :, 3]
     r01 = regression[:, :, :, 4]
     r02 = regression[:, :, :, 5]
