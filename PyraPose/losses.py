@@ -624,7 +624,14 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
 
     def _projection_deviation(y_true, y_pred):
 
-        regression = y_pred
+        boxes, reprojection = tf.split(y_pred, num_or_size_splits=2, axis=3)
+        regression = (boxes-reprojection) * 0.01
+        #regression = y_pred
+
+        #tf.print('boxes x: ', tf.math.reduce_mean(boxes[:, :, :, ::2]), tf.math.reduce_max(boxes[:, :, :, ::2]), tf.math.reduce_min(boxes[:, :, :, ::2]))
+        #tf.print('reprojection x: ', tf.math.reduce_mean(reprojection[:, :, :, ::2]), tf.math.reduce_max(reprojection[:, :, :, ::2]), tf.math.reduce_min(reprojection[:, :, :, ::2]))
+        #tf.print('boxes y: ', tf.math.reduce_mean(boxes[:, :, :, 1::2]), tf.math.reduce_max(boxes[:, :, :, 1::2]),tf.math.reduce_min(boxes[:, :, :, 1::2]))
+        #tf.print('reprojection y: ', tf.math.reduce_mean(reprojection[:, :, :, 1::2]),tf.math.reduce_max(reprojection[:, :, :, 1::2]), tf.math.reduce_min(reprojection[:, :, :, 1::2]))
 
         anchor_state = y_true[:, :, :, 16:]
         regression_target = y_true[:, :, :, :16]
@@ -880,3 +887,4 @@ def pcccl1(num_classes=0, weight=1.0, sigma=3.0):
         #return weight * tf.math.reduce_sum(loss, axis=0)
 
     return _pcccl1
+

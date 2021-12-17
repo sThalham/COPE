@@ -171,9 +171,7 @@ def box_projection(poses, corres, intrinsics):
     r3 = tf.math.l2_normalize(r3, axis=3)
     rot = tf.stack([r1, r2, r3], axis=4)
 
-    #box3d = tf.tensordot(rot, corres, axes=[3, 4])
-
-    box3d = tf.einsum('blcij, blckj->blcki', rot, corres)
+    box3d = tf.einsum('blcij, ckj->blcki', rot, corres)
     box3d = tf.math.add(box3d, trans)
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]

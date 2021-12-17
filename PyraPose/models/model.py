@@ -339,12 +339,14 @@ def pyrapose(
 
     # transform box with pose
     poses = tf.concat([location, rotation], axis=3)
-    rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(poses)[0], 6300, 1, 1, 1])
+    #rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(poses)[0], 6300, 1, 1, 1])
     #rep_intrinsics = tf.tile(intrinsics[tf.newaxis, tf.newaxis, :], [1, 6300, 1])
+    rep_object_correspondences = tf.convert_to_tensor(obj_correspondences)
     intrinsics_tensor = tf.convert_to_tensor(intrinsics)
     projected_poses = layers.ProjectBoxes(name='ProjectBoxes')([poses, rep_object_correspondences, intrinsics_tensor])
-    #discrepancy = tf.concat([regression_tiled, projected_poses], axis=3)
-    discrepancy = tf.math.subtract(regression_tiled, projected_poses)
+    discrepancy = tf.concat([destd_boxes, projected_poses], axis=3)
+    #discrepancy = tf.math.subtract(destd_boxes, projected_poses)
+
     rename_layer = keras.layers.Lambda(lambda x: x, name='reprojection')
     discrepancy = rename_layer(discrepancy)
     pyramids.append(discrepancy)

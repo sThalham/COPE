@@ -27,7 +27,6 @@ import copy
 from .visualization import Visualizer
 import time
 from .ego_to_allo import egocentric_to_allocentric
-from dual_quaternions import DualQuaternion
 
 
 def anchor_targets_bbox(
