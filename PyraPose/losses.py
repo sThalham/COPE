@@ -560,9 +560,9 @@ def confidence_loss(num_classes=0, weight=1.0):
         exp = tf.math.reduce_sum(exp, axis=3)
         #exp_print = backend.gather_nd(exp, indices)
         #tf.print('exp: ', tf.math.reduce_mean(exp_print), tf.math.reduce_max(exp_print), tf.math.reduce_min(exp_print))
-        #tf.print('conf: ', tf.math.reduce_mean(confidence), tf.math.reduce_max(confidence), tf.math.reduce_min(confidence))
+        #tf.print('conf: ', tf.math.reduce_max(confidence), tf.math.reduce_min(confidence))
         #conf_loss = 1.0 - tf.math.abs(tf.math.exp(-exp) - confidence)
-        conf_loss = tf.math.abs(tf.math.exp(-exp) - confidence)
+        conf_loss = tf.math.abs(tf.math.exp(-1.0 * exp) - confidence)
 
         # comp norm per class
         normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1])
