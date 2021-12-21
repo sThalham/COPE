@@ -171,7 +171,13 @@ def box_projection(poses, corres, intrinsics):
     r3 = tf.math.l2_normalize(r3, axis=3)
     rot = tf.stack([r1, r2, r3], axis=4)
 
-    box3d = tf.einsum('blcij, ckj->blcki', rot, corres)
+    #box3d = tf.einsum('blcij, ckj->blcki', rot, corres)
+    rep_obj_correspondences = tf.tile(corres[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(poses)[0], tf.shape(poses)[1], 1, 1, 1])
+    box3d = tf.linalg.matmul(rot, rep_obj_correspondences, transpose_a=False, transpose_b=True)
+    box3d = tf.transpose(box3d, perm=[0, 1, 2, 4, 3])
+    #tf.print('box3d: ', box3d[0, 0, 0, :, :])
+    #tf.print('td_test: ', td_test[0, 0, 0, :, :])
+    box3d = tf.math.add(box3d, trans)
     box3d = tf.math.add(box3d, trans)
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]

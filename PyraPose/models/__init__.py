@@ -24,6 +24,7 @@ class Backbone(object):
             '_cross'                    : losses.cross(),
             '_orth_l1'                  : losses.orthogonal_l1(),
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
+            'ProjectBoxes'              :layers.ProjectBoxes(),
             'DenormRegression'          : layers.DenormRegression(),
             'Locations'                 : layers.Locations(),
             'Locations_Hacked'          : layers.Locations_Hacked(),

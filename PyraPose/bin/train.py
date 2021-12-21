@@ -274,6 +274,8 @@ def main(args=None):
 
     # create the generators
     dataset, num_classes, correspondences, obj_diameters, train_samples, intrinsics = create_generators(args, backbone.preprocess_image)
+    #correspondences = tf.convert_to_tensor(correspondences)
+    #intrinsics = tf.convert_to_tensor(intrinsics)
 
     # create the model
     if args.snapshot is not None:
@@ -314,8 +316,8 @@ def main(args=None):
 
     training_model.fit(
         x=dataset,
-        #steps_per_epoch=train_samples / args.batch_size,
-        steps_per_epoch=10,
+        steps_per_epoch=train_samples / args.batch_size,
+        #steps_per_epoch=10,
         epochs=args.epochs,
         #epochs=1,
         verbose=1,
