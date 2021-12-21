@@ -95,7 +95,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
             'translations'  : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
             'rotations'     : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
             'reprojection'  : losses.projection_deviation(num_classes=num_classes, weight=0.1),
-            'confidences'   : losses.confidence_loss(num_classes=num_classes, weight=0.2),
+            #'confidences'   : losses.confidence_loss(num_classes=num_classes, weight=0.2),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)
     )
@@ -274,6 +274,8 @@ def main(args=None):
 
     # create the generators
     dataset, num_classes, correspondences, obj_diameters, train_samples, intrinsics = create_generators(args, backbone.preprocess_image)
+    #correspondences = tf.convert_to_tensor(correspondences)
+    #intrinsics = tf.convert_to_tensor(intrinsics)
 
     # create the model
     if args.snapshot is not None:

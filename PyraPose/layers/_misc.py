@@ -340,7 +340,7 @@ class ProjectBoxes(keras.layers.Layer):
     """ Keras layer for applying regression values to boxes.
     """
 
-    def __init__(self, mean=None, std=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """ Initializer for the RegressBoxes layer.
 
         Args
@@ -348,18 +348,21 @@ class ProjectBoxes(keras.layers.Layer):
             std: The standard value of the regression values which was used for normalization.
         """
 
-        #self.obj_diameters = diameter_tensor
         super(ProjectBoxes, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        poses, rep_object_correspondences, rep_intrinsics = inputs
-        return box_projection(poses, rep_object_correspondences, rep_intrinsics)
+        #poses, rep_object_correspondences, rep_intrinsics = inputs
+        poses, obj_correspondences, intrinsics = inputs
+        #self.corres = obj_correspondences
+        #self.intris = intrinsics
+        return box_projection(poses, obj_correspondences, intrinsics)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
 
     def get_config(self):
         config = super(ProjectBoxes, self).get_config()
+        #config.update({'corres': self.corres.tolist(), 'intris': self.intris.tolist()})
 
         return config
 

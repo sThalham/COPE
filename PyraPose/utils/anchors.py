@@ -62,7 +62,7 @@ def anchor_targets_bbox(
     #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
-    confidences_batch = np.zeros((batch_size, location_shape, num_classes, 9 + 1), dtype=keras.backend.floatx())
+    #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 9 + 1), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 9 + 1), dtype=keras.backend.floatx())
     #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 7 + 1), dtype=keras.backend.floatx())
 
@@ -157,10 +157,10 @@ def anchor_targets_bbox(
                 #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
                 rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
                 rotations_batch[index, locations_positive_obj, cls, 6:] = 1
-                confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                confidences_batch[index, locations_positive_obj, cls, 3:-1] = allo_pose[:3, :2].T.reshape(6)
-                confidences_batch[index, locations_positive_obj, cls, -1] = 1
+                #confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                #confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                #confidences_batch[index, locations_positive_obj, cls, 3:-1] = allo_pose[:3, :2].T.reshape(6)
+                #confidences_batch[index, locations_positive_obj, cls, -1] = 1
                 reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 #confidences_batch[index, locations_positive_obj, cls, :16] = points
                 #confidences_batch[index, locations_positive_obj, cls, 16:18] = pose[:2] * 0.002
@@ -253,7 +253,7 @@ def anchor_targets_bbox(
         '''
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch), tf.convert_to_tensor(confidences_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):

@@ -29,7 +29,6 @@ import yaml
 import sys
 import matplotlib.pyplot as plt
 import time
-from dual_quaternions import DualQuaternion
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
