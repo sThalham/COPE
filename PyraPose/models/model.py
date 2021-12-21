@@ -232,21 +232,21 @@ def default_confidence_model(num_classes):
     }
 
     if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(256 + num_classes * 9, None))
+        inputs = keras.layers.Input(shape=(num_classes*9, None, None))
         #inputs = keras.layers.Input(shape=(num_classes * (16 + 7), None))
     else:
-        inputs = keras.layers.Input(shape=(None, 256 + num_classes * 9))
+        inputs = keras.layers.Input(shape=(None, None, num_classes*9))
         #inputs = keras.layers.Input(shape=(None, num_classes * (16 + 7)))
 
     outputs = inputs
 
-    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=num_classes, **options)(outputs)
+    outputs = keras.layers.Conv2D(filters=256, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv2D(filters=128, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv2D(filters=num_classes, **options)(outputs)
     confidence = keras.layers.Activation('sigmoid')(outputs)
 
-    conf_out = tf.concat([inputs[:, :, 256:], confidence], axis=2)
-    #conf_out = tf.concat([inputs, confidence], axis=2)
+    conf_out = tf.concat([inputs, confidence], axis=3)
+    conf_out = keras.layers.Reshape((-1, num_classes*10))(conf_out)
 
     return keras.models.Model(inputs=inputs, outputs=conf_out, name='confidences')
 
@@ -357,14 +357,15 @@ def pyrapose(
     #pyramids.append(confidences)
 
     # confidence regression
-    P3_flat = tf.reshape(P3, [-1, 4800, 256])
-    P4_flat = tf.reshape(P4, [-1, 1200, 256])
-    P5_flat = tf.reshape(P5, [-1, 300, 256])
-    features_reshaped = tf.concat([P3_flat, P4_flat, P5_flat], axis=1)
-    poses = tf.concat([location, rotation], axis=3)
-    poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*9])
-    poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
-    confidences = confidence_branch(poses_conditioned_to_features)
+    P3_poses = tf.reshape(poses[:, :4800, :, :], [-1, 60, 80, num_classes*9])
+    P4_poses = tf.reshape(poses[:, 4800:6000, :, :], [-1, 30, 40, num_classes*9])
+    P5_poses = tf.reshape(poses[:, 6000:, :, :], [-1, 15, 20, num_classes*9])
+    P3_confs = confidence_branch(P3_poses)
+    P4_confs = confidence_branch(P4_poses)
+    P5_confs = confidence_branch(P5_poses)
+    confidences = tf.concat([P3_confs, P4_confs, P5_confs], axis=1)
+    rename_conf = keras.layers.Lambda(lambda x: x, name='confidence')
+    confidences = rename_conf(confidences)
     pyramids.append(confidences)
 
     # confidence regression + pose conditioning
