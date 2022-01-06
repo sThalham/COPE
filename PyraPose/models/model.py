@@ -164,58 +164,18 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
 
     outputs = inputs
 
-    translations = []
-    rotations = []
-    for i in range(num_classes):
-        out_cls = outputs[:, :, i, :]
-        out_cls = keras.layers.Conv1D(filters=128, activation='relu', **options)(out_cls)
-        out_cls = keras.layers.Conv1D(filters=64, activation='relu', **options)(out_cls)
-
-        translation = keras.layers.Conv1D(3, **options)(out_cls)
-        if keras.backend.image_data_format() == 'channels_first':
-            translation = keras.layers.Permute((2, 3, 1))(translation)
-        translation = keras.layers.Reshape((-1, 1, 3))(translation)
-
-        #depth = keras.layers.Conv1D(1, **options)(out_cls)
-        #if keras.backend.image_data_format() == 'channels_first':
-        #    translation = keras.layers.Permute((2, 3, 1))(depth)
-        #depth = keras.layers.Reshape((-1, 1, 1))(depth)
-
-        rotation = keras.layers.Conv1D(6, **options)(out_cls)
-        if keras.backend.image_data_format() == 'channels_first':
-            rotation = keras.layers.Permute((2, 3, 1))(rotation)
-        rotation = keras.layers.Reshape((-1, 1, 6))(rotation)
-        #rotation = tf.math.l2_normalize(rotation, axis=3)
-
-        translations.append(translation)
-        #depths.append(depth)
-        rotations.append(rotation)
-    translations = tf.concat(translations, axis=2)
-    #depths = tf.concat(depths, axis=2)
-    rotations = tf.concat(rotations, axis=2)
-    rotations_1, rotations_2 = tf.split(rotations, num_or_size_splits=2, axis=3)
-    rotations_1 = tf.math.l2_normalize(rotations_1, axis=3)
-    rotations_2 = tf.math.l2_normalize(rotations_2, axis=3)
-    rotations = tf.concat([rotations_1, rotations_2], axis=3)
-
-    '''
     outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
+    translations = keras.layers.Conv1D(3, **options)(outputs)
+    rotations = keras.layers.Conv1D(6, **options)(outputs)
 
-    translation = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
-    if keras.backend.image_data_format() == 'channels_first':
-        translation = keras.layers.Permute((2, 3, 1))(translation)
-    translation = keras.layers.Reshape((-1, num_classes, 3))(translation)
-
-    rotation = keras.layers.Conv1D(num_classes * 4, **options)(outputs)
-    if keras.backend.image_data_format() == 'channels_first':
-        rotation = keras.layers.Permute((2, 3, 1))(rotation)
-    rotation = keras.layers.Reshape((-1, num_classes, 4))(rotation)
-    rotation = tf.math.l2_normalize(rotation, axis=3)
-    '''
-
-    #regress = tf.concat([translations, rotations], axis=3)
+    # translations = tf.concat(translations, axis=2)
+    # rotations = tf.concat(rotations, axis=2)
+    rotations_1, rotations_2 = tf.split(rotations, num_or_size_splits=2, axis=2)
+    rotations_1 = tf.math.l2_normalize(rotations_1, axis=2)
+    rotations_2 = tf.math.l2_normalize(rotations_2, axis=2)
+    rotations = tf.concat([rotations_1, rotations_2], axis=2)
 
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
