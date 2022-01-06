@@ -458,6 +458,10 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
+    consistency = model.outputs[4]
+    cons1, cons2 = tf.split(consistency, num_or_size_splits=2, axis=3)
+    consistency = tf.math.reduce_euclidean_norm(cons1 - cons2, axis=3)
+    print('consistency: ', consistency)
 
     #confidences = model.outputs[4]
     #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
@@ -467,7 +471,7 @@ def inference_model(
         score_threshold=score_threshold,
         max_detections=max_detections,
     #)([regression, classification, locations, translations, rotations, confidences])
-    )([regression, classification, locations, translations, rotations])
+    )([regression, classification, locations, translations, rotations, consistency])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
@@ -481,4 +485,4 @@ def inference_model(
     # return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
     return keras.models.Model(inputs=model.inputs,
-                              outputs=[boxes3D, detections[2], detections[3], poses], name=name)
+                              outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
