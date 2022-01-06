@@ -69,7 +69,7 @@ def default_boxes_model(num_values, pyramid_feature_size=256, prior_probability=
         'padding': 'same',
         'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer': 'zeros',
-        # 'kernel_regularizer' : keras.regularizers.l2(0.001),
+        'kernel_regularizer' : keras.regularizers.l2(0.001),
     }
 
     if keras.backend.image_data_format() == 'channels_first':
@@ -86,7 +86,6 @@ def default_boxes_model(num_values, pyramid_feature_size=256, prior_probability=
         )(outputs)
 
     regress = keras.layers.Conv2D(num_values, **options)(outputs)
-    # regress = keras.layers.SeparableConv2D(num_values, **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         regress = keras.layers.Permute((2, 3, 1))(regress)
     regress = keras.layers.Reshape((-1, num_values))(regress)
@@ -300,7 +299,7 @@ def pyrapose(
 ):
     regression_branch = default_regression_model(16)
     pose_branch = default_pose_model(num_classes)
-    # boxes_branch = default_regression_model(4)
+    boxes_branch = default_boxes_model(4)
     location_branch = default_classification_model(num_classes)
     confidence_branch = default_confidence_model(num_classes)
 
@@ -313,6 +312,12 @@ def pyrapose(
     regression_P5 = regression_branch(P5)
     regression = keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5])
     pyramids.append(regression)
+
+    #boxes_P3 = boxes_branch(P3)
+    #boxes_P4 = boxes_branch(P4)
+    #boxes_P5 = boxes_branch(P5)
+    #boxes = keras.layers.Concatenate(axis=1, name='bbox')([boxes_P3, boxes_P4, boxes_P5])
+    #pyramids.append(boxes)
 
     location_P3 = location_branch(P3)
     location_P4 = location_branch(P4)
@@ -394,16 +399,18 @@ def pyrapose(
     #pyramids.append(confidences)
 
     # confidence regression
-    P3_poses = tf.reshape(poses[:, :4800, :, :], [-1, 60, 80, num_classes*9])
-    P4_poses = tf.reshape(poses[:, 4800:6000, :, :], [-1, 30, 40, num_classes*9])
-    P5_poses = tf.reshape(poses[:, 6000:, :, :], [-1, 15, 20, num_classes*9])
-    P3_confs = confidence_branch(P3_poses)
-    P4_confs = confidence_branch(P4_poses)
-    P5_confs = confidence_branch(P5_poses)
-    confidences = tf.concat([P3_confs, P4_confs, P5_confs], axis=1)
-    rename_conf = keras.layers.Lambda(lambda x: x, name='confidence')
-    confidences = rename_conf(confidences)
-    pyramids.append(confidences)
+    #P3_poses = tf.reshape(poses[:, :4800, :, :], [-1, 60, 80, num_classes*9])
+    #P4_poses = tf.reshape(poses[:, 4800:6000, :, :], [-1, 30, 40, num_classes*9])
+    #P5_poses = tf.reshape(poses[:, 6000:, :, :], [-1, 15, 20, num_classes*9])
+    #P3_confs = confidence_branch(P3_poses)
+    #P4_confs = confidence_branch(P4_poses)
+    #P5_confs = confidence_branch(P5_poses)
+    #confidences = tf.concat([P3_confs, P4_confs, P5_confs], axis=1)
+    #rename_conf = keras.layers.Lambda(lambda x: x, name='confidence')
+    #confidences = rename_conf(confidences)
+    #pyramids.append(confidences)
+
+
     #P3_flat = tf.reshape(P3, [-1, 4800, 256])
     #P4_flat = tf.reshape(P4, [-1, 1200, 256])
     #P5_flat = tf.reshape(P5, [-1, 300, 256])

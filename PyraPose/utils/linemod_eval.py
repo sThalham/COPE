@@ -372,6 +372,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #poses_cls = np.mean(poses[:, cls, :], axis=0)
         #poses_cls = np.median(poses[:, cls, :], axis=0)
         pose_set = poses[:, cls, :]
+        boxes3D_set = boxes3D
         #poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
         #poses_cls = dq.homogeneous_matrix()
@@ -504,7 +505,17 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         viz = True
         #if true_cls == 9:
         if viz:
+            for hy in range(boxes3D_set.shape[0]):
+                points = boxes3D_set[hy, :]
+                x_s = points[::2]
+                y_s = points[1::2]
+                x_max = int(np.max(x_s))
+                x_min = int(np.min(x_s))
+                y_max = int(np.max(y_s))
+                y_min = int(np.min(y_s))
+                image_raw = cv2.rectangle(image_raw, (x_min, y_min), (x_max, y_max), (0, 204, 0), 2);
 
+            '''
             for hy in range(pose_set.shape[0]):
                 # dual quaternion
                 #dq = DualQuaternion.from_dq_array(pose_set[hy, :])
@@ -656,6 +667,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = np.concatenate([image_viz, image_raw], axis=1)
             name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
             #cv2.imwrite(name, image_raw)
+            '''
 
         '''
         eDbox = R_best.dot(ori_points.T).T
@@ -701,8 +713,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
         '''
         #image_raw = np.concatenate([image_viz, image_raw], axis=1)
-        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        #cv2.imwrite(name, image_raw)
+        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)

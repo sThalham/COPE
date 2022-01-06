@@ -45,28 +45,16 @@ def anchor_targets_bbox(
 
     batch_size = len(image_group)
     pyramid_levels = [3, 4, 5]
-    #pyramid_levels = [3, 4.5, 4, 4.5, 5]
     image_shapes = guess_shapes(image_group[0].shape[:2], pyramid_levels)
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
-    img_area = image_group[0].shape[0] * image_group[0].shape[1]
 
-    #regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
-    #regression_batch = np.zeros((batch_size, location_shape, 16 + 1), dtype=keras.backend.floatx())
-    #residual_batch = np.zeros((batch_size, location_shape, 18 + 1), dtype=keras.backend.floatx())
-    #boxes_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
-    #labels_batch = np.zeros((batch_size, location_shape, num_classes, num_classes + 1), dtype=keras.backend.floatx())
+    #bbox_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
-    #rotations_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
-    confidences_batch = np.zeros((batch_size, location_shape, num_classes, 9 + 1), dtype=keras.backend.floatx())
-    #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 9 + 1), dtype=keras.backend.floatx())
-    #confidences_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 7 + 1), dtype=keras.backend.floatx())
-
-    dq_trans = []
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -93,6 +81,7 @@ def anchor_targets_bbox(
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
+            bboxes = annotations['bboxes'][idx]
             #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
             # pyrmid_index from diameter
@@ -107,7 +96,7 @@ def anchor_targets_bbox(
             ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
             ego_pose[:3, 3] = pose[:3]
             allo_pose = egocentric_to_allocentric(ego_pose)
-            allocentric_rotation = tf3d.quaternions.mat2quat(allo_pose[:3, :3])
+            #allocentric_rotation = tf3d.quaternions.mat2quat(allo_pose[:3, :3])
             #dq = DualQuaternion.from_homogeneous_matrix(allo_pose)
             #dq_array = dq.dq_array()
             #dq_array[4:] *= np.array([0.003, 0.002, 0.002, 0.003])
@@ -125,15 +114,14 @@ def anchor_targets_bbox(
                 box3D = np.reshape(box3D, (16))
                 calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
-                #points, index_filter = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter, proj_diameter)
-                #locations_positive_obj_indexed = locations_positive_obj[index_filter]
-                #regression_batch[index, locations_positive_obj_indexed, cls, :-1] = points[index_filter]
-                #regression_batch[index, locations_positive_obj_indexed, cls, -1] = 1
-
+                #proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
+                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, :16] = points#[index_filter]
                 regression_batch[index, locations_positive_obj, cls, 16:] = 1
+
+                #boxes2D = boxes_transform(bboxes, image_locations[locations_positive_obj, :], obj_diameter)
+                #bbox_batch[index, locations_positive_obj, cls, :4] = boxes2D  # [index_filter]
+                #bbox_batch[index, locations_positive_obj, cls, 4:] = 1
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 #regression_batch[index, locations_positive_obj, cls, -1] = 1
@@ -157,10 +145,10 @@ def anchor_targets_bbox(
                 #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
                 rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
                 rotations_batch[index, locations_positive_obj, cls, 6:] = 1
-                confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                confidences_batch[index, locations_positive_obj, cls, 3:-1] = allo_pose[:3, :2].T.reshape(6)
-                confidences_batch[index, locations_positive_obj, cls, -1] = 1
+                #confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
+                #confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
+                #confidences_batch[index, locations_positive_obj, cls, 3:-1] = allo_pose[:3, :2].T.reshape(6)
+                #confidences_batch[index, locations_positive_obj, cls, -1] = 1
                 reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 #confidences_batch[index, locations_positive_obj, cls, :16] = points
                 #confidences_batch[index, locations_positive_obj, cls, 16:18] = pose[:2] * 0.002
@@ -253,7 +241,7 @@ def anchor_targets_bbox(
         '''
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch), tf.convert_to_tensor(confidences_batch)
+    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):
@@ -382,20 +370,13 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
-def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=None):
+def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
-
-    #np.seterr(invalid='raise')
 
     if mean is None:
         mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        # obj_diameter
         std = np.full(16, 0.65)
-        # avg obj_dimension
-        #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
-        #std = np.full(16, 0.85) # with max dimension
-        #std = np.full(16, 1.5) # with min dimension
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -406,8 +387,6 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
         std = np.array(std) 
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
-
-    #print(box.shape)
 
     targets_dx0 = locations[:, 0] - box[0]
     targets_dy0 = locations[:, 1] - box[1]
@@ -425,36 +404,20 @@ def box3D_transform(box, locations, obj_diameter, proj_diameter, mean=None, std=
     targets_dy6 = locations[:, 1] - box[13]
     targets_dx7 = locations[:, 0] - box[14]
     targets_dy7 = locations[:, 1] - box[15]
-    #targets_dx8 = locations[:, 0] - box[16]
-    #targets_dy8 = locations[:, 1] - box[17]
 
     targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
 
-    #x_sum = np.abs(np.sum(targets[:, ::2], axis=1))
-    #y_sum = np.abs(np.sum(targets[:, 1::2], axis=1))
-    #centerness = (np.power(x_sum, 2) + np.power(y_sum, 2)) / (proj_diameter * 0.01)
-
-    #med_cent = np.median(centerness)
-    #indices_cent = np.argwhere(centerness>0.5)
-
-    return targets# , indices_cent
+    return targets
 
 
 def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
-    #np.seterr(invalid='raise')
-
     if mean is None:
         mean = np.full(4, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        # obj_diameter
-        std = np.full(4, 0.4)
-        # avg obj_dimension
-        #std = np.full(18, 1.2)  #5200 # np.array([1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3, 1.3e3])
-        #std = np.full(16, 0.85) # with max dimension
-        #std = np.full(16, 1.5) # with min dimension
+        std = np.full(4, 0.65)
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -466,9 +429,6 @@ def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
-    #print(box.shape)
-    #print(locations.shape)
-
     targets_dx0 = locations[:, 0] - box[0]
     targets_dy0 = locations[:, 1] - box[1]
     targets_dx1 = locations[:, 0] - box[2]
@@ -476,6 +436,7 @@ def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
 
     targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1), axis=1)
     targets = (targets - mean) / (std * obj_diameter)
+    print('boxes: ', np.mean(targets), np.var(targets))
 
     return targets
 
