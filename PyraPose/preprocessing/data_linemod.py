@@ -132,6 +132,8 @@ class LinemodDataset(tf.data.Dataset):
         # load 3D boxes
         TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((16), dtype=np.float32)
+        sym_cont = np.zeros((34, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((34, 8, 16), dtype=np.float32)
 
         for key, value in yaml.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -150,6 +152,18 @@ class LinemodDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
             sphere_diameters[int(key)] = value['diameter']
+
+            if 'symmetries_discrete' in value:
+                for sdx, sym in enumerate(value['symmetries_discrete']):
+                    sym_disc[int(key), sdx, :] = np.array(sym)
+            #else:
+                #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
+
+            if "symmetries_continuous" in value:
+                sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
+                sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][1]['offset'], dtype=np.float32)
+            #else:
+            #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
             min_translation=(0.0, 0.0),
@@ -182,7 +196,7 @@ class LinemodDataset(tf.data.Dataset):
 
             annotations = {'mask': mask, 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
-                           'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,))}
+                           'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
@@ -223,6 +237,10 @@ class LinemodDataset(tf.data.Dataset):
                     cx,
                     cy,
                 ]]], axis=0)
+                annotations['sym_dis'] = np.concatenate(
+                    [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)
+                annotations['sym_con'] = np.concatenate(
+                    [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
 
             return annotations
 
@@ -355,10 +373,10 @@ class LinemodDataset(tf.data.Dataset):
                                               output_types=(tf.dtypes.float32,
                                                             (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
-                                              tf.TensorShape([None, 6300, 15, 32]),
+                                              tf.TensorShape([None, 6300, 15, 8, 32]),
                                               tf.TensorShape([None, 6300, 15 + 1]), # +1 for background class
-                                              tf.TensorShape([None, 6300, 15, 6]),
-                                              tf.TensorShape([None, 6300, 15, 12]),
+                                              tf.TensorShape([None, 6300, 15, 8, 6]),
+                                              tf.TensorShape([None, 6300, 15, 8, 12]),
                                               tf.TensorShape([None, 6300, 15, 32]))),
                                               args=(data_dir, set_name, batch_size))
 

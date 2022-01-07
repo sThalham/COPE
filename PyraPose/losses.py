@@ -398,6 +398,42 @@ def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
     return _per_cls_l1
 
 
+def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
+
+    sigma_squared = sigma ** 2
+
+    def _per_cls_l1_sym(y_true, y_pred):
+
+        regression = tf.tile(y_pred[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
+        regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=4)
+        regression = tf.where(tf.math.equal(anchor_state, 1), regression, 0.0)
+
+        # compute smooth L1 loss
+        # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
+        #        |x| - 0.5 / sigma / sigma    otherwise
+        regression_diff = regression - regression_target
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+        regression_loss = tf.math.reduce_sum(regression_loss, axis=4) # sum per location, sym_hyp and cls
+        regression_loss = tf.math.reduce_min(regression_loss, axis=3)
+
+        # comp norm per class
+        normalizer = tf.math.reduce_max(anchor_state, axis=3)
+        normalizer = tf.math.reduce_sum(normalizer, axis=[0, 1, 3])
+        #retain per cls loss
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1])
+
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+
+        return weight * tf.math.reduce_sum(loss, axis=0)
+
+    return _per_cls_l1_sym
+
+
 def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
 
     sigma_squared = sigma ** 2

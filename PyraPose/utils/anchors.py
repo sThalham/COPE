@@ -49,11 +49,11 @@ def anchor_targets_bbox(
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 16), dtype=keras.backend.floatx())
     #bbox_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 3), dtype=keras.backend.floatx())
-    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 6), dtype=keras.backend.floatx())
+    locations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 3 + 3), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 6), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -65,6 +65,7 @@ def anchor_targets_bbox(
         #image_raw[..., 2] += 123.68
 
         image_locations = locations_for_shape(image.shape)
+        image_locations = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
         # w/o mask
         mask = annotations['mask'][0]
         # vanilla
@@ -103,69 +104,71 @@ def anchor_targets_bbox(
 
             if locations_positive_obj.shape[0] > 1:
 
+                labels_batch[index, locations_positive_obj, -1] = 1
+                labels_batch[index, locations_positive_obj, cls] = 1
+
+                # handling rotational symmetries
+                if np.sum(annotations['sym_con'][idx][0, :]) > 0:
+                    print('sym_con: ', annotations['sym_con'][idx][0, :])
+                    allo_pose = get_cont_sympose(allo_pose, annotations['sym_con'][idx])
+                    trans = np.eye(4)
+                    trans[:3, :3] = tf3d.quaternions.quat2mat(pose[3:]).reshape((3, 3))
+                    trans[:3, 3] = pose[:3]
+                    pose = get_cont_sympose(trans, annotations['sym_con'][idx])
+
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = pose[:3]
+                full_T = np.ones((4, 4))
+                full_T[:3, :3] = rot
+                full_T[:3, 3] = tra
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
                 tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
 
                 box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                                            cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 box3D = np.reshape(box3D, (16))
-                calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
+                #calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                #proj_diameter = (obj_diameter * annotations['cam_params'][idx][0]) / tra[2]
-                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :16] = points#[index_filter]
-                regression_batch[index, locations_positive_obj, cls, 16:] = 1
+                # handling discrete symmetries
+                hyps_boxes = np.repeat(box3D[np.newaxis, :], repeats=8, axis=0)
+                calculated_boxes = np.concatenate([calculated_boxes, hyps_boxes], axis=0)
 
-                #boxes2D = boxes_transform(bboxes, image_locations[locations_positive_obj, :], obj_diameter)
-                #bbox_batch[index, locations_positive_obj, cls, :4] = boxes2D  # [index_filter]
-                #bbox_batch[index, locations_positive_obj, cls, 4:] = 1
+                hyps_pose = np.repeat(allo_pose[np.newaxis, :, :], repeats=8, axis=0)
 
-                #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                #regression_batch[index, locations_positive_obj, cls, -1] = 1
-                #regression_batch[index, locations_positive_obj, cls, :-1] = points
-                #regression_batch[index, locations_positive_obj, -1] = 1
-                #regression_batch[index, locations_positive_obj, :-1] = points
-                #residual_batch[index, locations_positive_obj, -1] = 1
-                #residual_batch[index, locations_positive_obj, :-1] = points
-                labels_batch[index, locations_positive_obj, -1] = 1
-                labels_batch[index, locations_positive_obj, cls] = 1
-                #labels_batch[index, locations_positive_obj, cls, -1] = 1
-                #labels_batch[index, locations_positive_obj, cls, cls] = 1
-                #boxes_batch[index, locations_positive_obj, cls, -1] = 1
-                #boxes_batch[index, locations_positive_obj, cls, :-1] = boxes_transform(annotations['bboxes'][idx], image_locations[locations_positive_obj, :], obj_diameter)
-                locations_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                locations_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                locations_batch[index, locations_positive_obj, cls, 3:] = 1
-                #locations_batch[index, locations_positive_obj, cls, :4] = dq_array[4:]
-                #locations_batch[index, locations_positive_obj, cls, 4:] = 1
-                #rotations_batch[index, locations_positive_obj, cls, :4] = allocentric_rotation
-                #rotations_batch[index, locations_positive_obj, cls, 4:] = 1
-                rotations_batch[index, locations_positive_obj, cls, :6] = allo_pose[:3, :2].T.reshape(6)
-                rotations_batch[index, locations_positive_obj, cls, 6:] = 1
-                #confidences_batch[index, locations_positive_obj, cls, :2] = pose[:2] * 0.002
-                #confidences_batch[index, locations_positive_obj, cls, 2] = ((pose[2] * 0.001) - 1.0) * 3.0
-                #confidences_batch[index, locations_positive_obj, cls, 3:-1] = allo_pose[:3, :2].T.reshape(6)
-                #confidences_batch[index, locations_positive_obj, cls, -1] = 1
+                sym_disc = annotations['sym_dis'][idx]
+                if np.sum(np.abs(sym_disc)) != 0:
+                    print('sym_disc: ', sym_disc)
+                    for sdx in range(sym_disc.shape[0]):
+                        if np.sum(np.abs(sym_disc[sdx, :])) != 0:
+                            T_sym = np.matmul(full_T, np.array(sym_disc[sdx, :]).reshape((4, 4)).T)
+                            rot_sym = T_sym[:3, :3]
+                            tra = T_sym[:3, 3]
+                            tDbox = rot_sym.dot(annotations['segmentations'][idx].T).T
+                            tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+
+                            box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0],
+                                                fy=annotations['cam_params'][idx][1],
+                                                cx=annotations['cam_params'][idx][2],
+                                                cy=annotations['cam_params'][idx][3])
+                            box3D = np.reshape(box3D, (16))
+                            hyps_boxes[sdx, :] = box3D
+
+                            allo_sym = np.matmul(allo_pose, np.array(sym_disc[sdx, :]).reshape((4, 4)).T)
+                            hyps_pose[sdx, :, :] = allo_sym
+
+                points = box3D_transform_symmetric(hyps_boxes, image_locations[locations_positive_obj, :, :], obj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :, :16] = points
+                regression_batch[index, locations_positive_obj, cls, :, 16:] = 1
+
+                locations_batch[index, locations_positive_obj, cls, :, :2] = hyps_pose[:, :2, 3] * 0.002
+                locations_batch[index, locations_positive_obj, cls, :, 2] = ((hyps_pose[:, 2, 3] * 0.001) - 1.0) * 3.0
+                locations_batch[index, locations_positive_obj, cls, :, 3:] = 1
+
+                rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].T.reshape(8, 6)
+                rotations_batch[index, locations_positive_obj, cls, :, 6:] = 1
+
                 reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
-                #confidences_batch[index, locations_positive_obj, cls, :16] = points
-                #confidences_batch[index, locations_positive_obj, cls, 16:18] = pose[:2] * 0.002
-                #confidences_batch[index, locations_positive_obj, cls, 18] = ((pose[2] * 0.001) - 1.0) * 3.0
-                #confidences_batch[index, locations_positive_obj, cls, 19:25] = allo_pose[:3, :2].T.reshape(6)
-                #confidences_batch[index, locations_positive_obj, cls, 19:23] = allocentric_rotation
-                #confidences_batch[index, locations_positive_obj, cls, -1] = 1
-
-                #print('pose: ', pose[:2] * 0.002, ((pose[2] * 0.001) - 1.0) * 3.0)
-                #print('trans: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, :2] > 0.0)))
-                #print('depth: ', np.mean(np.where(poses_batch[index, locations_positive_obj, cls, 2] > 0.0)))
-
-                #bb = annotations['bboxes'][idx]
-                #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
-                #              (255, 255, 255), 2)
-                #cv2.rectangle(image_raw, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])),
-                #              (255, 0, 0), 1)
 
                 '''
                 tDbox = box3D.astype(np.uint16)
@@ -411,6 +414,47 @@ def box3D_transform(box, locations, obj_diameter, mean=None, std=None):
     return targets
 
 
+def box3D_transform_symmetric(box, locations, obj_diameter, mean=None, std=None):
+    """Compute bounding-box regression targets for an image."""
+
+    if mean is None:
+        mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    if std is None:
+        std = np.full(16, 0.65)
+
+    if isinstance(mean, (list, tuple)):
+        mean = np.array(mean)
+    elif not isinstance(mean, np.ndarray):
+        raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+    if isinstance(std, (list, tuple)):
+        std = np.array(std)
+    elif not isinstance(std, np.ndarray):
+        raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+    targets_dx0 = locations[:, :, 0] - box[:, 0]
+    targets_dy0 = locations[:, :, 1] - box[:, 1]
+    targets_dx1 = locations[:, :, 0] - box[:, 2]
+    targets_dy1 = locations[:, :, 1] - box[:, 3]
+    targets_dx2 = locations[:, :, 0] - box[:, 4]
+    targets_dy2 = locations[:, :, 1] - box[:, 5]
+    targets_dx3 = locations[:, :, 0] - box[:, 6]
+    targets_dy3 = locations[:, :, 1] - box[:, 7]
+    targets_dx4 = locations[:, :, 0] - box[:, 8]
+    targets_dy4 = locations[:, :, 1] - box[:, 9]
+    targets_dx5 = locations[:, :, 0] - box[:, 10]
+    targets_dy5 = locations[:, :, 1] - box[:, 11]
+    targets_dx6 = locations[:, :, 0] - box[:, 12]
+    targets_dy6 = locations[:, :, 1] - box[:, 13]
+    targets_dx7 = locations[:, :, 0] - box[:, 14]
+    targets_dy7 = locations[:, :, 1] - box[:, 15]
+
+    targets = np.stack((targets_dx0, targets_dy0, targets_dx1, targets_dy1, targets_dx2, targets_dy2, targets_dx3, targets_dy3, targets_dx4, targets_dy4, targets_dx5, targets_dy5, targets_dx6, targets_dy6, targets_dx7, targets_dy7), axis=2)
+    targets = (targets - mean) / (std * obj_diameter)
+
+    return targets
+
+
 def boxes_transform(box, locations, obj_diameter, mean=None, std=None):
     """Compute bounding-box regression targets for an image."""
 
@@ -447,4 +491,21 @@ def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
     ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy
 
     return np.stack((xpix, ypix), axis=1)
+
+
+def get_cont_sympose(trans, sym):
+
+    cam_in_obj = np.dot(np.linalg.inv(trans), (0, 0, 0, 1))
+    if sym[2] == 1:
+        alpha = math.atan2(cam_in_obj[1], cam_in_obj[0])
+        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(0.0, 0.0, alpha, 'sxyz'))
+    elif sym[1] == 1:
+        alpha = math.atan2(cam_in_obj[0], cam_in_obj[2])
+        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
+    elif sym[1] == 1:
+        alpha = math.atan2(cam_in_obj[2], cam_in_obj[1])
+        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
+    rot_pose[3:] = tf3d.quaternions.mat2quat(rota)
+
+    return rot_pose
 
