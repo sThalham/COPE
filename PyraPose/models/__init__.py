@@ -19,9 +19,7 @@ class Backbone(object):
             'FilterDetections'          : layers.FilterDetections,
             'ClipBoxes'                 : layers.ClipBoxes,
             '_smooth_l1'                : losses.smooth_l1(),
-            '_smooth_l1_weighted'       : losses.smooth_l1_weighted(),
             '_focal'                    : losses.focal(),
-            '_cross'                    : losses.cross(),
             '_orth_l1'                  : losses.orthogonal_l1(),
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
             'ProjectBoxes'              :layers.ProjectBoxes(),
@@ -29,11 +27,6 @@ class Backbone(object):
             'Locations'                 : layers.Locations(),
             'Locations_Hacked'          : layers.Locations_Hacked(),
             '_per_cls_l1'               : losses.per_cls_l1(),
-            '_per_cls_l1_pose'          : losses.per_cls_l1_pose(),
-            '_pcccl1'                   : losses.pcccl1(),
-            '_class_l1'                 : losses.per_cls_l1(),
-            '_residual_loss'            : losses.residual_loss(),
-            '_confidence_loss'            : losses.confidence_loss(),
             '_projection_deviation'     : losses.projection_deviation()
         }
 

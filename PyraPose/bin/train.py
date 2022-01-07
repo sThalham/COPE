@@ -79,17 +79,14 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         model          = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
-    # make prediction model
-    #prediction_model = inference_model(model=model)
-
     # compile model
     training_model.compile(
         loss={
             'points'        : losses.per_cls_l1(num_classes=num_classes, weight=1.3),
             #'bbox'          : losses.per_cls_l1(num_classes=num_classes, weight=1.0),
             'cls'           : losses.focal(),
-            'translations'  : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
-            'rotations'     : losses.per_cls_l1_pose(num_classes=num_classes, weight=0.15),
+            'translations'  : losses.per_cls_l1(num_classes=num_classes, weight=0.15),
+            'rotations'     : losses.per_cls_l1(num_classes=num_classes, weight=0.15),
             'reprojection'  : losses.projection_deviation(num_classes=num_classes, weight=0.1),
         },
         optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001)

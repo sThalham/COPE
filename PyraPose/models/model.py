@@ -158,13 +158,16 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     }
 
     if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(16, num_classes, None))
+        #inputs = keras.layers.Input(shape=(16, num_classes, None))
+        inputs = keras.layers.Input(shape=(16, None))
     else:
-        inputs = keras.layers.Input(shape=(None, num_classes, 16))
+        #inputs = keras.layers.Input(shape=(None, num_classes, 16))
+        inputs = keras.layers.Input(shape=(None, 16))
 
     outputs = inputs
 
-    outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
+    #outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
+    outputs = keras.layers.Reshape((-1, 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
     translations = keras.layers.Conv1D(3, **options)(outputs)
@@ -261,7 +264,6 @@ def pyrapose(
     pose_branch = default_pose_model(num_classes)
     boxes_branch = default_boxes_model(4)
     location_branch = default_classification_model(num_classes)
-    confidence_branch = default_confidence_model(num_classes)
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
@@ -295,43 +297,29 @@ def pyrapose(
 
     destd_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
 
-    location = pose_branch[1](destd_boxes)
-    rotation = pose_branch[0](destd_boxes)
+    #location = pose_branch[1](destd_boxes)
+    #rotation = pose_branch[0](destd_boxes)
+    location = pose_branch[1](regression)
+    rotation = pose_branch[0](regression)
     pyramids.append(location)
     pyramids.append(rotation)
 
-    # transform box with pose
-    poses = tf.concat([location, rotation], axis=3)
-    #rep_object_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(poses)[0], 6300, 1, 1, 1])
-    #rep_intrinsics = tf.tile(intrinsics[tf.newaxis, tf.newaxis, :], [1, 6300, 1])
-    #correspondences = tf.keras.backend.constant(obj_correspondences)
-    #intrinsics_tensor = tf.keras.backend.constant(intrinsics)
-    #projected_poses = layers.ProjectBoxes(name='ProjectBoxes')([poses, correspondences, intrinsics_tensor])
-    
-    #obj_correspondences = tf.tile(obj_correspondences, [1, 1, 1])
-    #intriniscs = tf.tile(intrinsics, [1])
+    x = location[:, :, 0] * 500.0
+    y = location[:, :, 1] * 500.0
+    z = ((location[:, :, 2] * (1 / 3)) + 1.0) * 1000.0
+    trans = tf.stack([x, y, z], axis=2)
+    trans = tf.tile(trans[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
 
-    x = location[:, :, :, 0] * 500.0
-    y = location[:, :, :, 1] * 500.0
-    z = ((location[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
-    trans = tf.stack([x, y, z], axis=3)
-    trans = tf.tile(trans[:, :, :, tf.newaxis, :], [1, 1, 1, 8, 1])
-
-    r1 = rotation[:, :, :, :3]
-    r2 = rotation[:, :, :, 3:]
+    r1 = rotation[:, :, :3]
+    r2 = rotation[:, :, 3:]
     r3 = tf.linalg.cross(r1, r2)
-    r3 = tf.math.l2_normalize(r3, axis=3)
-    rot = tf.stack([r1, r2, r3], axis=4)
+    r3 = tf.math.l2_normalize(r3, axis=2)
+    rot = tf.stack([r1, r2, r3], axis=3)
+    rot = tf.tile(rot[:, :, tf.newaxis, :, :], [1, 1, num_classes, 1, 1])
 
-    #box3d = tf.einsum('blcij,ckj->blcki', rot, obj_correspondences)
-    #rep_obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
     rep_obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
     box3d = tf.linalg.matmul(rot, rep_obj_correspondences, transpose_a=False, transpose_b=True)
     box3d = tf.transpose(box3d, perm=[0, 1, 2, 4, 3])
-    
-    #td_test = tf.linalg.matmul(rot, rep_obj_correspondences, transpose_a=True, transpose_b=True)
-    #tf.print('box3d: ', box3d)
-    #tf.print('td_test: ', td_test)
     box3d = tf.math.add(box3d, trans)
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
@@ -341,52 +329,14 @@ def pyrapose(
     projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
     projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
-    pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
-    
-    
+    #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
+    pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])
+
     discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
-    #discrepancy = tf.math.subtract(destd_boxes, projected_poses)
 
     rename_layer = keras.layers.Lambda(lambda x: x, name='reprojection')
     reprojection = rename_layer(discrepancy)
     pyramids.append(reprojection)
-    # project box
-
-    #confidence from reprojection
-    #rename_layer = keras.layers.Lambda(lambda x: x, name='confidence')
-    #confidences = rename_layer(discrepancy)
-    #poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
-    #pyramids.append(confidences)
-
-    # confidence regression
-    #P3_poses = tf.reshape(poses[:, :4800, :, :], [-1, 60, 80, num_classes*9])
-    #P4_poses = tf.reshape(poses[:, 4800:6000, :, :], [-1, 30, 40, num_classes*9])
-    #P5_poses = tf.reshape(poses[:, 6000:, :, :], [-1, 15, 20, num_classes*9])
-    #P3_confs = confidence_branch(P3_poses)
-    #P4_confs = confidence_branch(P4_poses)
-    #P5_confs = confidence_branch(P5_poses)
-    #confidences = tf.concat([P3_confs, P4_confs, P5_confs], axis=1)
-    #rename_conf = keras.layers.Lambda(lambda x: x, name='confidence')
-    #confidences = rename_conf(confidences)
-    #pyramids.append(confidences)
-
-
-    #P3_flat = tf.reshape(P3, [-1, 4800, 256])
-    #P4_flat = tf.reshape(P4, [-1, 1200, 256])
-    #P5_flat = tf.reshape(P5, [-1, 300, 256])
-    #features_reshaped = tf.concat([P3_flat, P4_flat, P5_flat], axis=1)
-    #poses = tf.concat([location, rotation], axis=3)
-    #poses_over_classes = tf.reshape(poses, [-1, 6300, num_classes*9])
-    #poses_conditioned_to_features = tf.concat([features_reshaped, poses_over_classes], axis=2)
-    #confidences = confidence_branch(poses_conditioned_to_features)
-    #pyramids.append(confidences)
-
-    # confidence regression + pose conditioning
-    #poses_conditioned_on_boxes = tf.concat([regression_tiled, location, rotation], axis=3)
-    #print('poses_conditioned_on_boxes: ', poses_conditioned_on_boxes)
-    #poses_conditioned_on_boxes = tf.reshape(poses_conditioned_on_boxes, [-1, 6300, num_classes * (16 + 7)])
-    #confidences = confidence_branch(poses_conditioned_on_boxes)
-    #pyramids.append(confidences)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
