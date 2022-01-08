@@ -418,16 +418,15 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
             0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
             regression_diff - 0.5 / sigma_squared
         )
-        regression_loss = tf.math.reduce_sum(regression_loss, axis=4) # sum per location, sym_hyp and cls
-        regression_loss = tf.math.reduce_min(regression_loss, axis=3)
+        regression_loss = tf.math.reduce_sum(regression_loss, axis=4) # accumulate over amount of regressed value
+        regression_loss = tf.math.reduce_min(regression_loss, axis=3) # reduce regression loss to min hypothesis
 
         # comp norm per class
-        normalizer = tf.math.reduce_max(anchor_state, axis=3)
-        normalizer = tf.math.reduce_sum(normalizer, axis=[0, 1, 3])
-        #retain per cls loss
-        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1])
+        normalizer = tf.math.reduce_max(anchor_state, axis=3) # reduce normalizer to single hypothesis per location
+        normalizer = tf.math.reduce_sum(normalizer, axis=[0, 1, 3]) # accumulate over batch, locations and regressed values
 
-        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1]) # loss per cls remaining
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
 
         return weight * tf.math.reduce_sum(loss, axis=0)
 
