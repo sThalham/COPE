@@ -98,18 +98,6 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
 def create_callbacks(model, args, validation_generator=None, train_generator=None):
     callbacks = []
 
-    tensorboard_callback = None
-
-    #if validation_generator:
-    #    if args.dataset_type == 'linemod':
-    #        from ..callbacks.linemod import LinemodEval
-    #        evaluation = LinemodEval(validation_generator, train_generator)
-
-     #   else:
-     #       evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
-     #   evaluation = RedirectModel(evaluation, prediction_model)
-     #   callbacks.append(evaluation)
-
     # save the model
     if args.snapshots:
         # ensure directory created first; otherwise h5py will error after epoch.
@@ -189,9 +177,53 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
-            correspondences[int(key-1), :, :] = three_box_solo
-            sphere_diameters[int(key-1)] = value['diameter']
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
         path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+
+    elif args.dataset_type == 'ycbv':
+        from ..preprocessing.data_ycbv import YcbvDataset
+
+        dataset = YcbvDataset(args.ycbv_path, 'train', batch_size=args.batch_size)
+        num_classes = 21
+        train_samples = 50000
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
+        )
+        mesh_info = os.path.join(args.ycbv_path, 'annotations', 'models_info' + '.yml')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
+        path = os.path.join(args.ycbv_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
         image_ann = data["images"]
@@ -219,6 +251,9 @@ def parse_args(args):
 
     linemod_parser = subparsers.add_parser('linemod')
     linemod_parser.add_argument('linemod_path', help='Path to dataset directory (ie. /tmp/linemod).')
+
+    ycbv_parser = subparsers.add_parser('ycbv')
+    ycbv_parser.add_argument('ycbv_path', help='Path to dataset directory (ie. /tmp/ycbv).')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--snapshot',          help='Resume training from a snapshot.')

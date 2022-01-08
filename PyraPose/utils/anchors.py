@@ -110,11 +110,13 @@ def anchor_targets_bbox(
                 # handling rotational symmetries
                 if np.sum(annotations['sym_con'][idx][0, :]) > 0:
                     print('sym_con: ', annotations['sym_con'][idx][0, :])
-                    allo_pose = get_cont_sympose(allo_pose, annotations['sym_con'][idx])
+                    allo_full = np.concatenate([allo_pose, np.array([[0.0, 0.0, 0.0, 1.0]])], axis=0)
+                    allo_pose = get_cont_sympose(allo_full, annotations['sym_con'][idx])
                     trans = np.eye(4)
                     trans[:3, :3] = tf3d.quaternions.quat2mat(pose[3:]).reshape((3, 3))
                     trans[:3, 3] = pose[:3]
-                    pose = get_cont_sympose(trans, annotations['sym_con'][idx])
+                    pose_mat = get_cont_sympose(trans, annotations['sym_con'][idx])
+                    pose[3:] = tf3d.quaternions.mat2quat(pose_mat[:3, :3])
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -493,18 +495,19 @@ def toPix_array(translation, fx=None, fy=None, cx=None, cy=None):
     return np.stack((xpix, ypix), axis=1)
 
 
-def get_cont_sympose(trans, sym):
+def get_cont_sympose(rot_pose, sym):
 
-    cam_in_obj = np.dot(np.linalg.inv(trans), (0, 0, 0, 1))
-    if sym[2] == 1:
+    print('trans: ', rot_pose)
+    cam_in_obj = np.dot(np.linalg.inv(rot_pose), (0, 0, 0, 1))
+    if sym[0][2] == 1:
         alpha = math.atan2(cam_in_obj[1], cam_in_obj[0])
-        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(0.0, 0.0, alpha, 'sxyz'))
-    elif sym[1] == 1:
+        rota = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, 0.0, alpha, 'sxyz'))
+    elif sym[0][1] == 1:
         alpha = math.atan2(cam_in_obj[0], cam_in_obj[2])
-        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
-    elif sym[1] == 1:
+        rota = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
+    elif sym[0][1] == 1:
         alpha = math.atan2(cam_in_obj[2], cam_in_obj[1])
-        rota = np.dot(trans[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
+        rota = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
     rot_pose[3:] = tf3d.quaternions.mat2quat(rota)
 
     return rot_pose

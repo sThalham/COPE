@@ -55,7 +55,7 @@ def _isArrayLike(obj):
     return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
 
 
-class LinemodDataset(tf.data.Dataset):
+class YcbvDataset(tf.data.Dataset):
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
@@ -130,10 +130,10 @@ class LinemodDataset(tf.data.Dataset):
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
 
         # load 3D boxes
-        TDboxes = np.ndarray((16, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((16), dtype=np.float32)
-        sym_cont = np.zeros((34, 2, 3), dtype=np.float32)
-        sym_disc = np.zeros((34, 8, 16), dtype=np.float32)
+        TDboxes = np.ndarray((22, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((22), dtype=np.float32)
+        sym_cont = np.zeros((22, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((22, 8, 16), dtype=np.float32)
 
         for key, value in yaml.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -373,10 +373,10 @@ class LinemodDataset(tf.data.Dataset):
                                               output_types=(tf.dtypes.float32,
                                                             (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
                                               output_shapes=(tf.TensorShape([None, None, None, None]), (
-                                              tf.TensorShape([None, 6300, 15, 8, 32]),
-                                              tf.TensorShape([None, 6300, 15 + 1]), # +1 for background class
-                                              tf.TensorShape([None, 6300, 15, 8, 6]),
-                                              tf.TensorShape([None, 6300, 15, 8, 12]),
-                                              tf.TensorShape([None, 6300, 15, 32]))),
+                                              tf.TensorShape([None, 6300, 21, 8, 32]),
+                                              tf.TensorShape([None, 6300, 21 + 1]), # +1 for background class
+                                              tf.TensorShape([None, 6300, 21, 8, 6]),
+                                              tf.TensorShape([None, 6300, 21, 8, 12]),
+                                              tf.TensorShape([None, 6300, 21, 32]))),
                                               args=(data_dir, set_name, batch_size))
 
