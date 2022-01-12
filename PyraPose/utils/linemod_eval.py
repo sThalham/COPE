@@ -360,18 +360,21 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         else:
             trueDets[true_cls] += 1
 
-        cons_cls = confs[:, cls]
+        #cons_cls = confs[:, cls]
+        print('confs: ', confs.shape)
         n_hyps = 3
         if confs.shape[0] < n_hyps:
             n_hyps = confs.shape[0]
         conf_ranks = np.argsort(confs[:, cls])
-        confs_ranked = confs[conf_ranks, cls]
-        poses_cls = np.median(poses[conf_ranks[:n_hyps], cls, :], axis=0)
+        #confs_ranked = confs[conf_ranks, cls]
+        print('poses: ', poses.shape)
+        print('conf idxs: ', conf_ranks[:n_hyps])
+        poses_cls = np.median(poses[conf_ranks[:n_hyps], :], axis=0)
 
         #poses_cls = poses[np.argmax(scores), cls, :]
         #poses_cls = np.mean(poses[:, cls, :], axis=0)
         #poses_cls = np.median(poses[:, cls, :], axis=0)
-        pose_set = poses[:, cls, :]
+        pose_set = poses#[:, cls, :]
         boxes3D_set = boxes3D
         #poses_cls = poses[np.argmax(confs[:, cls]), cls, :]
         #dq = DualQuaternion.from_dq_array(poses_cls)
@@ -434,7 +437,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # max_center = np.argmax(centerns)
         # pose_votes = pose_votes[:, max_center, :]
 
-        '''
+
         est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
         obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
         obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -444,11 +447,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                            distCoeffs=None, rvec=None, tvec=None,
                                                            useExtrinsicGuess=False, iterationsCount=300,
                                                            reprojectionError=5.0, confidence=0.99,
-                                                           flags=cv2.SOLVEPNP_ITERATIVE)
+                                                           flags=cv2.SOLVEPNP_EPNP)
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
         t_est = t_est[0]
-        '''
+
 
         # quaternion
         #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
@@ -458,13 +461,13 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #t_est = poses_cls[:3, 3] * 0.001
         #t_est = t_est * -1.0
         # R6d
-        R_est = np.eye(3)
-        R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
-        R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
-        R3 = np.cross(R_est[:3, 0], poses_cls[6:])
-        R_est[:3, 2] = R3 / np.linalg.norm(R3)
+        #R_est = np.eye(3)
+        #R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
+        #R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
+        #R3 = np.cross(R_est[:3, 0], poses_cls[6:])
+        #R_est[:3, 2] = R3 / np.linalg.norm(R3)
         ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
-        t_est = poses_cls[:3] * 0.001
+        #t_est = poses_cls[:3] * 0.001
        
         print('poses_cls: ', poses_cls[3:])
         print('R_est: ', R_est)

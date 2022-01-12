@@ -388,6 +388,9 @@ def inference_model(
     consistency = model.outputs[4]
     cons1, cons2 = tf.split(consistency, num_or_size_splits=2, axis=3)
     consistency = tf.math.reduce_euclidean_norm(cons1 - cons2, axis=3)
+    print('regression: ', regression)
+    print('translation: ', translations)
+    print('rotations: ', rotations)
     print('consistency: ', consistency)
 
     #confidences = model.outputs[4]
@@ -403,7 +406,7 @@ def inference_model(
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
 
-    poses = tf.concat([detections[4], detections[5]], axis=3)
+    poses = tf.concat([detections[4], detections[5]], axis=2)
     poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
 
