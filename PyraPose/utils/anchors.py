@@ -49,11 +49,11 @@ def anchor_targets_bbox(
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 16), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 1), dtype=keras.backend.floatx())
     #bbox_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    locations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 3 + 3), dtype=keras.backend.floatx())
-    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 6), dtype=keras.backend.floatx())
+    locations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 3 + 1), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 1), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
 
     # compute labels and regression targets

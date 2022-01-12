@@ -404,9 +404,16 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
     def _per_cls_l1_sym(y_true, y_pred):
 
-        regression = tf.tile(y_pred[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
-        regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=4)
-        regression = tf.where(tf.math.equal(anchor_state, 1), regression, 0.0)
+        #regression = tf.tile(y_pred[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
+        #regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=4)
+        regression_target = y_true[:, :, :, :, :-1]
+        anchor_state = y_true[:, :, :, :, -1]
+        anchor_state = tf.math.reduce_max(anchor_state, axis=[2, 3])
+        anchor_state = tf.where(tf.math.equal(anchor_state, 1))
+        regression = tf.gather_nd(y_true, anchor_state)
+        print('anchor_state: ', anchor_state)
+        regression = tf.where(tf.math.equal(anchor_state, 1), y_pred, 0.0)
+        print('regression: ', regression)
 
         # compute smooth L1 loss
         # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
