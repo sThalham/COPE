@@ -366,14 +366,14 @@ def anchor_targets_bbox(
 
                 points = box3D_transform_symmetric(hyps_boxes, image_locations[locations_positive_obj, :, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, :, :16] = points
-                regression_batch[index, locations_positive_obj, cls, :, 16:] = 1
+                regression_batch[index, locations_positive_obj, cls, :, -1] = 1
 
                 locations_batch[index, locations_positive_obj, cls, :, :2] = hyps_pose[:, :2, 3] * 0.002
                 locations_batch[index, locations_positive_obj, cls, :, 2] = ((hyps_pose[:, 2, 3] * 0.001) - 1.0) * 3.0
-                locations_batch[index, locations_positive_obj, cls, :, 3:] = 1
+                locations_batch[index, locations_positive_obj, cls, :, -1] = 1
 
                 rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].T.reshape(8, 6)
-                rotations_batch[index, locations_positive_obj, cls, :, 6:] = 1
+                rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
 
                 reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
 
@@ -425,7 +425,7 @@ def anchor_targets_bbox(
             name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
-
+        #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
 
     return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)

@@ -407,32 +407,38 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         #regression = tf.tile(y_pred[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
         #regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=4)
         regression_target = y_true[:, :, :, :, :-1]
+        in_shape = tf.shape(regression_target)
         anchor_state = y_true[:, :, :, :, -1]
-        anchor_state = tf.math.reduce_max(anchor_state, axis=[2, 3])
-        anchor_state = tf.where(tf.math.equal(anchor_state, 1))
-        regression = tf.gather_nd(y_true, anchor_state)
-        print('anchor_state: ', anchor_state)
-        regression = tf.where(tf.math.equal(anchor_state, 1), y_pred, 0.0)
-        print('regression: ', regression)
+        anchor_state = tf.reshape(anchor_state, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3]])
+        indices = tf.math.reduce_max(anchor_state, axis=[1, 2])
+        indices = tf.where(tf.math.equal(indices, 1))#[:, 0]
+        y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[4]])
+        regression = tf.gather_nd(y_pred_res, indices)#, axis=0)
+        y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3], in_shape[4]])
+        regression_target = tf.gather_nd(y_true_res, indices)#, axis=0)
+        #regression = tf.where(tf.math.equal(anchor_state, 1), y_pred, 0.0)
+
+        regression = tf.transpose(regression, perm=[1, 0])
+        regression_target = tf.transpose(regression_target, perm=[2, 1, 3, 0])
 
         # compute smooth L1 loss
         # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
         #        |x| - 0.5 / sigma / sigma    otherwise
-        regression_diff = regression - regression_target
+        regression_diff = regression_target - regression
         regression_diff = keras.backend.abs(regression_diff)
         regression_loss = backend.where(
             keras.backend.less(regression_diff, 1.0 / sigma_squared),
             0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
             regression_diff - 0.5 / sigma_squared
         )
-        regression_loss = tf.math.reduce_sum(regression_loss, axis=4) # accumulate over amount of regressed value
-        regression_loss = tf.math.reduce_min(regression_loss, axis=3) # reduce regression loss to min hypothesis
+        regression_loss = tf.math.reduce_min(regression_loss, axis=0) # reduce regression loss to min hypothesis
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[1, 2])
 
         # comp norm per class
-        normalizer = tf.math.reduce_max(anchor_state, axis=3) # reduce normalizer to single hypothesis per location
-        normalizer = tf.math.reduce_sum(normalizer, axis=[0, 1, 3]) # accumulate over batch, locations and regressed values
+        normalizer = tf.math.reduce_max(anchor_state, axis=2) # reduce normalizer to single hypothesis per location
+        normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(in_shape[4], dtype=tf.float32) # accumulate over batch, locations and regressed values
 
-        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1]) # loss per cls remaining
+        #per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1]) # loss per cls remaining
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
 
         return weight * tf.math.reduce_sum(loss, axis=0)
