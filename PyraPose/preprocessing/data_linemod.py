@@ -381,6 +381,6 @@ class LinemodDataset(tf.data.Dataset):
                                               tf.TensorShape([None, 6300, 15 + 1]), # +1 for background class
                                               tf.TensorShape([None, 6300, 15, 8, 4]),
                                               tf.TensorShape([None, 6300, 15, 8, 7]),
-                                              tf.TensorShape([None, 6300, 15, 32]))),
+                                              tf.TensorShape([None, 6300, 15]))),
                                               args=(data_dir, set_name, batch_size))
 

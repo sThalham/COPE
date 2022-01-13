@@ -332,8 +332,8 @@ def pyrapose(
     #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])
 
-    discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
-    #discrepancy = destd_boxes - pro_boxes
+    #discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
+    discrepancy = destd_boxes - pro_boxes
 
     rename_layer = keras.layers.Lambda(lambda x: x, name='reprojection')
     reprojection = rename_layer(discrepancy)

@@ -54,7 +54,7 @@ def anchor_targets_bbox(
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 3 + 1), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 1), dtype=keras.backend.floatx())
-    reprojection_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 16), dtype=keras.backend.floatx())
+    reprojection_batch = np.zeros((batch_size, location_shape, num_classes), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -375,7 +375,7 @@ def anchor_targets_bbox(
                 rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
                 rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
 
-                reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
+                reprojection_batch[index, locations_positive_obj, cls] = 1
 
                 '''
 

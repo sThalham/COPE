@@ -453,6 +453,44 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
 
     def _projection_deviation(y_true, y_pred):
 
+        in_shape_gt = tf.shape(y_true)
+        in_shape_es = tf.shape(y_pred)
+        anchor_state = tf.reshape(y_true, [in_shape_gt[0] * in_shape_gt[1], in_shape_gt[2]])
+        indices = tf.math.reduce_max(anchor_state, axis=1)
+        indices = tf.where(tf.math.equal(indices, 1))[:, 0]
+
+        regression = tf.reshape(y_pred, [in_shape_es[0] * in_shape_es[1], in_shape_es[2], in_shape_es[3]])
+        regression = tf.gather(regression, indices, axis=0)
+        #tf.print('regression: ', tf.shape(regression))
+
+        regression_diff = keras.backend.abs(regression) * 0.001
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+
+        # comp norm per class
+        normalizer = tf.math.reduce_sum(anchor_state, axis=0) * tf.cast(in_shape_es[3], dtype=tf.float32)
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 2])
+        #tf.print('normalizer: ', normalizer)
+        #tf.print('per_cls_loss: ', per_cls_loss)
+
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+        #tf.print('loss: ', loss)
+
+        return weight * tf.math.reduce_sum(loss, axis=0)
+
+    return _projection_deviation
+
+
+'''
+def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
+
+    sigma_squared = sigma ** 2
+
+    def _projection_deviation(y_true, y_pred):
+
         boxes, reprojection = tf.split(y_pred, num_or_size_splits=2, axis=3)
         regression = (boxes-reprojection) * 0.01 # requires some scaling due to magnitude of pixel space location
 
@@ -482,4 +520,4 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
         return weight * tf.math.reduce_sum(loss, axis=0)
 
     return _projection_deviation
-
+'''

@@ -84,9 +84,9 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         loss={
             'points'        : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
             'cls'           : losses.focal(),
-            'translations'  : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.15),
+            'translations'  : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
             'rotations'     : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.15),
-            'reprojection'  : losses.projection_deviation(num_classes=num_classes, weight=0.1),
+            'reprojection'  : losses.projection_deviation(num_classes=num_classes, weight=0.2),
         },
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )
