@@ -78,7 +78,7 @@ class ResNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
+def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -104,7 +104,7 @@ def resnet_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    print("trainable_weights:", len(layer.trainable_weights))
         #    print("non_trainable_weights:", len(layer.non_trainable_weights))
 
-    resnet = replace_relu_with_swish(resnet)
+    #resnet = replace_relu_with_swish(resnet)
 
         # invoke modifier if given
     if modifier:
