@@ -114,6 +114,6 @@ def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=No
     #xception_outputs = [resnet.layers[31].output, resnet.layers[121].output, resnet.layers[131].output]
 
     # create the full model
-    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=resnet_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, backbone_layers=resnet_outputs, **kwargs)
 
 
