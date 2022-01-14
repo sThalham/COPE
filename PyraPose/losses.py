@@ -410,21 +410,21 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         anchor_state = tf.reshape(anchor_state, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3]])
         indices = tf.math.reduce_max(anchor_state, axis=[1, 2])
         indices = tf.where(tf.math.equal(indices, 1))[:, 0]
-        indices_cls = tf.math.reduce_max(anchor_state, axis=[0, 2])
-        indices_cls = tf.where(tf.math.equal(indices_cls, 1))[:, 0]
+        #indices_cls = tf.math.reduce_max(anchor_state, axis=[0, 2])
+        #indices_cls = tf.where(tf.math.equal(indices_cls, 1))[:, 0]
 
         y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[4]])
         regression = tf.gather(y_pred_res, indices, axis=0)
         y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3], in_shape[4]])
         regression_target = tf.gather(y_true_res, indices, axis=0)
-        regression_target = tf.gather(regression_target, indices_cls, axis=1)
+        #regression_target = tf.gather(regression_target, indices_cls, axis=1)
         #tf.print('regression: ', tf.shape(regression))
         #tf.print('regression_target: ', tf.shape(regression_target))
 
         regression = tf.transpose(regression, perm=[1, 0])
         regression_target = tf.transpose(regression_target, perm=[2, 1, 3, 0])
 
-        reg_single_hyp = tf.math.reduce_max(regression_target, axis=0)
+        #reg_single_hyp = tf.math.reduce_max(regression_target, axis=0)
         #tf.print('regression: ', in_shape[4], tf.math.reduce_sum(reg_single_hyp))
 
         # compute smooth L1 loss
@@ -438,13 +438,18 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
             regression_diff - 0.5 / sigma_squared
         )
         regression_loss = tf.math.reduce_min(regression_loss, axis=0) # reduce regression loss to min hypothesis
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
+        #per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[1, 2])
+        anchor_anno = tf.gather(anchor_state, indices, axis=0)
+        anchor_anno = tf.transpose(anchor_anno, perm=[2, 1, 0])
+        regression_loss = tf.where(tf.math.equal(anchor_anno, 1), regression_loss, 0.0)
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[1, 2])
 
         # comp norm per class
         normalizer = tf.math.reduce_max(anchor_state, axis=2) # reduce normalizer to single hypothesis per location
         normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(in_shape[4], dtype=tf.float32) # accumulate over batch, locations and regressed values
-        cls_idx = tf.where(tf.math.not_equal(normalizer, 0))[:, 0]
-        normalizer = tf.gather(normalizer, cls_idx)
+        #cls_idx = tf.where(tf.math.not_equal(normalizer, 0))[:, 0]
+        #normalizer = tf.gather(normalizer, cls_idx)
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
 
         return weight * tf.math.reduce_sum(loss, axis=0)
