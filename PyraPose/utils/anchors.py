@@ -71,7 +71,7 @@ def anchor_targets_bbox(
         #raw_images.append(copy.deepcopy(image_raw))
 
         image_locations = locations_for_shape(image.shape)
-        image_locations = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
+        image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
         # w/o mask
         mask = annotations['mask'][0]
         # vanilla
@@ -364,7 +364,7 @@ def anchor_targets_bbox(
                     raw_images[0] = image_ns
                 '''
 
-                points = box3D_transform_symmetric(hyps_boxes, image_locations[locations_positive_obj, :, :], obj_diameter)
+                points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, :, :16] = points
                 regression_batch[index, locations_positive_obj, cls, :, -1] = 1
 
@@ -425,6 +425,8 @@ def anchor_targets_bbox(
             name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
+        single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
+        #print('sum bboxes: ', np.sum(single_hyp_box))
         #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
 

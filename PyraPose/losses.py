@@ -418,9 +418,14 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3], in_shape[4]])
         regression_target = tf.gather(y_true_res, indices, axis=0)
         regression_target = tf.gather(regression_target, indices_cls, axis=1)
+        #tf.print('regression: ', tf.shape(regression))
+        #tf.print('regression_target: ', tf.shape(regression_target))
 
         regression = tf.transpose(regression, perm=[1, 0])
         regression_target = tf.transpose(regression_target, perm=[2, 1, 3, 0])
+
+        reg_single_hyp = tf.math.reduce_max(regression_target, axis=0)
+        #tf.print('regression: ', in_shape[4], tf.math.reduce_sum(reg_single_hyp))
 
         # compute smooth L1 loss
         # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
@@ -461,7 +466,7 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
 
         regression = tf.reshape(y_pred, [in_shape_es[0] * in_shape_es[1], in_shape_es[2], in_shape_es[3]])
         regression = tf.gather(regression, indices, axis=0)
-        #tf.print('regression: ', tf.shape(regression))
+        #tf.print('regression projection: ', tf.shape(regression))
 
         regression_diff = keras.backend.abs(regression) * 0.001
         regression_loss = backend.where(
@@ -471,9 +476,10 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
         )
 
         # comp norm per class
+        #tf.print('anchor state projection: ', tf.shape(anchor_state))
         normalizer = tf.math.reduce_sum(anchor_state, axis=0) * tf.cast(in_shape_es[3], dtype=tf.float32)
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 2])
-        #tf.print('normalizer: ', normalizer)
+        #tf.print('normalizer repro: ', normalizer)
         #tf.print('per_cls_loss: ', per_cls_loss)
 
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
