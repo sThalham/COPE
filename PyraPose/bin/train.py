@@ -286,7 +286,7 @@ def main(args=None):
         args = sys.argv[1:]
     args = parse_args(args)
 
-    disable_eager_execution()
+    #disable_eager_execution()
 
     backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
