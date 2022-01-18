@@ -23,10 +23,11 @@ import yaml
 import numpy as np
 
 import tensorflow.keras as keras
+from tensorflow.keras import mixed_precision
 import tensorflow.keras.preprocessing.image
 import tensorflow as tf
 import json
-#from tensorflow.python.framework.ops import disable_eager_execution
+from tensorflow.python.framework.ops import disable_eager_execution
 
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
@@ -158,6 +159,7 @@ def create_generators(args, preprocess_image):
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
             num_parallel_calls=args.workers
         )
+        dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
         mesh_info = os.path.join(args.linemod_path, 'annotations', 'models_info' + '.yml')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
@@ -284,7 +286,7 @@ def main(args=None):
         args = sys.argv[1:]
     args = parse_args(args)
 
-    #disable_eager_execution()
+    disable_eager_execution()
 
     backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
@@ -300,8 +302,8 @@ def main(args=None):
 
     # create the generators
     dataset, num_classes, correspondences, obj_diameters, train_samples, intrinsics = create_generators(args, backbone.preprocess_image)
-    #correspondences = tf.convert_to_tensor(correspondences)
-    #intrinsics = tf.convert_to_tensor(intrinsics)
+    #correspondences = tf.convert_to_tensor(correspondences, dtype=tf.float16)
+    #intrinsics = tf.convert_to_tensor(intrinsics, dtype=tf.float16)
 
     # create the model
     if args.snapshot is not None:

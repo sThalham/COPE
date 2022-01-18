@@ -404,9 +404,12 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
     def _per_cls_l1_sym(y_true, y_pred):
 
-        regression_target = y_true[:, :, :, :, :-1]
+        regression_target = tf.tile(y_true[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
+        #regression_target = y_true[:, :, :, :, :-1]
+        regression_target = regression_target[:, :, :, :, :-1]
         in_shape = tf.shape(regression_target)
-        anchor_state = y_true[:, :, :, :, -1]
+        #anchor_state = y_true[:, :, :, :, -1]
+        anchor_state = regression_target[:, :, :, :, -1]
         anchor_state = tf.reshape(anchor_state, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3]])
         indices = tf.math.reduce_max(anchor_state, axis=[1, 2])
         indices = tf.where(tf.math.equal(indices, 1))[:, 0]

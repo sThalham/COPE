@@ -425,7 +425,7 @@ def anchor_targets_bbox(
             name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
             cv2.imwrite(name, image_raw)
         '''
-        single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
+        #single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
         #print('sum bboxes: ', np.sum(single_hyp_box))
         #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
