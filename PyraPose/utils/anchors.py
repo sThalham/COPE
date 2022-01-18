@@ -430,7 +430,8 @@ def anchor_targets_bbox(
         #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
 
-    return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
+    return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch
+    #return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
 
 
 def layer_shapes(image_shape, model):
