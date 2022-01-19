@@ -23,7 +23,7 @@ from ..utils.image import preprocess_image
 
 
 def replace_relu_with_swish(model):
-    for layer in tuple(model.layers):
+    for layer in tuple(model.layers[1:]):
         layer_type = type(layer).__name__
         if hasattr(layer, 'activation') and layer.activation.__name__ == 'relu':
             if layer_type == "Conv2D":
@@ -78,7 +78,7 @@ class XceptionBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
+def xception_model(num_classes, obj_diameters, correspondences=None, intrinsics=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -97,7 +97,7 @@ def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    layer.trainable=False
         if i < 22 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        print(i, layer.name, layer)
+            #print(i, layer.name, layer.type)
 
         # if 'bn' in layer.name:
         #    layer.trainable = False
@@ -105,7 +105,7 @@ def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
         #    print("trainable_weights:", len(layer.trainable_weights))
         #    print("non_trainable_weights:", len(layer.non_trainable_weights))
 
-    #resnet = replace_relu_with_swish(resnet)
+    xception = replace_relu_with_swish(xception)
 
         # invoke modifier if given
     if modifier:
@@ -115,6 +115,6 @@ def xception_model(num_classes, inputs=None, modifier=None, **kwargs):
     xception_outputs = [xception.layers[29].output, xception.layers[119].output, xception.layers[129].output]
 
     # create the full model
-    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=xception_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, backbone_layers=xception_outputs, **kwargs)
 
 

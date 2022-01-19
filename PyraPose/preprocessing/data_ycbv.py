@@ -363,21 +363,22 @@ class YcbvDataset(tf.data.Dataset):
 
                 target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
-                image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
-                target_batch = tf.tuple(target_batch)
+                #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
+                #target_batch = tf.tuple(target_batch)
 
-                yield image_source_batch, target_batch
+                #yield image_source_batch, target_batch
+                yield image_source_batch, (
+                target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
 
     def __new__(self, data_dir, set_name, batch_size):
 
         return tf.data.Dataset.from_generator(self._generate,
-                                              output_types=(tf.dtypes.float32,
-                                                            (tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32, tf.dtypes.float32)),
-                                              output_shapes=(tf.TensorShape([None, None, None, None]), (
-                                              tf.TensorShape([None, 6300, 21, 8, 32]),
-                                              tf.TensorShape([None, 6300, 21 + 1]), # +1 for background class
-                                              tf.TensorShape([None, 6300, 21, 8, 6]),
-                                              tf.TensorShape([None, 6300, 21, 8, 12]),
-                                              tf.TensorShape([None, 6300, 21, 32]))),
+                                              output_signature=(
+                                              tf.TensorSpec(shape=(batch_size, 480, 640, 3), dtype=tf.float32),
+                                              (tf.TensorSpec(shape=(batch_size, 6300, 21, 8, 17), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 21 + 1), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 21, 8, 4), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 21, 8, 7), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 21), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 
