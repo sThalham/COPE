@@ -237,6 +237,50 @@ def create_generators(args, preprocess_image):
                 intrinsics[3] = img["cy"]
             break
 
+    elif args.dataset_type == 'custom':
+        from ..preprocessing.data_custom import CustomDataset
+
+        dataset = CustomDataset(args.custom_path, 'train', batch_size=args.batch_size)
+        num_classes = 20
+        train_samples = 10300
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
+        )
+        mesh_info = os.path.join(args.custom_path, 'annotations', 'models_info' + '.yml')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
+        path = os.path.join(args.custom_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
@@ -256,6 +300,9 @@ def parse_args(args):
     ycbv_parser = subparsers.add_parser('ycbv')
     ycbv_parser.add_argument('ycbv_path', help='Path to dataset directory (ie. /tmp/ycbv).')
 
+    custom_parser = subparsers.add_parser('custom')
+    custom_parser.add_argument('custom_path', help='Path to dataset directory (ie. /tmp/custom).')
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--snapshot',          help='Resume training from a snapshot.')
     group.add_argument('--imagenet-weights',  help='Initialize the model with pretrained imagenet weights. This is the default behaviour.', action='store_const', const=True, default=True)
@@ -270,8 +317,8 @@ def parse_args(args):
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
     parser.add_argument('--no-snapshots',     help='Disable saving snapshots.', dest='snapshots', action='store_false')
     parser.add_argument('--freeze-backbone',  help='Freeze training of backbone layers.', action='store_true')
-    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=480)
-    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=640)
+    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=1080)
+    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=1920)
 
     # Fit generator arguments
     parser.add_argument('--workers', help='Number of multiprocessing workers. To disable multiprocessing, set workers to 0', type=int, default=1)
@@ -288,11 +335,11 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    #backbone = models.backbone('resnet50')
+    backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
-    backbone = models.backbone('xception')
+    #backbone = models.backbone('xception')
     #backbone = models.backbone('densenet')
     #backbone = models.backbone('nasnetmobile')
 

@@ -85,7 +85,7 @@ def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=No
             inputs = keras.layers.Input(shape=(3, None, None))
         else:
             # inputs = keras.layers.Input(shape=(None, None, 3))
-            inputs = keras.layers.Input(shape=(480, 640, 3))
+            inputs = keras.layers.Input(shape=(None, None, 3))
 
     resnet = tf.keras.applications.ResNet50(
         include_top=False, weights='imagenet', input_tensor=inputs, classes=num_classes)

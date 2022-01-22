@@ -286,10 +286,12 @@ def pyrapose(
     location_P5 = location_branch(P5)
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
 
-    location_coordinates = layers.Locations_Hacked(name='denorm_locations')(P3)
+    #location_coordinates = layers.Locations_Hacked(name='denorm_locations')(P3)
+    location_coordinates = layers.Locations_Hacked(shape=[[135, 240], [68, 120], [34, 60]], name='denorm_locations')(P3)
     locations_tiled = tf.tile(tf.expand_dims(location_coordinates, axis=2, name='locations_expanded'),
                               [1, 1, num_classes, 1])
-    rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
+    #rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
+    rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 42600, 1, 16])
 
     regression_tiled = tf.tile(tf.expand_dims(regression, axis=2, name='regression_expanded'), [1, 1, num_classes, 1],
                                name='regression_tiled')
