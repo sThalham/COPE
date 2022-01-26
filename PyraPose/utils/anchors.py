@@ -375,6 +375,7 @@ def anchor_targets_bbox(
                 rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
                 rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
 
+                #reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 reprojection_batch[index, locations_positive_obj, cls] = 1
 
                 '''
