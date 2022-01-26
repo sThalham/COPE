@@ -15,7 +15,7 @@ def default_classification_model(
         'kernel_size': 3,
         'strides': 1,
         'padding': 'same',
-        # 'kernel_regularizer': keras.regularizers.l2(0.001),
+        'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
     if keras.backend.image_data_format() == 'channels_first':
@@ -101,14 +101,6 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
         'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer': 'zeros',
         'kernel_regularizer': keras.regularizers.l2(0.001),
-        # 'pointwise_regularizer': keras.regularizers.l2(0.001),
-        # 'depthwise_regularizer': keras.regularizers.l2(0.001),
-    }
-
-    options_centerness = {
-        'kernel_size': 3,
-        'strides': 1,
-        'padding': 'same',
     }
 
     if keras.backend.image_data_format() == 'channels_first':
@@ -125,26 +117,11 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
         )(outputs)
 
     regress = keras.layers.Conv2D(num_values, **options)(outputs)
-    # regress = keras.layers.SeparableConv2D(num_values, **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         regress = keras.layers.Permute((2, 3, 1))(regress)
     regress = keras.layers.Reshape((-1, num_values))(regress)
 
-    # conf = keras.layers.Conv2D(
-    #    filters=num_values,
-    #    kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
-    #    bias_initializer=initializers.PriorProbability(probability=prior_probability),
-    #    **options_centerness
-    # )(outputs)
-
-    # reshape output and apply sigmoid
-    # if keras.backend.image_data_format() == 'channels_first':
-    #    conf = keras.layers.Permute((2, 3, 1))(conf)
-    # conf = keras.layers.Reshape((-1, num_values))(conf) # centerness = keras.layers.Reshape((-1, num_classes))(centerness)
-    # conf = keras.layers.Activation('sigmoid')(conf)
-
-    # return keras.models.Model(inputs=inputs, outputs=regress)
-    return keras.models.Model(inputs=inputs, outputs=regress)  # , keras.models.Model(inputs=inputs, outputs=conf)
+    return keras.models.Model(inputs=inputs, outputs=regress)
 
 
 def default_pose_model(num_classes, prior_probability=0.01, regression_feature_size=512):
@@ -158,15 +135,12 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     }
 
     if keras.backend.image_data_format() == 'channels_first':
-        #inputs = keras.layers.Input(shape=(16, num_classes, None))
         inputs = keras.layers.Input(shape=(16, None))
     else:
-        #inputs = keras.layers.Input(shape=(None, num_classes, 16))
         inputs = keras.layers.Input(shape=(None, 16))
 
     outputs = inputs
 
-    #outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
     outputs = keras.layers.Reshape((-1, 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='swish', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='swish', **options)(outputs)
@@ -181,36 +155,6 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     rotations = tf.concat([rotations_1, rotations_2], axis=2)
 
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
-
-
-def default_confidence_model(num_classes):
-    options = {
-        'kernel_size': 1,
-        'strides': 1,
-        'padding': 'same',
-        'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
-        'bias_initializer': 'zeros',
-        'kernel_regularizer': keras.regularizers.l2(0.001),
-    }
-
-    if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(num_classes*9, None, None))
-        #inputs = keras.layers.Input(shape=(num_classes * (16 + 7), None))
-    else:
-        inputs = keras.layers.Input(shape=(None, None, num_classes*9))
-        #inputs = keras.layers.Input(shape=(None, num_classes * (16 + 7)))
-
-    outputs = inputs
-
-    outputs = keras.layers.Conv2D(filters=256, activation='swish', **options)(outputs)
-    outputs = keras.layers.Conv2D(filters=128, activation='swish', **options)(outputs)
-    outputs = keras.layers.Conv2D(filters=num_classes, **options)(outputs)
-    confidence = keras.layers.Activation('sigmoid')(outputs)
-
-    conf_out = tf.concat([inputs, confidence], axis=3)
-    conf_out = keras.layers.Reshape((-1, num_classes*10))(conf_out)
-
-    return keras.models.Model(inputs=inputs, outputs=conf_out, name='confidences')
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
