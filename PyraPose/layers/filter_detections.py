@@ -26,6 +26,7 @@ def filter_detections(
     translation,
     rotation,
     confidence,
+    num_classes,
     score_threshold       = 0.5,
     max_detections        = 300,
 ):
@@ -49,6 +50,7 @@ def filter_detections(
         other[i] is shaped (max_detections, ...) and contains the filtered other[i] data.
         In case there are less than max_detections detections, the tensors are padded with -1's.
     """
+
     def _filter_detections(scores, labels):
         # threshold based on score
         #indices = backend.where(keras.backend.greater(scores, score_threshold))
@@ -102,6 +104,9 @@ def filter_detections(
     labels = keras.backend.gather(labels, top_indices)
     locations = keras.backend.gather(locations, indices)
 
+    confidence = keras.backend.abs(confidence)
+    confidence = tf.math.reduce_sum(confidence, axis=2)
+
     # zero pad the outputs
     pad_size = keras.backend.maximum(0, max_detections - keras.backend.shape(scores)[0])
     boxes3D     = backend.pad(boxes3D, [[0, pad_size], [0, 0]], constant_values=-1)
@@ -128,7 +133,7 @@ def filter_detections(
     labels.set_shape([max_detections])
     translation.set_shape([max_detections, 3])
     rotation.set_shape([max_detections, 6])
-    confidence.set_shape([max_detections, 15])
+    confidence.set_shape([max_detections, num_classes])
     #tf.print('rotation reshaped: ', tf.shape(rotation))
     #tf.print('labels reshaped: ', tf.unique_with_counts(labels))
 
@@ -142,6 +147,7 @@ class FilterDetections(keras.layers.Layer):
 
     def __init__(
         self,
+        num_classes=None,
         score_threshold       = 0.5,
         max_detections        = 300,
         **kwargs
@@ -156,6 +162,7 @@ class FilterDetections(keras.layers.Layer):
             max_detections        : Maximum number of detections to keep.
             parallel_iterations   : Number of batch items to process in parallel.
         """
+        self.num_classes = num_classes
         self.score_threshold       = score_threshold
         self.max_detections        = max_detections
         super(FilterDetections, self).__init__(**kwargs)
@@ -189,6 +196,7 @@ class FilterDetections(keras.layers.Layer):
                 translation,
                 rotation,
                 confidence,
+                num_classes= self.num_classes,
                 score_threshold       = self.score_threshold,
                 max_detections        = self.max_detections,
             )
@@ -239,6 +247,7 @@ class FilterDetections(keras.layers.Layer):
         """
         config = super(FilterDetections, self).get_config()
         config.update({
+            'num_classes'           : self.num_classes,
             'score_threshold'       : self.score_threshold,
             'max_detections'        : self.max_detections,
             'parallel_iterations'   : 32,

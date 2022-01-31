@@ -312,15 +312,23 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         # run network
         t_start = time.time()
         eval_img = []
-        boxes3D, scores, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
-        print('forward: ', time.time() - t_start)
+        boxes3D, scores, labels, poses, consistency  = model.predict_on_batch(np.expand_dims(image, axis=0))
 
-        #boxes3D = boxes3D[labels != -1, :]
-        #scores = scores[labels != -1]
-        #labels = labels[labels != -1]
-        #poses = poses[labels != -1]
+        #print('box: ', boxes3D.shape)
+        #print('scores: ', scores.shape)
+        #print('poses: ', poses.shape)
+        #print('confs: ', consistency.shape)
+        #print('labels: ', labels.shape)
 
-        image = image_raw
+        boxes3D = boxes3D[labels != -1, :]
+        scores = scores[labels != -1]
+        confs = consistency[labels != -1]
+        poses = poses[labels != -1]
+        labels = labels[labels != -1]
+
+        image_mask = copy.deepcopy(image_raw)
+        image_box = copy.deepcopy(image_raw)
+        image_poses = copy.deepcopy(image_raw)
 
         for idx, lab in enumerate(checkLab):
             if lab == 1:
@@ -339,6 +347,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             box3D = toPix_array(tDbox)
             tDbox = np.reshape(box3D, (16))
             tDbox = tDbox.astype(np.uint16)
+
+            '''
 
             image = cv2.line(image, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image = cv2.line(image, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
@@ -362,6 +372,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                              colGT, 2)
             image = cv2.line(image, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                              colGT, 2)
+            '''
 
         print('unique: ', np.unique(labels))
         for inv_cls in np.unique(labels):
@@ -375,7 +386,14 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             pose_votes = boxes3D[labels == inv_cls]
             scores_votes = scores[labels == inv_cls]
             poses_votes = poses[labels == inv_cls]
+            confs_votes = confs[labels == inv_cls, inv_cls]
             labels_votes = labels[labels == inv_cls]
+
+            print('box: ', pose_votes.shape)
+            print('scores: ', scores_votes.shape)
+            print('poses: ', poses_votes.shape)
+            print('confs: ', confs_votes.shape)
+            print('labels: ', labels_votes.shape)
 
             cls_mask = scores_votes
 
@@ -389,15 +407,11 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
             trueDets[true_cls] += 1
 
-            #poses_cls = poses_votes[np.argmax(scores_votes), inv_cls, :]
-            #poses_cls = np.mean(poses_votes[:, inv_cls, :], axis=0)
-            poses_cls = np.median(poses_votes[:, cls, :], axis=0)
-            print(poses_votes.shape)
-
-            #eval_line = [anno['scene_id']]
-            #eval_line.append(anno['im_id'])
-            #eval_line.append(str(true_cls))
-            #eval_line.append(str(np.max(scores_votes)))
+            n_hyps = 3
+            if confs.shape[0] < n_hyps:
+                n_hyps = confs.shape[0]
+            conf_ranks = np.argsort(confs[:, cls])
+            poses_cls = np.mean(poses[confs_votes[:n_hyps], :], axis=0)
 
             '''
             print(pose_votes.shape)

@@ -332,12 +332,8 @@ def inference_model(
     translations = model.outputs[2]
     rotations = model.outputs[3]
     consistency = model.outputs[4]
-    cons1, cons2 = tf.split(consistency, num_or_size_splits=2, axis=3)
-    consistency = tf.math.reduce_euclidean_norm(cons1 - cons2, axis=3)
-    print('regression: ', regression)
-    print('translation: ', translations)
-    print('rotations: ', rotations)
-    print('consistency: ', consistency)
+    #cons1, cons2 = tf.split(consistency, num_or_size_splits=2, axis=3)
+    #consistency = tf.math.reduce_euclidean_norm(cons1 - cons2, axis=3)
 
     #confidences = model.outputs[4]
     #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
@@ -346,6 +342,7 @@ def inference_model(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
+        num_classes=num_classes,
     #)([regression, classification, locations, translations, rotations, confidences])
     )([regression, classification, locations, translations, rotations, consistency])
 
