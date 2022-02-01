@@ -358,4 +358,4 @@ def inference_model(
     # return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
     return keras.models.Model(inputs=model.inputs,
-                              outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
+                              outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)

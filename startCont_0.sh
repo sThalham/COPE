@@ -1,7 +1,7 @@
 #!/bin/bash
 
-sudo docker build --no-cache -t uape_gpu .
-thispid=$(sudo docker run --gpus all --network=host --name=uape_gpu -t -d -v ~/data:/PyraPoseAF/data -v ~/data/Meshes:/PyraPose/Meshes uape_gpu)
+sudo docker build --no-cache -t cope_gpu .
+thispid=$(sudo docker run --gpus all --network=host --name=cope_gpu -t -d -v /home/stefan:/home cope_gpu)
 
 #sudo nvidia-docker exec -it $thispid bash
 

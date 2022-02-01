@@ -312,18 +312,13 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         # run network
         t_start = time.time()
         eval_img = []
-        boxes3D, scores, labels, poses, consistency  = model.predict_on_batch(np.expand_dims(image, axis=0))
-
-        #print('box: ', boxes3D.shape)
-        #print('scores: ', scores.shape)
-        #print('poses: ', poses.shape)
-        #print('confs: ', consistency.shape)
-        #print('labels: ', labels.shape)
+        boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
 
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
         confs = consistency[labels != -1]
         poses = poses[labels != -1]
+        masks = mask[mask != -1]
         labels = labels[labels != -1]
 
         image_mask = copy.deepcopy(image_raw)
@@ -376,7 +371,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
         print('unique: ', np.unique(labels))
         for inv_cls in np.unique(labels):
-        #for cls in range(scores.shape[2]):
 
             true_cls = inv_cls + 1
             cls = true_cls
@@ -388,12 +382,20 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             poses_votes = poses[labels == inv_cls]
             confs_votes = confs[labels == inv_cls, inv_cls]
             labels_votes = labels[labels == inv_cls]
+            mask_votes = masks[labels == inv_cls]
 
-            print('box: ', pose_votes.shape)
-            print('scores: ', scores_votes.shape)
-            print('poses: ', poses_votes.shape)
-            print('confs: ', confs_votes.shape)
-            print('labels: ', labels_votes.shape)
+            col_box = (int(np.random.uniform()*255.0), int(np.random.uniform()*255.0), int(np.random.uniform()*255.0))
+            pyramids = np.zeros((6300, 3))
+            pyramids[mask_votes, :] = col_box
+            P3_mask = np.reshape(pyramids[:4800, :], (60, 80, 3))
+            P4_mask = np.reshape(pyramids[4800:6000, :], (30, 40, 3))
+            P5_mask = np.reshape(pyramids[6000:, :], (15, 20, 3))
+            P3_mask = cv2.resize(P3_mask, (640, 480), interpolation = cv2.INTER_NEAREST)
+            P4_mask = cv2.resize(P4_mask, (640, 480), interpolation = cv2.INTER_NEAREST)
+            P5_mask = cv2.resize(P5_mask, (640, 480), interpolation = cv2.INTER_NEAREST)
+            image_mask = np.where(P3_mask > 0, P3_mask, image_mask)
+            image_mask = np.where(P4_mask > 0, P4_mask, image_mask)
+            image_mask = np.where(P5_mask > 0, P5_mask, image_mask)
 
             cls_mask = scores_votes
 
@@ -411,7 +413,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             if confs.shape[0] < n_hyps:
                 n_hyps = confs.shape[0]
             conf_ranks = np.argsort(confs[:, cls])
-            poses_cls = np.mean(poses[confs_votes[:n_hyps], :], axis=0)
+            print('conf_ranks: ', confs[conf_ranks, cls])
+            poses_cls = np.mean(poses[conf_ranks[:n_hyps], :], axis=0)
 
             '''
             print(pose_votes.shape)
@@ -540,8 +543,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
             R3 = np.cross(R_est[:3, 0], poses_cls[6:])
             R_est[:3, 2] = R3 / np.linalg.norm(R3)
-            #R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
+            ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
             t_est = poses_cls[:3] * 0.001
+            print('t_est: ', t_est)
+            print('t_gt: ', t_gt)
 
             t_bop = t_est * 1000.0
 
@@ -627,23 +632,51 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                  2)
             '''
 
+            image = image_box
+            for idx in range(pose_votes.shape[0]):
+                image = cv2.circle(image, (pose_votes[idx, 0], pose_votes[idx, 1]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 2], pose_votes[idx, 3]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 4], pose_votes[idx, 5]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 6], pose_votes[idx, 7]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 8], pose_votes[idx, 9]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 10], pose_votes[idx, 11]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 12], pose_votes[idx, 13]), 5, col_box)
+                image = cv2.circle(image, (pose_votes[idx, 14], pose_votes[idx, 15]), 5, col_box)
 
-            '''
-            idx = 0
-            for i in range(k_hyp):
-                image = cv2.circle(image, (est_points[idx, 0, 0], est_points[idx, 0, 1]), 3, (13, 243, 207), -2)
-                image = cv2.circle(image, (est_points[idx+1, 0, 0], est_points[idx+1, 0, 1]), 3, (251, 194, 213), -2)
-                image = cv2.circle(image, (est_points[idx+2, 0, 0], est_points[idx+2, 0, 1]), 3, (222, 243, 41), -2)
-                image = cv2.circle(image, (est_points[idx+3, 0, 0], est_points[idx+3, 0, 1]), 3, (209, 31, 201), -2)
-                image = cv2.circle(image, (est_points[idx+4, 0, 0], est_points[idx+4, 0, 1]), 3, (8, 62, 53), -2)                                 
-                image = cv2.circle(image, (est_points[idx+5, 0, 0], est_points[idx+5, 0, 1]), 3, (13, 243, 207), -2)
-                image = cv2.circle(image, (est_points[idx+6, 0, 0], est_points[idx+6, 0, 1]), 3, (215, 41, 29), -2)
-                image = cv2.circle(image, (est_points[idx+7, 0, 0], est_points[idx+7, 0, 1]), 3, (78, 213, 16), -2)
-                idx = idx+8
-            '''
+                eDbox = R_est.dot(ori_points.T).T
+                # print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
+                eDbox = eDbox + np.repeat(t_est[:, np.newaxis], 8, axis=1).T
+                #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
+                # print(eDbox.shape)
+                est3D = toPix_array(eDbox)
+                # print(est3D)
+                eDbox = np.reshape(est3D, (16))
+                pose = eDbox.astype(np.uint16)
+                image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), col_box, 2)
+                image_poses = cv2.line(image_poses, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), col_box,
+                                     2)
+                image_poses = cv2.line(image_poses, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), col_box,
+                                     2)
+                image_poses = cv2.line(image_poses, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), col_box,
+                                     2)
+                image_poses = cv2.line(image_poses, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), col_box,
+                                     2)
 
-        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        #cv2.imwrite(name, image)
+        name_raw = '/home/PyraPose_viz/raw_' + str(index) + '.jpg'
+        name_mask = '/home/PyraPose_viz/mask_' + str(index) + '.jpg'
+        name_box = '/home/PyraPose_viz/box_' + str(index) + '.jpg'
+        name_pose = '/home/PyraPose_viz/poses_' + str(index) + '.jpg'
+        cv2.imwrite(name_raw, image_raw)
+        cv2.imwrite(name_mask, image_mask)
+        cv2.imwrite(name_box, image_box)
+        cv2.imwrite(name_pose, image_poses)
         #cv2.imwrite('/home/stefan/occ_viz/pred_mask_' + str(index) + '_.jpg', image_mask)
         #print('break')
         t_eval = time.time()-t_start

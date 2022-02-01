@@ -117,6 +117,7 @@ def filter_detections(
     scores      = backend.pad(scores, [[0, pad_size]], constant_values=-1)
     labels      = backend.pad(labels, [[0, pad_size]], constant_values=-1)
     labels      = keras.backend.cast(labels, 'int32')
+    indices     = backend.pad(indices, [[0, pad_size]], constant_values=-1)
 
     #print('poses: ', poses)
     #labels_idx = tf.repeat(tf.repeat(labels[:, tf.newaxis, tf.newaxis], repeats=7, axis=2), repeats=15, axis=1)
@@ -134,11 +135,12 @@ def filter_detections(
     translation.set_shape([max_detections, 3])
     rotation.set_shape([max_detections, 6])
     confidence.set_shape([max_detections, num_classes])
+    indices.set_shape([max_detections])
     #tf.print('rotation reshaped: ', tf.shape(rotation))
     #tf.print('labels reshaped: ', tf.unique_with_counts(labels))
 
     #return [boxes3D, locations, scores, labels, translation, rotation]
-    return [boxes3D, locations, scores, labels, translation, rotation, confidence]
+    return [boxes3D, locations, scores, labels, translation, rotation, confidence, indices]
 
 
 class FilterDetections(keras.layers.Layer):
@@ -206,7 +208,7 @@ class FilterDetections(keras.layers.Layer):
             _filter_detections,
             elems=[boxes3D, classification, locations, translation, rotation, confidence],
             #dtype=[tf.float32, tf.float32, tf.float32, tf.int32, tf.float32, tf.float32],
-            dtype=[keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx(), 'int32', keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx()],
+            dtype=[keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx(), 'int32', keras.backend.floatx(), keras.backend.floatx(), keras.backend.floatx(), 'int64'],
             parallel_iterations=32
         )
 
@@ -230,8 +232,9 @@ class FilterDetections(keras.layers.Layer):
             (input_shape[3][0], self.max_detections, 3),
             (input_shape[4][0], self.max_detections, 6),
             (input_shape[5][0], self.max_detections, 15),
+            (input_shape[1][0], self.max_detections),
         ] + [
-            tuple([input_shape[i][0], self.max_detections] + list(input_shape[i][5:])) for i in range(5, len(input_shape))
+            tuple([input_shape[i][0], self.max_detections] + list(input_shape[i][6:])) for i in range(6, len(input_shape))
         ]
 
     def compute_mask(self, inputs, mask=None):

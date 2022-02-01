@@ -1,6 +1,6 @@
 # tensorflow
 #FROM tensorflow/tensorflow:latest-gpu-py3
-FROM tensorflow/tensorflow:2.3.0-gpu
+FROM tensorflow/tensorflow:2.6.0-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -55,7 +55,7 @@ RUN pip3 install imgaug
 RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
 
 # Go to pix2pix root
-WORKDIR /PyraPoseAF
+# WORKDIR /PyraPoseAF
 
 
 #CMD ["python3", "RetinaNetPose/bin/train.py", "linemod", "data"]
