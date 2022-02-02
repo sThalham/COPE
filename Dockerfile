@@ -1,5 +1,4 @@
 # tensorflow
-#FROM tensorflow/tensorflow:latest-gpu-py3
 FROM tensorflow/tensorflow:2.7.0-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -31,6 +30,7 @@ RUN pip install glumpy
 RUN pip install open3d-python
 RUN pip install PyOpenGL
 RUN pip install imgaug
+RUN pip install pyyaml
 
 RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
 
