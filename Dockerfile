@@ -11,23 +11,6 @@ RUN apt-get update -qq \
     g++ \
     git \
     openssh-client \
-    # install python 3
-    python3 \
-    python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python3-virtualenv \
-    python3-wheel \
-    pkg-config \
-    # requirements for numpy
-    libopenblas-base \
-    python3-numpy \
-    python3-scipy \
-    # requirements for keras
-    python3-h5py \
-    python3-yaml \
-    python3-pydot \
-    python3-tk \
     tmux \
     vim \
     libgl1-mesa-glx\
@@ -37,18 +20,17 @@ RUN apt-get update -qq \
 RUN pip install --upgrade pip
 
 # uninstall Keras
-RUN pip3 uninstall keras
-RUN pip3 install opencv-python==3.4.0.14
-RUN pip3 install progressbar2
-RUN pip3 install cython
-RUN pip3 install pycocotools
-RUN pip3 install pillow
-RUN python3 -m pip install matplotlib
-RUN pip3 install transforms3d
-RUN pip3 install glumpy
-RUN pip3 install open3d-python
-RUN pip3 install PyOpenGL
-RUN pip3 install imgaug
+RUN pip uninstall --yes keras
+RUN pip install opencv-python==4.4.0.40
+RUN pip install progressbar2
+RUN pip install cython
+RUN pip install pillow
+RUN pip install matplotlib
+RUN pip install transforms3d
+RUN pip install glumpy
+RUN pip install open3d-python
+RUN pip install PyOpenGL
+RUN pip install imgaug
 
 RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
 
