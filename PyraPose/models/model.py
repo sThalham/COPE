@@ -131,7 +131,7 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
         'padding': 'same',
         'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer': 'zeros',
-        'kernel_regularizer': keras.regularizers.l2(0.001),
+        #'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
     if keras.backend.image_data_format() == 'channels_first':
