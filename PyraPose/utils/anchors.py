@@ -59,16 +59,16 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        #image_raw = image
-        #image_raw[..., 0] += 103.939
-        #image_raw[..., 1] += 116.779
-        #image_raw[..., 2] += 123.68
-        #is_there_sym = False
-        #raw_images = []
-        #raw_images.append(copy.deepcopy(image_raw))
-        #raw_images.append(copy.deepcopy(image_raw))
-        #raw_images.append(copy.deepcopy(image_raw))
-        #raw_images.append(copy.deepcopy(image_raw))
+        image_raw = image
+        image_raw[..., 0] += 103.939
+        image_raw[..., 1] += 116.779
+        image_raw[..., 2] += 123.68
+        is_there_sym = False
+        raw_images = []
+        raw_images.append(copy.deepcopy(image_raw))
+        raw_images.append(copy.deepcopy(image_raw))
+        raw_images.append(copy.deepcopy(image_raw))
+        raw_images.append(copy.deepcopy(image_raw))
 
         image_locations = locations_for_shape(image.shape)
         image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
@@ -88,8 +88,6 @@ def anchor_targets_bbox(
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
-            bboxes = annotations['bboxes'][idx]
-            #labels_cls = np.where(mask == mask_id, 255, 0).astype(np.uint8)
 
             # pyrmid_index from diameter
             ex = obj_diameter / pose[2]
@@ -103,15 +101,67 @@ def anchor_targets_bbox(
             ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
             ego_pose[:3, 3] = pose[:3]
             allo_pose = egocentric_to_allocentric(ego_pose)
-            #allocentric_rotation = tf3d.quaternions.mat2quat(allo_pose[:3, :3])
-            #dq = DualQuaternion.from_homogeneous_matrix(allo_pose)
-            #dq_array = dq.dq_array()
-            #dq_array[4:] *= np.array([0.003, 0.002, 0.002, 0.003])
 
             if locations_positive_obj.shape[0] > 1:
 
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
+
+                '''
+                trans = np.eye(4)
+                trans[:3, :3] = tf3d.quaternions.quat2mat(pose[3:]).reshape((3, 3))
+                trans[:3, 3] = pose[:3]
+                rot = np.asarray(trans[:3, :3], dtype=np.float32)
+                tra = trans[:3, 3]
+                tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
+                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+
+                box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0],
+                                    fy=annotations['cam_params'][idx][1],
+                                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
+                box3D = np.reshape(box3D, (16))
+                image_ns = raw_images[0]
+                tDbox = box3D.astype(np.uint16)
+                colEst = (255, 0, 0)
+                colGT = (0, 204, 0)
+                image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()),
+                                    colEst, 2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()),
+                                    colGT, 2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[10:12].ravel()),
+                                    tuple(tDbox[12:14].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[12:14].ravel()),
+                                    tuple(tDbox[14:16].ravel()),
+                                    colGT,
+                                    2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+                                    colGT,
+                                    2)
+                raw_images[0] = image_ns
+                '''
 
                 #sym_viz = False # parameter to visualize symmetries
                 # handling rotational symmetries
@@ -124,62 +174,11 @@ def anchor_targets_bbox(
                     trans[:3, 3] = pose[:3]
                     pose_mat = get_cont_sympose(trans, annotations['sym_con'][idx])
                     pose[3:] = tf3d.quaternions.mat2quat(pose_mat[:3, :3])
-
-                    '''
                     #sym_viz = True
-                    is_there_sym = True
+                    #is_there_sym = True
                     #if sym_viz:
 
-                    rot = np.asarray(trans[:3, :3], dtype=np.float32)
-                    tra = trans[:3, 3]
-                    tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
-                    tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
-
-                    box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0],
-                                        fy=annotations['cam_params'][idx][1],
-                                        cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
-                    box3D = np.reshape(box3D, (16))
-                    image_ns = image_raw
-                    tDbox = box3D.astype(np.uint16)
-                    colEst = (255, 0, 0)
-                    colGT = (0, 204, 0)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()),
-                                        colEst, 2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()),
-                                        colGT, 2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[10:12].ravel()),
-                                        tuple(tDbox[12:14].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[12:14].ravel()),
-                                        tuple(tDbox[14:16].ravel()),
-                                        colGT,
-                                        2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                                        colGT,
-                                        2)
-
+                    '''
                     rot = np.asarray(allo_pose[:3, :3], dtype=np.float32)
                     tra = allo_pose[:3, 3]
                     tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
@@ -189,7 +188,7 @@ def anchor_targets_bbox(
                                         fy=annotations['cam_params'][idx][1],
                                         cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                     box3D = np.reshape(box3D, (16))
-                    image_ns = image_raw
+                    image_ns = raw_images[1]
                     tDbox = box3D.astype(np.uint16)
                     colGT = (255, 0, 0)
                     colEst = (0, 204, 0)
@@ -229,9 +228,9 @@ def anchor_targets_bbox(
                     image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                         colGT,
                                         2)
-                    image_raw = image_ns
-                        #raw_images[0] = image_ns
                     '''
+                    #image_raw = image_ns
+                        #raw_images[0] = image_ns
 
                 rot = tf3d.quaternions.quat2mat(pose[3:])
                 rot = np.asarray(rot, dtype=np.float32)
@@ -320,48 +319,48 @@ def anchor_targets_bbox(
                                                      2)
                                 raw_images[sdx + 1] = image_now
                     #print('hyps pose: ', hyps_pose)
-                if sym_viz:
-                    image_ns = raw_images[0]
-                    tDbox = box3D.astype(np.uint16)
-                    colGT = (255, 0, 0)
-                    colEst = (0, 204, 0)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()),
-                                         colEst, 2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()),
-                                         colGT, 2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[10:12].ravel()),
-                                         tuple(tDbox[12:14].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[12:14].ravel()),
-                                         tuple(tDbox[14:16].ravel()),
-                                         colGT,
-                                         2)
-                    image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                                         colGT,
-                                         2)
-                    raw_images[0] = image_ns
+
+                image_ns = raw_images[0]
+                tDbox = box3D.astype(np.uint16)
+                colGT = (255, 0, 0)
+                colEst = (0, 204, 0)
+                image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()),
+                                     colEst, 2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()),
+                                     colGT, 2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[10:12].ravel()),
+                                     tuple(tDbox[12:14].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[12:14].ravel()),
+                                     tuple(tDbox[14:16].ravel()),
+                                     colGT,
+                                     2)
+                image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+                                     colGT,
+                                     2)
+                raw_images[0] = image_ns
                 '''
 
                 points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
@@ -379,7 +378,6 @@ def anchor_targets_bbox(
                 reprojection_batch[index, locations_positive_obj, cls] = 1
 
                 '''
-
                 rot = np.asarray(allo_pose, dtype=np.float32)
                 tra = pose[:3]
                 tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
@@ -417,15 +415,17 @@ def anchor_targets_bbox(
                                      colGT,
                                      2)
                 '''
+
         '''
         if is_there_sym:
             rind = np.random.randint(0, 1000)
-            #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
+            images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
             #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
             #image_raw = np.concatenate([images_row1, images_row2], axis=0)
             name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
-            cv2.imwrite(name, image_raw)
+            cv2.imwrite(name, images_row1)
         '''
+
         #single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
         #print('sum bboxes: ', np.sum(single_hyp_box))
         #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
@@ -691,10 +691,11 @@ def get_cont_sympose(rot_pose, sym):
     elif sym[0][1] == 1:
         alpha = math.atan2(cam_in_obj[0], cam_in_obj[2])
         rota = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
-    elif sym[0][1] == 1:
+    elif sym[0][0] == 1:
         alpha = math.atan2(cam_in_obj[2], cam_in_obj[1])
         rota = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
-    rot_pose[3:] = tf3d.quaternions.mat2quat(rota)
+    #rot_pose[3:] = tf3d.quaternions.mat2quat(rota)
+    rot_pose[:3, :3] = rota
 
     return rot_pose
 

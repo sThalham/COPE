@@ -236,6 +236,49 @@ def create_generators(args, preprocess_image):
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
             break
+    elif args.dataset_type == 'tless':
+        from ..preprocessing.data_tless import TlessDataset
+
+        dataset = TlessDataset(args.tless_path, 'train', batch_size=args.batch_size)
+        num_classes = 30
+        train_samples = 50000
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
+        )
+        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.yml')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
+        path = os.path.join(args.tless_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
 
     elif args.dataset_type == 'custom':
         from ..preprocessing.data_custom import CustomDataset
@@ -300,6 +343,9 @@ def parse_args(args):
     ycbv_parser = subparsers.add_parser('ycbv')
     ycbv_parser.add_argument('ycbv_path', help='Path to dataset directory (ie. /tmp/ycbv).')
 
+    ycbv_parser = subparsers.add_parser('tless')
+    ycbv_parser.add_argument('tless_path', help='Path to dataset directory (ie. /tmp/tless).')
+
     custom_parser = subparsers.add_parser('custom')
     custom_parser.add_argument('custom_path', help='Path to dataset directory (ie. /tmp/custom).')
 
@@ -317,8 +363,8 @@ def parse_args(args):
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
     parser.add_argument('--no-snapshots',     help='Disable saving snapshots.', dest='snapshots', action='store_false')
     parser.add_argument('--freeze-backbone',  help='Freeze training of backbone layers.', action='store_true')
-    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=480)
-    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=640)
+    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=540)
+    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=720)
 
     # Fit generator arguments
     parser.add_argument('--workers', help='Number of multiprocessing workers. To disable multiprocessing, set workers to 0', type=int, default=1)
