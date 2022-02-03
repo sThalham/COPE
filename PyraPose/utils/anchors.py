@@ -97,10 +97,10 @@ def anchor_targets_bbox(
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
-            ego_pose = np.eye(4)
-            ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
-            ego_pose[:3, 3] = pose[:3]
-            allo_pose = egocentric_to_allocentric(ego_pose)
+            #ego_pose = np.eye(4)
+            #ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
+            #ego_pose[:3, 3] = pose[:3]
+            #allo_pose = egocentric_to_allocentric(ego_pose)
 
             if locations_positive_obj.shape[0] > 1:
 
@@ -166,14 +166,13 @@ def anchor_targets_bbox(
                 #sym_viz = False # parameter to visualize symmetries
                 # handling rotational symmetries
                 if np.sum(annotations['sym_con'][idx][0, :]) > 0:
-                    #print('sym_con: ', annotations['sym_con'][idx][0, :])
-                    allo_full = np.concatenate([allo_pose, np.array([[0.0, 0.0, 0.0, 1.0]])], axis=0)
-                    allo_pose = get_cont_sympose(allo_full, annotations['sym_con'][idx])
+                    #allo_pose = get_cont_sympose(allo_full, annotations['sym_con'][idx])
                     trans = np.eye(4)
                     trans[:3, :3] = tf3d.quaternions.quat2mat(pose[3:]).reshape((3, 3))
                     trans[:3, 3] = pose[:3]
                     pose_mat = get_cont_sympose(trans, annotations['sym_con'][idx])
                     pose[3:] = tf3d.quaternions.mat2quat(pose_mat[:3, :3])
+
                     #sym_viz = True
                     #is_there_sym = True
                     #if sym_viz:
@@ -252,15 +251,17 @@ def anchor_targets_bbox(
                 hyps_boxes = np.repeat(box3D[np.newaxis, :], repeats=8, axis=0)
                 #calculated_boxes = np.concatenate([calculated_boxes, hyps_boxes], axis=0)
 
-                hyps_pose = np.repeat(allo_pose[np.newaxis, :, :], repeats=8, axis=0)
+                #hyps_pose = np.repeat(allo_pose[np.newaxis, :, :], repeats=8, axis=0)
+                hyps_pose = np.repeat(full_T[np.newaxis, :, :], repeats=8, axis=0)
 
                 sym_disc = annotations['sym_dis'][idx]
                 if np.sum(np.abs(sym_disc)) != 0:
                     for sdx in range(sym_disc.shape[0]):
                         if np.sum(np.abs(sym_disc[sdx, :])) != 0:
                             T_sym = np.matmul(full_T, np.array(sym_disc[sdx, :]).reshape((4, 4)))
-                            allo_sym = np.matmul(allo_pose, np.array(sym_disc[sdx, :]).reshape((4, 4)))
-                            hyps_pose[sdx, :, :] = allo_sym
+                            #allo_sym = np.matmul(allo_pose, np.array(sym_disc[sdx, :]).reshape((4, 4)))
+                            #hyps_pose[sdx, :, :] = allo_sym
+                            hyps_pose[sdx, :, :] = T_sym
                             rot_sym = T_sym[:3, :3]
                             tra = T_sym[:3, 3]
                             tDbox = rot_sym.dot(annotations['segmentations'][idx].T).T

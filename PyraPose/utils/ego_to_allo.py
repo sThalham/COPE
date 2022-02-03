@@ -105,7 +105,7 @@ def egocentric_to_allocentric(ego_pose, src_type="mat", dst_type="mat", cam_ray=
             allo_pose[:4] = mat2quat(ego_pose[:3, :3])
             allo_pose[4:7] = ego_pose[:3, 3]
         elif src_type == "quat" and dst_type == "mat":
-            allo_pose = np.zeros((3, 4), dtype=ego_pose.dtype)
+            allo_pose = np.eye(4, dtype=ego_pose.dtype)
             allo_pose[:3, :3] = quat2mat(ego_pose[:4])
             allo_pose[:3, 3] = ego_pose[4:7]
         else:
