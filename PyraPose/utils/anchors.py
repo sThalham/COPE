@@ -59,16 +59,16 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
-        is_there_sym = False
-        raw_images = []
-        raw_images.append(copy.deepcopy(image_raw))
-        raw_images.append(copy.deepcopy(image_raw))
-        raw_images.append(copy.deepcopy(image_raw))
-        raw_images.append(copy.deepcopy(image_raw))
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
+        #is_there_sym = False
+        #raw_images = []
+        #raw_images.append(copy.deepcopy(image_raw))
+        #raw_images.append(copy.deepcopy(image_raw))
+        #raw_images.append(copy.deepcopy(image_raw))
+        #raw_images.append(copy.deepcopy(image_raw))
 
         image_locations = locations_for_shape(image.shape)
         image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
