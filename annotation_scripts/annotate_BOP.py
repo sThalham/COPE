@@ -173,33 +173,36 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'ycbv'
-    traintestval = 'val'
+    dataset = 'homebrewed'
+    traintestval = 'train'
     visu = False
-    specific_object_set = False
-    spec_objs = [5, 8, 9, 10, 21]
 
-    root = "/home/stefan/data/datasets/LMO_BOP_test/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/occlusion_BOP_test/'
+    root = "/home/stefan/data/BOP_datasets/hb/train_pbr"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/hb_PBR_BOP/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+        num_objects = 15
     elif dataset == 'occlusion':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+        num_objects = 15
     elif dataset == 'ycbv':
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
+        num_objects = 21
     elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/Meshes/tless_30/models_eval/models_info.json'
+        mesh_info = '/home/stefan/data/BOP_dataset/tless/models_eval/models_info.json'
+        num_objects = 30
     elif dataset == 'homebrewed':
-        mesh_info = '/home/stefan/data/Meshes/homebrewedDB/models_eval/models_info.yml'
+        mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
+        num_objects = 33
     else:
         print('unknown dataset')
 
-    threeD_boxes = np.ndarray((34, 8, 3), dtype=np.float32)
-    sym_cont = np.ndarray((34, 3), dtype=np.float32)
-    sym_disc = np.ndarray((34, 4, 4), dtype=np.float32)
+    threeD_boxes = np.ndarray((num_objects + 1, 8, 3), dtype=np.float32)
+    sym_cont = np.ndarray((num_objects + 1, 3), dtype=np.float32)
+    sym_disc = np.ndarray((num_objects + 1, 4, 4), dtype=np.float32)
 
-    for key, value in yaml.load(open(mesh_info)).items():
+    for key, value in json.load(open(mesh_info)).items():
     #for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x']
@@ -315,16 +318,6 @@ if __name__ == "__main__":
             gtPose = scenejson.get(str(samp))
             gtImg = gtjson.get(str(samp))
 
-            if specific_object_set == True:
-                no_vis = True
-                for anno_idx in range(len(gtPose)):
-                    if gtPose[anno_idx]['obj_id'] in spec_objs:
-                        curlist = gtImg[anno_idx]
-                        if float(curlist["visib_fract"]) > 0.7:
-                            no_vis = False
-                if no_vis == True:
-                    continue
-
             #########################
             # Prepare the stuff
             #########################
@@ -343,8 +336,6 @@ if __name__ == "__main__":
             imgNam = imgNum + '.png'
             iname = str(imgNam)
 
-            gtImg = gtjson.get(str(samp))
-
             bbox_vis = []
             cat_vis = []
             camR_vis = []
@@ -352,7 +343,7 @@ if __name__ == "__main__":
             calib_K = []
             # if rnd == 1:
 
-            fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_dep.png'
+            fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
             if myFile.exists():
                 print('File exists, skip encoding, ', fileName)
@@ -360,8 +351,8 @@ if __name__ == "__main__":
                 imgI = depImg.astype(np.uint16)
 
                 rgb_name = fileName[:-8] + '_rgb.png'
-                cv2.imwrite(rgb_name, rgbImg)
-                cv2.imwrite(fileName, imgI)
+                cv2.imwrite(fileName, rgbImg)
+                #cv2.imwrite(fileName, imgI)
                 print("storing image in : ", fileName)
 
             mask_ind = 0
@@ -381,12 +372,8 @@ if __name__ == "__main__":
                 obj_bb = curlist["bbox_visib"]
                 bbox_vis.append(obj_bb)
 
-                gtPose = scenejson.get(str(samp))
                 obj_id = gtPose[i]['obj_id']
 
-                if specific_object_set == True:
-                    if obj_id not in spec_objs:
-                        continue
                 if dataset == 'linemod':
                     if obj_id == 7 or obj_id == 3:
                         continue
@@ -401,25 +388,6 @@ if __name__ == "__main__":
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = np.asarray(T, dtype=np.float32)
                 pose = [tra[0], tra[1], tra[2], rot[0], rot[1], rot[2], rot[3]]
-
-                if dataset == 'ycbv':
-                    if obj_id in [13, 18]:
-                        #print('sym adjustment')
-                        pose = get_cont_sympose(pose, sym_cont[obj_id, :])
-                    elif obj_id in [1, 19, 20, 21]:
-                        pose = get_disc_sympose(pose, sym_disc[obj_id, :, :])
-                elif dataset == 'tless':
-                    if obj_id in [1, 2, 3, 4, 13, 14, 15, 16, 17, 24, 30]:
-                        pose = get_cont_sympose(pose, sym_cont[obj_id, :])
-                    elif obj_id in [5, 6, 7, 8, 9, 10, 11, 12, 19, 20, 23, 25, 26, 28, 29]:
-                        pose = get_disc_sympose(pose, sym_disc[obj_id, :, :])
-                #elif dataset == 'homebrewed':
-                #    if obj_id in [10, 11, 14]:
-                #        print('sym adjustment', obj_id)
-                #        pose = get_cont_sympose(pose, sym_cont[obj_id, :])
-
-                #elif objID == 27:
-                #    rot = get_disc_sympose(pose, [sym_disc[27, :, :], sym_disc[31, :, :], sym_disc[32, :, :]], objID)
 
                 visib_fract = float(curlist["visib_fract"])
                 area = obj_bb[2] * obj_bb[3]
@@ -448,18 +416,6 @@ if __name__ == "__main__":
                 ny2 = ny1 + obj_bb[3]
                 npseg = np.array([nx1, ny1, nx2, ny1, nx2, ny2, nx1, ny2])
                 cont = npseg.tolist()
-
-                if specific_object_set == True:
-                    if obj_id == 5:
-                        obj_id = 1
-                    elif obj_id == 8:
-                        obj_id = 2
-                    elif obj_id == 9:
-                        obj_id = 3
-                    elif obj_id == 10:
-                        obj_id = 4
-                    elif obj_id == 21:
-                        obj_id = 5
 
                 annoID = annoID + 1
                 tempTA = {
@@ -547,21 +503,7 @@ if __name__ == "__main__":
 
                 print('STOP')
 
-    if dataset == 'linemod':
-        catsInt = range(1, 16)
-    elif dataset == 'occlusion':
-        catsInt = range(1, 16)
-    elif dataset == 'ycbv':
-        catsInt = range(1, 22)
-    elif dataset == 'tless':
-        catsInt = range(1, 31)
-    elif dataset == 'homebrewed':
-        catsInt = range(1, 34)
-
-    if specific_object_set == True:
-        catsInt = range(1, (len(spec_objs)+1))
-
-    for s in catsInt:
+    for s in range(1, num_objects + 1):
         objName = str(s)
         tempC = {
             "id": s,
