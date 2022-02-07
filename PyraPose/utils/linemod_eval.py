@@ -495,9 +495,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         tDbox = tDbox.astype(np.uint16)
 
         idx = 0
-        viz = True
+        viz = False
         #if true_cls == 9:
         if viz:
+            '''
             for hy in range(boxes3D_set.shape[0]):
                 points = boxes3D_set[hy, :]
                 x_s = points[::2]
@@ -507,7 +508,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 y_max = int(np.max(y_s))
                 y_min = int(np.min(y_s))
                 image_raw = cv2.rectangle(image_raw, (x_min, y_min), (x_max, y_max), (0, 204, 0), 2);
-
+            '''
             '''
             for hy in range(pose_set.shape[0]):
                 # dual quaternion
@@ -604,6 +605,38 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                      2)
                 idx = idx + 8
 
+            '''
+            eDbox = R_est.dot(ori_points.T).T
+            # print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
+            # eDbox = eDbox + np.repeat(t_est, 8, axis=1).T
+            eDbox = eDbox + np.repeat(t_est[:, np.newaxis], 8, axis=1).T
+            # eDbox = eDbox + np.repeat(t_est, 8, axis=0)
+            # print(eDbox.shape)
+            est3D = toPix_array(eDbox)
+            # print(est3D)
+            eDbox = np.reshape(est3D, (16))
+            pose = eDbox.astype(np.uint16)
+
+            colGT = (255, 0, 0)
+            colEst = (0, 0, 255)
+
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                                 2)
+            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                                 2)
+            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                                 2)
+            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                                 2)
+
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
@@ -631,36 +664,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                  colGT,
                                  2)
 
-            image_viz = cv2.line(image_viz, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                                 colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
-                                 colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
-                                 colGT,
-                                 2)
-            image_viz = cv2.line(image_viz, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                                 colGT,
-                                 2)
-            image_raw = np.concatenate([image_viz, image_raw], axis=1)
+            #image_raw = np.concatenate([image_viz, image_raw], axis=1)
             name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            #cv2.imwrite(name, image_raw)
-            '''
+            cv2.imwrite(name, image_raw)
+
 
         '''
         eDbox = R_best.dot(ori_points.T).T
@@ -706,8 +713,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         image_crop = cv2.resize(image_crop, None, fx=2, fy=2)
         '''
         #image_raw = np.concatenate([image_viz, image_raw], axis=1)
-        name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+        #cv2.imwrite(name, image_raw)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)
