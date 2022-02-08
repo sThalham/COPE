@@ -254,6 +254,7 @@ def anchor_targets_bbox(
                 #hyps_pose = np.repeat(allo_pose[np.newaxis, :, :], repeats=8, axis=0)
                 hyps_pose = np.repeat(full_T[np.newaxis, :, :], repeats=8, axis=0)
 
+                is_sym = False
                 sym_disc = annotations['sym_dis'][idx]
                 if np.sum(np.abs(sym_disc)) != 0:
                     for sdx in range(sym_disc.shape[0]):
@@ -262,6 +263,7 @@ def anchor_targets_bbox(
                             #allo_sym = np.matmul(allo_pose, np.array(sym_disc[sdx, :]).reshape((4, 4)))
                             #hyps_pose[sdx, :, :] = allo_sym
                             hyps_pose[sdx, :, :] = T_sym
+                            is_sym = True
                             rot_sym = T_sym[:3, :3]
                             tra = T_sym[:3, 3]
                             tDbox = rot_sym.dot(annotations['segmentations'][idx].T).T
@@ -363,6 +365,9 @@ def anchor_targets_bbox(
                                      2)
                 raw_images[0] = image_ns
                 '''
+                if is_sym == True:
+                    print('cls: ', cls)
+                    print('pose: ', hyps_pose[sdx, :, :])
 
                 points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, :, :16] = points

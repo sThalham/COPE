@@ -127,6 +127,10 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
 
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
+    options = {
+        #'activation': 'swish',
+        #'padding': 'same',
+    }
 
     # 3x3 conv for test 4
     P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, activation='swish', padding='same', **options)(C3)
@@ -241,7 +245,7 @@ def pyrapose(
         obj_correspondences=None,
         obj_diameters=None,
         intrinsics=None,
-        create_pyramid_features=__create_DPA,
+        create_pyramid_features=__create_PFPN,
         name='pyrapose'
 ):
     regression_branch = default_regression_model(16)
