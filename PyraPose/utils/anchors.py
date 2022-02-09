@@ -52,7 +52,7 @@ def anchor_targets_bbox(
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 1), dtype=keras.backend.floatx())
     #bbox_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
-    locations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 3 + 1), dtype=keras.backend.floatx())
+    locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 1), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 1), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes), dtype=keras.backend.floatx())
 
@@ -376,9 +376,13 @@ def anchor_targets_bbox(
                 regression_batch[index, locations_positive_obj, cls, :, :16] = points
                 regression_batch[index, locations_positive_obj, cls, :, -1] = 1
 
-                locations_batch[index, locations_positive_obj, cls, :, :2] = hyps_pose[:, :2, 3] * 0.002
-                locations_batch[index, locations_positive_obj, cls, :, 2] = ((hyps_pose[:, 2, 3] * 0.001) - 1.0) * 3.0
-                locations_batch[index, locations_positive_obj, cls, :, -1] = 1
+                #locations_batch[index, locations_positive_obj, cls, :, :2] = hyps_pose[:, :2, 3] * 0.002
+                #locations_batch[index, locations_positive_obj, cls, :, 2] = ((hyps_pose[:, 2, 3] * 0.001) - 1.0) * 3.0
+                #locations_batch[index, locations_positive_obj, cls, :, -1] = 1
+
+                locations_batch[index, locations_positive_obj, cls, :2] = tra[:2] * 0.002
+                locations_batch[index, locations_positive_obj, cls, 2] = ((tra[2] * 0.001) - 1.0) * 3.0
+                locations_batch[index, locations_positive_obj, cls, -1] = 1
 
                 rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
                 rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
