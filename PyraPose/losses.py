@@ -473,21 +473,25 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         # don't want sparse tensors
         # L = 2 * l ((min+max) - x) * (1/(min+max))
         regression_loss = tf.math.reduce_sum(regression_loss, axis=2)
-        tf.print('reg_loss: ', tf.shape(regression_loss))
         #regression_loss = tf.transpose(regression_loss, perm=[2, 1, 0])
         minmax = (tf.math.reduce_min(regression_loss, axis=0) + tf.math.reduce_max(regression_loss, axis=0))
-        tf.print('minmax: ', tf.shape(minmax))
+        #tf.print('minmax: ', tf.math.reduce_min(minmax), tf.math.reduce_max(minmax))
         scaler = (tf.math.divide_no_nan(1.0, minmax)) * (minmax - regression_loss)
-        tf.print('scaler: ', scaler)
+        #tf.print('scaler: ', tf.math.reduce_min(scaler), tf.math.reduce_max(scaler))
         regression_loss = regression_loss * scaler * 2.0
         regression_loss = tf.transpose(regression_loss, perm=[2, 1, 0])
-        tf.print('reg_perm: ', tf.shape(regression_loss))
-        pose_hyp_anno = tf.math.reduce_sum(anchor_state, axis=2)
-        tf.print('pose_hyp_anno: ', tf.shape(regression_loss))
-        anchor_anno = tf.gather(pose_hyp_anno, indices, axis=0)
-        tf.print('pose_hyp_anno: ', tf.shape(pose_hyp_anno))
+        #tf.print('reg_perm: ', tf.shape(regression_loss))
+
+
+        anchor_anno = tf.gather(anchor_state, indices, axis=0)
+        pose_hyp_anno = tf.math.reduce_sum(anchor_anno, axis=2)
+        #tf.print('pose_hyp_anno: ', tf.shape(pose_hyp_anno))
+        #tf.print('anchor_anno : ', tf.shape(anchor_anno))
+        #print('anchor anno: ', tf.shape(anchor_anno))
+        #tf.print('regression Loss: ', tf.shape(regression_loss))
         regression_loss = tf.where(tf.math.equal(anchor_anno, 1), regression_loss, 0.0)
         regression_loss = tf.math.reduce_sum(regression_loss, axis=2)
+        #tf.print('pose_hyp_anno: ', tf.math.reduce_min(pose_hyp_anno), tf.math.reduce_max(pose_hyp_anno))
         regression_loss = tf.math.divide_no_nan(regression_loss, pose_hyp_anno)
 
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=0)

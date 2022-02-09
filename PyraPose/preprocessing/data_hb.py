@@ -352,10 +352,10 @@ class HomebrewedDataset(tf.data.Dataset):
         return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(
                                               tf.TensorSpec(shape=(batch_size, 480, 640, 3), dtype=tf.float32),
-                                              (tf.TensorSpec(shape=(batch_size, 6300, 33, 17), dtype=tf.float32),
+                                              (tf.TensorSpec(shape=(batch_size, 6300, 33, 8, 17), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 33 + 1), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 33, 4), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 33, 7), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 33, 8, 7), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 33), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 

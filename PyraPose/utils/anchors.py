@@ -49,11 +49,11 @@ def anchor_targets_bbox(
     location_shape = int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0]) + int(image_shapes[2][1] * image_shapes[2][0])
     location_offset = [0, int(image_shapes[0][1] * image_shapes[0][0]), int(image_shapes[0][1] * image_shapes[0][0]) + int(image_shapes[1][1] * image_shapes[1][0])]
 
-    regression_batch = np.zeros((batch_size, location_shape, num_classes, 16 + 1), dtype=keras.backend.floatx())
+    regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 1), dtype=keras.backend.floatx())
     #bbox_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 4), dtype=keras.backend.floatx())
     labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 1), dtype=keras.backend.floatx())
-    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 6 + 1), dtype=keras.backend.floatx())
+    rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 1), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
@@ -71,7 +71,7 @@ def anchor_targets_bbox(
         #raw_images.append(copy.deepcopy(image_raw))
 
         image_locations = locations_for_shape(image.shape)
-        #image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
+        image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
         # w/o mask
         mask = annotations['mask'][0]
         # vanilla
@@ -163,7 +163,6 @@ def anchor_targets_bbox(
                 raw_images[0] = image_ns
                 '''
 
-                '''
                 #sym_viz = False # parameter to visualize symmetries
                 # handling rotational symmetries
                 if np.sum(annotations['sym_con'][idx][0, :]) > 0:
@@ -173,6 +172,7 @@ def anchor_targets_bbox(
                     trans[:3, 3] = pose[:3]
                     pose_mat = get_cont_sympose(trans, annotations['sym_con'][idx])
                     pose[3:] = tf3d.quaternions.mat2quat(pose_mat[:3, :3])
+                    '''
 
                     #sym_viz = True
                     #is_there_sym = True
@@ -248,7 +248,6 @@ def anchor_targets_bbox(
                 box3D = np.reshape(box3D, (16))
                 #calculated_boxes = np.concatenate([calculated_boxes, [box3D]], axis=0)
 
-                '''
                 # handling discrete symmetries
                 hyps_boxes = np.repeat(box3D[np.newaxis, :], repeats=8, axis=0)
                 #calculated_boxes = np.concatenate([calculated_boxes, hyps_boxes], axis=0)
@@ -281,6 +280,7 @@ def anchor_targets_bbox(
                             hyps_boxes[sdx, :] = box3D_sym
                             symmetry_mask[sdx+1] = 1
                             # viz from here on
+                            '''
                             
                             sym_viz = True
                             is_there_sym = True
@@ -374,10 +374,11 @@ def anchor_targets_bbox(
                     #print('cls: ', cls)
                     #print('sym: ', sym_disc.shape[0], symmetry_mask)
 
-                points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
-                #points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
-                regression_batch[index, locations_positive_obj, cls, :16] = points
-                regression_batch[index, locations_positive_obj, cls, -1] = 1
+                #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
+                points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
+                regression_batch[index, locations_positive_obj, cls, :, :16] = points
+                #regression_batch[index, locations_positive_obj, cls, :, -1] = 1
+                regression_batch[index, locations_positive_obj, cls, :, -1] = symmetry_mask
 
                 #locations_batch[index, locations_positive_obj, cls, :, :2] = hyps_pose[:, :2, 3] * 0.002
                 #locations_batch[index, locations_positive_obj, cls, :, 2] = ((hyps_pose[:, 2, 3] * 0.001) - 1.0) * 3.0
@@ -387,9 +388,10 @@ def anchor_targets_bbox(
                 locations_batch[index, locations_positive_obj, cls, 2] = ((tra[2] * 0.001) - 1.0) * 3.0
                 locations_batch[index, locations_positive_obj, cls, -1] = 1
 
-                #rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
-                rotations_batch[index, locations_positive_obj, cls, :6] = full_T[:3, :2].reshape(6)
-                rotations_batch[index, locations_positive_obj, cls, -1] = 1
+                rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
+                #rotations_batch[index, locations_positive_obj, cls, :6] = full_T[:3, :2].reshape(6)
+                #rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
+                rotations_batch[index, locations_positive_obj, cls, :, -1] = symmetry_mask
 
                 #reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 reprojection_batch[index, locations_positive_obj, cls] = 1

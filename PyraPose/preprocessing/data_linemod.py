@@ -378,10 +378,10 @@ class LinemodDataset(tf.data.Dataset):
 
         return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
-                                                                (tf.TensorSpec(shape=(batch_size, 6300, 15, 17),dtype=tf.float32),
+                                                                (tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 17),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15 + 1),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15, 4),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 7),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15),dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 
