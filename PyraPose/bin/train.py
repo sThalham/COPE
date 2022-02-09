@@ -247,6 +247,7 @@ def create_generators(args, preprocess_image):
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
             num_parallel_calls=args.workers
         )
+        dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
         mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.yml')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)

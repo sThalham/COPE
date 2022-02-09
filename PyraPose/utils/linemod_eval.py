@@ -436,7 +436,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # max_center = np.argmax(centerns)
         # pose_votes = pose_votes[:, max_center, :]
 
-
+        '''
         est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
         obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
         obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -450,14 +450,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         R_est, _ = cv2.Rodrigues(orvec)
         t_est = otvec.T
         t_est = t_est[0]
+        '''
 
         # R6d
-        #R_est = np.eye(3)
-        #R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
-        #R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
-        #R3 = np.cross(R_est[:3, 0], poses_cls[6:])
-        #R_est[:3, 2] = R3 / np.linalg.norm(R3)
-        #t_est = poses_cls[:3] * 0.001
+        R_est = np.eye(3)
+        R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
+        R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
+        R3 = np.cross(R_est[:3, 0], poses_cls[6:])
+        R_est[:3, 2] = R3 / np.linalg.norm(R3)
+        t_est = poses_cls[:3] * 0.001
        
         #print('poses_cls: ', poses_cls[3:])
         #print('R_est: ', R_est)
@@ -495,7 +496,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         tDbox = tDbox.astype(np.uint16)
 
         idx = 0
-        viz = False
+        viz = True
         #if true_cls == 9:
         if viz:
             '''
@@ -512,19 +513,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             '''
             for hy in range(pose_set.shape[0]):
                 # dual quaternion
-                #dq = DualQuaternion.from_dq_array(pose_set[hy, :])
-                #pose_cls = dq.homogeneous_matrix()
-                #R_est = pose_cls[:3, :3]
-                #t_est = pose_cls[:3, 3] * -0.001
-                # quaternion
-                #R_est = tf3d.quaternions.quat2mat(pose_set[hy, 3:])
-                #t_est = pose_set[hy, :3] * 0.001
-                # R6d
                 R_est = np.eye(3)
-                R_est[:3, 0] = np.linalg.norm(pose_set[hy, 3:6])
-                R_est[:3, 1] = np.linalg.norm(pose_set[hy, 6:])
-                R_est[:3, 2] = np.linalg.norm(np.cross(R_est[:3, 0], pose_set[hy, 6:]))
-                #R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
+                R_est[:3, 0] = pose_set[hy, 3:6] / np.linalg.norm(pose_set[hy, 3:6])
+                R_est[:3, 1] = pose_set[hy, 6:] / np.linalg.norm(pose_set[hy, 6:])
+                R3 = np.cross(R_est[:3, 0], pose_set[hy, 6:])
+                R_est[:3, 2] = R3 / np.linalg.norm(R3)
                 t_est = pose_set[hy, :3] * 0.001
 
                 eDbox = R_est.dot(ori_points.T).T
@@ -538,6 +531,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 eDbox = np.reshape(est3D, (16))
                 pose = eDbox.astype(np.uint16)
                 colGT = (255, 0, 0)
+
+                #est3D = boxes3D_set[hy, :]
+                #eDbox = np.reshape(est3D, (16))
+                #pose = eDbox.astype(np.uint16)
 
                 #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
                 #t_est = poses_cls[:3] * 0.001
@@ -564,7 +561,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                  2)
                 image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                  2)
+                '''
 
+                '''
                 #est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 corres = np.ascontiguousarray(pose_votes[hy, :], dtype=np.float32).reshape((8, 1, 2))
                 #obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
@@ -603,7 +602,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                      2)
                 image_viz = cv2.line(image_viz, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                      2)
+                
                 idx = idx + 8
+                '''
 
             '''
             eDbox = R_est.dot(ori_points.T).T
@@ -663,10 +664,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                  colGT,
                                  2)
+            '''
 
             #image_raw = np.concatenate([image_viz, image_raw], axis=1)
-            name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-            cv2.imwrite(name, image_raw)
+            #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
+            #cv2.imwrite(name, image_raw)
 
 
         '''
@@ -714,7 +716,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         '''
         #image_raw = np.concatenate([image_viz, image_raw], axis=1)
         #name = '/home/stefan/PyraPose_viz/detection_' + str(index) + '.jpg'
-        #cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_viz)
             #print('break')
 
     recall = np.zeros((16), dtype=np.float32)

@@ -128,12 +128,13 @@ class TlessDataset(tf.data.Dataset):
             catToImgs[ann['category_id']].append(ann['image_id'])
 
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
+        num_classes = len(classes)
 
         # load 3D boxes
-        TDboxes = np.ndarray((31, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((31), dtype=np.float32)
-        sym_cont = np.zeros((31, 2, 3), dtype=np.float32)
-        sym_disc = np.zeros((31, 8, 16), dtype=np.float32)
+        TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes + 1), dtype=np.float32)
+        sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
         for key, value in yaml.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -353,7 +354,7 @@ class TlessDataset(tf.data.Dataset):
                                               tf.TensorSpec(shape=(batch_size, 480, 640, 3), dtype=tf.float32),
                                               (tf.TensorSpec(shape=(batch_size, 6300, 30, 8, 17), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 30 + 1), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 30, 8, 4), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 30, 4), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 30, 8, 7), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 30), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
