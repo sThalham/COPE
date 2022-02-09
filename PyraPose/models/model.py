@@ -27,7 +27,7 @@ def default_classification_model(
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=classification_feature_size,
-            activation='swish',
+            activation='relu',
             kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
             bias_initializer='zeros',
             **options
@@ -81,7 +81,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='swish',
+            activation='relu',
             **options
         )(outputs)
 
@@ -111,8 +111,8 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = inputs
 
     outputs = keras.layers.Reshape((-1, 16))(outputs)
-    outputs = keras.layers.Conv1D(filters=512, activation='swish', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=256, activation='swish', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
     translations = keras.layers.Conv1D(3, **options)(outputs)
     rotations = keras.layers.Conv1D(6, **options)(outputs)
 
@@ -128,37 +128,37 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
 
 def __create_PFPN(C3, C4, C5, feature_size=256):
     options = {
-        #'activation': 'swish',
-        #'padding': 'same',
+        'activation': 'relu',
+        'padding': 'same',
     }
 
     # 3x3 conv for test 4
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, activation='swish', padding='same', **options)(C3)
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, activation='swish', padding='same', **options)(C4)
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, activation='swish', padding='same', **options)(C5)
+    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C3)
+    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C4)
+    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C5)
 
     P5_upsampled = layers.UpsampleLike()([P5, P4])
     P4_upsampled = layers.UpsampleLike()([P4, P3])
     P4_mid = keras.layers.Add()([P5_upsampled, P4])
-    P4_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, activation='swish', padding='same',
+    P4_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1,
                                  **options)(P4_mid)
     P3_mid = keras.layers.Add()([P4_upsampled, P3])
-    P3_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, activation='swish', padding='same',
+    P3_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1,
                                  **options)(P3_mid)
-    P3_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, activation='swish', padding='same',
+    P3_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P3_mid)
     P3_fin = keras.layers.Add()([P3_mid, P3])  # skip connection
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, activation='swish', padding='same', name='P3',
+    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P3',
                              **options)(P3_fin)
 
     P4_fin = keras.layers.Add()([P3_down, P4_mid])
-    P4_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, activation='swish', padding='same',
+    P4_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P4_mid)
     P4_fin = keras.layers.Add()([P4_fin, P4])  # skip connection
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, activation='swish', padding='same', name='P4',
+    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P4',
                              **options)(P4_fin)
     P5_fin = keras.layers.Add()([P4_down, P5])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, activation='swish', padding='same', name='P5',
+    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P5',
                              **options)(P5_fin)
 
     return [P3, P4, P5]
