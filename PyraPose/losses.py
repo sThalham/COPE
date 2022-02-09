@@ -430,6 +430,11 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
             0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
             regression_diff - 0.5 / sigma_squared
         )
+        # symmetry-handling by re-weighting
+        #regression_loss = tf.math.reduce_min(regression_loss, axis=0)  # reduce regression loss to min hypothesis
+        # per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
+
+        #vanilla best sym_hyp
         regression_loss = tf.math.reduce_min(regression_loss, axis=0) # reduce regression loss to min hypothesis
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
 

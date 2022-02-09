@@ -238,6 +238,7 @@ def __create_DPA(C3, C4, C5, feature_size=256):
 
     return P3, P4, P5
 
+
 def pyrapose(
         inputs,
         backbone_layers,

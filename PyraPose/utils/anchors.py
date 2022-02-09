@@ -253,6 +253,8 @@ def anchor_targets_bbox(
 
                 #hyps_pose = np.repeat(allo_pose[np.newaxis, :, :], repeats=8, axis=0)
                 hyps_pose = np.repeat(full_T[np.newaxis, :, :], repeats=8, axis=0)
+                symmetry_mask = np.zeros(8)
+                symmetry_mask[0] = 1
 
                 is_sym = False
                 sym_disc = annotations['sym_dis'][idx]
@@ -275,6 +277,7 @@ def anchor_targets_bbox(
                                                 cy=annotations['cam_params'][idx][3])
                             box3D_sym = np.reshape(box3D_sym, (16))
                             hyps_boxes[sdx, :] = box3D_sym
+                            symmetry_mask[sdx+1] = 1
 
                             '''
                             sym_viz = True
@@ -365,9 +368,9 @@ def anchor_targets_bbox(
                                      2)
                 raw_images[0] = image_ns
                 '''
-                if is_sym == True:
-                    print('cls: ', cls)
-                    print('pose: ', hyps_pose[sdx, :, :])
+                #if is_sym == True:
+                    #print('cls: ', cls)
+                    #print('sym: ', sym_disc.shape[0], symmetry_mask)
 
                 points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
                 regression_batch[index, locations_positive_obj, cls, :, :16] = points
