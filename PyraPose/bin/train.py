@@ -44,6 +44,7 @@ from ..models.model import inference_model
 from ..utils.anchors import make_shapes_callback
 from ..utils.model import freeze as freeze_model
 from ..utils.transform import random_transform_generator
+from ..models.train_step import CustomModel
 
 
 def makedirs(path):
@@ -80,8 +81,10 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         model          = model_with_weights(backbone_model(num_classes=num_classes, correspondences=obj_correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, modifier=modifier), weights=weights, skip_mismatch=True)
         training_model = model
 
+    custom_model = CustomModel(model=training_model)
+
     # compile model
-    training_model.compile(
+    custom_model.compile(
         loss={
             'points'        : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
             'cls'           : losses.focal(),
@@ -92,7 +95,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )
 
-    return model, training_model
+    return model, custom_model
 
 
 def create_callbacks(model, args, validation_generator=None, train_generator=None):
