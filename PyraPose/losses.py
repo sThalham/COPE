@@ -358,6 +358,51 @@ def confidence_loss(num_classes=0, weight=1.0):
     return _confidence_loss
 
 
+def per_cls_l1_trans(num_classes=0, weight=1.0, sigma=3.0):
+
+    sigma_squared = sigma ** 2
+
+    def _per_cls_l1_trans(y_true, y_pred):
+        regression_target = y_true[:, :, :, :-1]
+        anchor_state = y_true[:, :, :, -1]
+
+        in_shape = tf.shape(regression_target)
+        anchor_state = tf.reshape(anchor_state, [in_shape[0] * in_shape[1], in_shape[2]])
+        indices = tf.math.reduce_max(anchor_state, axis=1)
+        indices = tf.where(tf.math.equal(indices, 1))[:, 0]
+
+        y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3]])
+        regression = tf.gather(y_pred_res, indices, axis=0)
+        y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3]])
+        regression_target = tf.gather(y_true_res, indices, axis=0)
+
+        regression = tf.transpose(regression, perm=[1, 2, 0])
+        regression_target = tf.transpose(regression_target, perm=[1, 2, 0])
+
+        regression_diff = regression_target - regression
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
+
+        anchor_anno = tf.gather(anchor_state, indices, axis=0)
+        anchor_anno = tf.transpose(anchor_anno, perm=[1, 0])
+
+        regression_loss = tf.where(tf.math.equal(anchor_anno, 1), per_cls_loss, 0.0)
+        per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
+
+        # comp norm per class
+        normalizer = tf.math.reduce_sum(anchor_anno, axis=1) * tf.cast(in_shape[3], dtype=tf.float32) # accumulate over batch, locations and regressed values
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
+
+        return weight * tf.math.reduce_sum(loss, axis=0)
+
+    return _per_cls_l1_trans
+
+
 def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
 
     sigma_squared = sigma ** 2
@@ -448,12 +493,18 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         indices = tf.math.reduce_max(anchor_state, axis=[1, 2])
         indices = tf.where(tf.math.equal(indices, 1))[:, 0]
 
-        y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[4]])
+        if hyp_mask == None:
+            y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[4]])
+        else:
+            y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[2], in_shape[4]])
         regression = tf.gather(y_pred_res, indices, axis=0)
         y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3], in_shape[4]])
         regression_target = tf.gather(y_true_res, indices, axis=0)
 
-        regression = tf.transpose(regression, perm=[1, 0])
+        if hyp_mask == None:
+            regression = tf.transpose(regression, perm=[1, 0])
+        else:
+            regression = tf.transpose(regression, perm=[1, 2, 0])
         regression_target = tf.transpose(regression_target, perm=[2, 1, 3, 0])
 
         # compute smooth L1 loss
@@ -486,13 +537,11 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
         if hyp_mask == None:
             regression_loss = tf.math.reduce_sum(regression_loss, axis=2)
             scaler = tf.transpose(scaler, perm=[2, 1, 0])
-            tf.print('points: ', scaler[0, 4, :])
             scaler_mask = tf.tile(tf.math.reduce_max(scaler, axis=2)[:, :, tf.newaxis], [1, 1, 8])
             hyp_mask = tf.where(tf.math.equal(scaler, scaler_mask), 1.0, 0.0)
             hyp_mask = tf.where(tf.math.equal(anchor_anno, 0.0), 0.0, hyp_mask)
             #tf.print('scaler: ', tf.math.reduce_min(scaler), tf.math.reduce_max(scaler))
         else:
-            tf.print('rotation: ', hyp_mask[0, 4, :])
             regression_loss = tf.where(tf.math.equal(hyp_mask, 1.0), regression_loss, 0.0)
             regression_loss = tf.math.reduce_sum(regression_loss, axis=2)
             pose_hyp_anno = tf.math.reduce_sum(hyp_mask, axis=2)

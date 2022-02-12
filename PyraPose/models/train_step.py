@@ -27,7 +27,6 @@ class CustomModel(tf.keras.Model):
             for ldx, loss_func in enumerate(self.loss):
                 loss_names.append(loss_func)
                 y_now = tf.convert_to_tensor(y[ldx], dtype=tf.float32)
-                print('loss function: ', loss_func, ldx)
                 if loss_func == 'points':
                     loss, pose_mask = self.loss[loss_func](y_now, predicts[ldx], pose_mask)
                 elif loss_func == 'rotations':

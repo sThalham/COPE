@@ -113,15 +113,17 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = keras.layers.Reshape((-1, 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
-    translations = keras.layers.Conv1D(3, **options)(outputs)
-    rotations = keras.layers.Conv1D(6, **options)(outputs)
+    translations = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
+    translations = keras.layers.Reshape((-1, num_classes, 3))(translations)
+    rotations = keras.layers.Conv1D(num_classes * 6, **options)(outputs)
+    rotations = keras.layers.Reshape((-1, num_classes, 6))(rotations)
 
     # translations = tf.concat(translations, axis=2)
     # rotations = tf.concat(rotations, axis=2)
-    rotations_1, rotations_2 = tf.split(rotations, num_or_size_splits=2, axis=2)
-    rotations_1 = tf.math.l2_normalize(rotations_1, axis=2)
-    rotations_2 = tf.math.l2_normalize(rotations_2, axis=2)
-    rotations = tf.concat([rotations_1, rotations_2], axis=2)
+    rotations_1, rotations_2 = tf.split(rotations, num_or_size_splits=2, axis=3)
+    rotations_1 = tf.math.l2_normalize(rotations_1, axis=3)
+    rotations_2 = tf.math.l2_normalize(rotations_2, axis=3)
+    rotations = tf.concat([rotations_1, rotations_2], axis=3)
 
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
@@ -263,12 +265,6 @@ def pyrapose(
     regression = keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5])
     pyramids.append(regression)
 
-    #boxes_P3 = boxes_branch(P3)
-    #boxes_P4 = boxes_branch(P4)
-    #boxes_P5 = boxes_branch(P5)
-    #boxes = keras.layers.Concatenate(axis=1, name='bbox')([boxes_P3, boxes_P4, boxes_P5])
-    #pyramids.append(boxes)
-
     location_P3 = location_branch(P3)
     location_P4 = location_branch(P4)
     location_P5 = location_branch(P5)
@@ -294,18 +290,19 @@ def pyrapose(
     pyramids.append(location)
     pyramids.append(rotation)
 
-    x = location[:, :, 0] * 500.0
-    y = location[:, :, 1] * 500.0
-    z = ((location[:, :, 2] * (1 / 3)) + 1.0) * 1000.0
-    trans = tf.stack([x, y, z], axis=2)
-    trans = tf.tile(trans[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
+    x = location[:, :, :, 0] * 500.0
+    y = location[:, :, :, 1] * 500.0
+    z = ((location[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
+    trans = tf.stack([x, y, z], axis=3)
+    #trans = tf.tile(trans[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
+    trans = tf.tile(trans[:, :, :, tf.newaxis, :], [1, 1, 1, 8, 1])
 
-    r1 = rotation[:, :, :3]
-    r2 = rotation[:, :, 3:]
+    r1 = rotation[:, :, :, :3]
+    r2 = rotation[:, :, :, 3:]
     r3 = tf.linalg.cross(r1, r2)
-    r3 = tf.math.l2_normalize(r3, axis=2)
-    rot = tf.stack([r1, r2, r3], axis=3)
-    rot = tf.tile(rot[:, :, tf.newaxis, :, :], [1, 1, num_classes, 1, 1])
+    r3 = tf.math.l2_normalize(r3, axis=3)
+    rot = tf.stack([r1, r2, r3], axis=4)
+    #rot = tf.tile(rot[:, :, tf.newaxis, :, :], [1, 1, num_classes, 1, 1])
 
     rep_obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
     box3d = tf.linalg.matmul(rot, rep_obj_correspondences, transpose_a=False, transpose_b=True)
