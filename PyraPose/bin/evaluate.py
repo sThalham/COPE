@@ -19,6 +19,9 @@ import os
 import sys
 import math
 import copy
+import numpy as np
+import yaml
+import json
 
 import tensorflow.keras as keras
 import tensorflow as tf
@@ -39,33 +42,49 @@ from ..utils.eval import evaluate
 def create_generator(args):
     """ Create generators for evaluation.
     """
-    if args.dataset_type == 'linemod':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.linemod import LinemodGenerator
+    if args.dataset_type == 'tless':
+        from ..preprocessing.data_tless import TlessDataset
 
-        num_classes = 15
-        validation_generator = LinemodGenerator(
-            args.linemod_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-        )
-    elif args.dataset_type == 'occlusion':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.occlusion import OcclusionGenerator
-
-        num_classes = 15
-        validation_generator = OcclusionGenerator(
-            args.occlusion_path,
-            'val',
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side,
-        )
+        dataset = TlessDataset(args.tless_path, 'val', batch_size=1)
+        num_classes = 30
+        dataset = tf.data.Dataset.range(1)
+        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.yml')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                   [x_plus, y_plus, z_minus],
+                                   [x_plus, y_minus, z_minus],
+                                   [x_plus, y_minus, z_plus],
+                                   [x_minus, y_plus, z_plus],
+                                   [x_minus, y_plus, z_minus],
+                                   [x_minus, y_minus, z_minus],
+                                   [x_minus, y_minus, z_plus]])
+            correspondences[int(key) - 1, :, :] = three_box_solo
+            sphere_diameters[int(key) - 1] = value['diameter']
+        path = os.path.join(args.tless_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
 
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return validation_generator, num_classes
+    return dataset, num_classes, correspondences, sphere_diameters, intrinsics
 
 
 def parse_args(args):
@@ -87,8 +106,8 @@ def parse_args(args):
     tless_parser = subparsers.add_parser('tless')
     tless_parser.add_argument('tless_path', help='Path to dataset directory (ie. /tmp/Tless).')
 
-    tless_parser = subparsers.add_parser('homebrewed')
-    tless_parser.add_argument('homebrewed_path', help='Path to dataset directory (ie. /tmp/Homebrewed).')
+    hb_parser = subparsers.add_parser('homebrewed')
+    hb_parser.add_argument('homebrewed_path', help='Path to dataset directory (ie. /tmp/Homebrewed).')
 
     parser.add_argument('model',              help='Path to RetinaNet model.')
     parser.add_argument('--convert-model',    help='Convert the model to an inference model (ie. the input is a training model).', action='store_true')
@@ -120,9 +139,9 @@ def main(args=None):
         os.makedirs(args.save_path)
 
     # create the generator
-    generator, num_classes = create_generator(args)
-    obj_diameters = generator.get_diameters()
-    obj_diameters = obj_diameters[1:]
+    generator, num_classes, correspondences, obj_diameters, intrinsics = create_generator(args)
+    #obj_diameters = generator.get_diameters()
+    #obj_diameters = obj_diameters[1:]
     #tf_diameter = tf.convert_to_tensor(obj_diameters)
     #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, :], [6300, 1])
 
@@ -142,10 +161,15 @@ def main(args=None):
 
         evaluate_linemod(generator, model, args.linemod_path, args.score_threshold)
 
-    if args.dataset_type == 'occlusion':
+    elif args.dataset_type == 'occlusion':
         from ..utils.occlusion_eval import evaluate_occlusion
 
         evaluate_occlusion(generator, model, args.occlusion_path, args.score_threshold)
+
+    elif args.dataset_type == 'tless':
+        from ..utils.tless_eval import tless_occlusion
+
+        evaluate_tless(generator, model, args.occlusion_path, args.score_threshold)
 
     else:
          print('unknown dataset: ', args.dataset_type)

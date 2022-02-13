@@ -173,12 +173,12 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'homebrewed'
-    traintestval = 'train'
+    dataset = 'tless'
+    traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/BOP_datasets/hb/train_pbr"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/hb_PBR_BOP/'
+    root = "/home/stefan/data/bop_datasets/tless/test_primesense"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/tless_PBR_BOP/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
     elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/BOP_dataset/tless/models_eval/models_info.json'
+        mesh_info = '/home/stefan/data/bop_datasets/tless/models_eval/models_info.json'
         num_objects = 30
     elif dataset == 'homebrewed':
         mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
@@ -356,7 +356,7 @@ if __name__ == "__main__":
                 print("storing image in : ", fileName)
 
             mask_ind = 0
-            mask_img = np.zeros((480, 640), dtype=np.uint8)
+            mask_img = np.zeros((540, 720), dtype=np.uint8)
             bbvis = []
             cnt = 0
             # bbsca = 720.0 / 640.0
