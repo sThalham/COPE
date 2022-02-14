@@ -17,8 +17,6 @@ limitations under the License.
 import argparse
 import os
 import sys
-import math
-import copy
 import numpy as np
 import yaml
 import json
@@ -47,11 +45,11 @@ def create_generator(args):
 
         dataset = TlessDataset(args.tless_path, 'val', batch_size=1)
         num_classes = 30
-        dataset = tf.data.Dataset.range(1)
-        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.yml')
+        #dataset = tf.data.Dataset.range(1)
+        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -167,9 +165,9 @@ def main(args=None):
         evaluate_occlusion(generator, model, args.occlusion_path, args.score_threshold)
 
     elif args.dataset_type == 'tless':
-        from ..utils.tless_eval import tless_occlusion
+        from ..utils.tless_eval import evaluate_tless
 
-        evaluate_tless(generator, model, args.occlusion_path, args.score_threshold)
+        evaluate_tless(generator, model, args.tless_path, args.score_threshold)
 
     else:
          print('unknown dataset: ', args.dataset_type)

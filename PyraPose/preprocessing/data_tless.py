@@ -90,7 +90,7 @@ class TlessDataset(tf.data.Dataset):
         set_name = set_name.decode("utf-8")
         batch_size = batch_size
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
-        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
 
         with open(path, 'r') as js:
             data = json.load(js)
@@ -129,7 +129,7 @@ class TlessDataset(tf.data.Dataset):
         sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -182,14 +182,15 @@ class TlessDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'labels': np.empty((0,)),
-                           'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
-                           'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
+            #annotations = {'mask': mask, 'labels': np.empty((0,)),
+            #               'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
+            #               'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
+            annotations = {'labels': np.empty((0,)),
+                           'bboxes': np.empty((0, 4)),
+                           'poses': np.empty((0, 7)),
+                           'cam_params': np.empty((0, 4))}
 
             for idx, a in enumerate(anns):
-                if set_name == 'train':
-                    if a['feature_visibility'] < 0.5:
-                        continue
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -211,33 +212,43 @@ class TlessDataset(tf.data.Dataset):
                     a['pose'][5],
                     a['pose'][6],
                 ]]], axis=0)
-                annotations['mask_ids'] = np.concatenate([annotations['mask_ids'], [
-                    a['mask_id'],
-                ]], axis=0)
-                objID = a['category_id']
-                threeDbox = TDboxes[objID, :, :]
-                annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
-                annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
-                                                          axis=0)
+                #annotations['mask_ids'] = np.concatenate([annotations['mask_ids'], [
+                #    a['mask_id'],
+                #]], axis=0)
+                #objID = a['category_id']
+                #threeDbox = TDboxes[objID, :, :]
+                #annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
+                #annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
+                #                                          axis=0)
                 annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
                     fx,
                     fy,
                     cx,
                     cy,
                 ]]], axis=0)
-                annotations['sym_dis'] = np.concatenate(
-                    [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)
-                annotations['sym_con'] = np.concatenate(
-                    [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
+                #annotations['sym_dis'] = np.concatenate(
+                #    [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)
+                #annotations['sym_con'] = np.concatenate(
+                #    [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
 
             return annotations
 
         for image_index, image_path in enumerate(image_paths):
             x_t = load_image(image_index)
             y_t = load_annotations(image_index)
-            print(y_t.shape)
 
-            return x_t, y_t
+            x_t, scale = resize_image(x_t, min_side=image_min_side, max_side=image_max_side)
+            y_t['bboxes'] *= scale
+            y_t['cam_params'] *= scale
+
+            x_t = preprocess_image(x_t)
+            x_t = keras.backend.cast_to_floatx(x_t)
+
+            anno = []
+            for adx, item in enumerate(y_t.items()):
+                anno.append(item[1])
+
+            yield x_t, anno[0], anno[1], anno[2], anno[3]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
@@ -250,7 +261,7 @@ class TlessDataset(tf.data.Dataset):
         set_name = set_name.decode("utf-8")
         batch_size = batch_size
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
-        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
 
         batch_size = int(batch_size)
         image_min_side = image_min_side
@@ -296,7 +307,7 @@ class TlessDataset(tf.data.Dataset):
         sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -513,11 +524,14 @@ class TlessDataset(tf.data.Dataset):
             return tf.data.Dataset.from_generator(self._sample,
                                               output_signature=(
                                                   tf.TensorSpec(shape=(480, 640, 3), dtype=tf.float32),
-                                                  (tf.TensorSpec(shape=(batch_size, 6300, 30, 8, 17), dtype=tf.float32),
-                                                   tf.TensorSpec(shape=(batch_size, 6300, 30 + 1), dtype=tf.float32),
-                                                   tf.TensorSpec(shape=(batch_size, 6300, 30, 4), dtype=tf.float32),
-                                                   tf.TensorSpec(shape=(batch_size, 6300, 30, 8, 7), dtype=tf.float32),
-                                                   tf.TensorSpec(shape=(batch_size, 6300, 30), dtype=tf.float32))),
+                                                  tf.TensorSpec(shape=(None, ), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 7), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 4), dtype=tf.float32)),
+                                                  #{"labels": tf.TensorSpec(shape=(None,), dtype=tf.float64, name="labels")}),
+                                                  # "bboxes": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="bboxes"),
+                                                  # "poses": tf.TensorSpec(shape=(None, 7), dtype=tf.float64, name="poses"),
+                                                  # "cam_params": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="cam_params")}),
                                               args=(data_dir, set_name, batch_size))
 
         elif set_name=='train':

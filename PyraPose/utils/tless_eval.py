@@ -1,14 +1,10 @@
 
-#from pycocotools.cocoeval import COCOeval
-
-import keras
+import os
+import tensorflow.keras as keras
 import numpy as np
 import json
-import pyquaternion
 import math
 import transforms3d as tf3d
-import geometry
-import os
 import copy
 import cv2
 import open3d
@@ -20,46 +16,6 @@ import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
 
 
-def get_evaluation(pcd_temp_, pcd_scene_, inlier_thres, tf, final_th=0, n_iter=5):#queue
-    tf_pcd =np.eye(4)
-
-    reg_p2p = open3d.registration_icp(pcd_temp_, pcd_scene_ , inlier_thres, np.eye(4),
-              open3d.TransformationEstimationPointToPoint(),
-              open3d.ICPConvergenceCriteria(max_iteration=1)) #5?
-    tf = np.matmul(reg_p2p.transformation, tf)
-    tf_pcd = np.matmul(reg_p2p.transformation,tf_pcd)
-    pcd_temp_.transform(reg_p2p.transformation)
-
-    for i in range(4):
-        inlier_thres = reg_p2p.inlier_rmse*3
-        if inlier_thres == 0:
-            continue
-
-        reg_p2p = open3d.registration_icp(pcd_temp_,pcd_scene_ , inlier_thres, np.eye(4),
-                  open3d.TransformationEstimationPointToPlane(),
-                  open3d.ICPConvergenceCriteria(max_iteration=1)) #5?
-        tf = np.matmul(reg_p2p.transformation, tf)
-        tf_pcd = np.matmul(reg_p2p.transformation, tf_pcd)
-        pcd_temp_.transform(reg_p2p.transformation)
-    inlier_rmse = reg_p2p.inlier_rmse
-
-    ##Calculate fitness with depth_inlier_th
-    if(final_th>0):
-        inlier_thres = final_th #depth_inlier_th*2 #reg_p2p.inlier_rmse*3
-        reg_p2p = registration_icp(pcd_temp_,pcd_scene_, inlier_thres, np.eye(4),
-                  TransformationEstimationPointToPlane(),
-                  ICPConvergenceCriteria(max_iteration = 1)) #5?
-
-    if( np.abs(np.linalg.det(tf[:3,:3])-1)>0.001):
-        tf[:3,0]=tf[:3,0]/np.linalg.norm(tf[:3,0])
-        tf[:3,1]=tf[:3,1]/np.linalg.norm(tf[:3,1])
-        tf[:3,2]=tf[:3,2]/np.linalg.norm(tf[:3,2])
-    if( np.linalg.det(tf) < 0) :
-        tf[:3,2]=-tf[:3,2]
-
-    return tf,inlier_rmse,tf_pcd,reg_p2p.fitness
-
-
 def toPix_array(translation, fx, fy, cx, cy):
 
     xpix = ((translation[:, 0] * fx) / translation[:, 2]) + cx
@@ -69,22 +25,18 @@ def toPix_array(translation, fx, fy, cx, cy):
     return np.stack((xpix, ypix), axis=1) #, zpix]
 
 
-def load_pcd(cat):
+def load_pcd(data_path, cat):
     # load meshes
-    mesh_path = "/home/sthalham/data/Meshes/tless_BOP/"
-    #mesh_path = "/home/stefan/data/val_linemod_cc_rgb/models_ply/"
-    ply_path = mesh_path + 'obj_0000' + cat + '.ply'
-    model_vsd = ply_loader.load_ply(ply_path)
-    pcd_model = open3d.PointCloud()
-    pcd_model.points = open3d.Vector3dVector(model_vsd['pts'])
-    open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=0.1, max_nn=30))
+    ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
+    pcd_model = open3d.io.read_point_cloud(ply_path)
+    model_vsd = {}
+    model_vsd['pts'] = np.asarray(pcd_model.points)
+    #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
+    #    radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
-    model_vsd_mm = copy.deepcopy(model_vsd)
-    model_vsd_mm['pts'] = model_vsd_mm['pts'] * 1000.0
-    pcd_model = open3d.read_point_cloud(ply_path)
+    model_vsd['pts'] = model_vsd['pts'] * 0.001
 
-    return pcd_model, model_vsd, model_vsd_mm
+    return pcd_model, model_vsd
 
 
 def create_point_cloud(depth, ds):
@@ -132,27 +84,14 @@ def boxoverlap(a, b):
     return ovlap
 
 
-def evaluate_tless(generator, model, threshold=0.05):
+def evaluate_tless(generator, model, data_path, threshold=0.05):
     threshold = 0.5
-    """ Use the pycocotools to evaluate a COCO model on a dataset.
-    Args
-        generator : The generator for generating the evaluation data.
-        model     : The model to evaluate.
-        threshold : The score threshold to use.
-    """
-    # start collecting results
-    results = []
-    image_ids = []
-    image_indices = []
-    idx = 0
-    Visualization = True
 
-    mesh_info = '/home/sthalham/data/Meshes/tless_BOP/models_info.json'
-
+    mesh_info = os.path.join(data_path, "meshes/models_info.json")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
 
-    for key, value in yaml.load(open(mesh_info)).items():
+    for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x'] * fac
         y_minus = value['min_y'] * fac
@@ -169,189 +108,75 @@ def evaluate_tless(generator, model, threshold=0.05):
                                    [x_minus, y_minus, z_minus],
                                    [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
-        model_dia[int(key)] = value['diameter']
-
-    tp = np.zeros((31), dtype=np.uint32)
-    fp = np.zeros((31), dtype=np.uint32)
-    fn = np.zeros((31), dtype=np.uint32)
-
-    # interlude
-    tp55 = np.zeros((31), dtype=np.uint32)
-    fp55 = np.zeros((31), dtype=np.uint32)
-    fn55 = np.zeros((31), dtype=np.uint32)
-
-    tp6 = np.zeros((31), dtype=np.uint32)
-    fp6 = np.zeros((31), dtype=np.uint32)
-    fn6 = np.zeros((31), dtype=np.uint32)
-
-    tp65 = np.zeros((31), dtype=np.uint32)
-    fp65 = np.zeros((31), dtype=np.uint32)
-    fn65 = np.zeros((31), dtype=np.uint32)
-
-    tp7 = np.zeros((31), dtype=np.uint32)
-    fp7 = np.zeros((31), dtype=np.uint32)
-    fn7 = np.zeros((31), dtype=np.uint32)
-
-    tp75 = np.zeros((31), dtype=np.uint32)
-    fp75 = np.zeros((31), dtype=np.uint32)
-    fn75 = np.zeros((31), dtype=np.uint32)
-
-    tp8 = np.zeros((31), dtype=np.uint32)
-    fp8 = np.zeros((31), dtype=np.uint32)
-    fn8 = np.zeros((31), dtype=np.uint32)
-
-    tp85 = np.zeros((31), dtype=np.uint32)
-    fp85 = np.zeros((31), dtype=np.uint32)
-    fn85 = np.zeros((31), dtype=np.uint32)
-
-    tp9 = np.zeros((31), dtype=np.uint32)
-    fp9 = np.zeros((31), dtype=np.uint32)
-    fn9 = np.zeros((31), dtype=np.uint32)
-
-    tp925 = np.zeros((31), dtype=np.uint32)
-    fp925 = np.zeros((31), dtype=np.uint32)
-    fn925 = np.zeros((31), dtype=np.uint32)
-
-    tp95 = np.zeros((31), dtype=np.uint32)
-    fp95 = np.zeros((31), dtype=np.uint32)
-    fn95 = np.zeros((31), dtype=np.uint32)
-
-    tp975 = np.zeros((31), dtype=np.uint32)
-    fp975 = np.zeros((31), dtype=np.uint32)
-    fn975 = np.zeros((31), dtype=np.uint32)
-    # interlude end
-
-    tp_add = np.zeros((31), dtype=np.uint32)
-    fp_add = np.zeros((31), dtype=np.uint32)
-    fn_add = np.zeros((31), dtype=np.uint32)
-
-    rotD = np.zeros((31), dtype=np.uint32)
-    less5 = np.zeros((31), dtype=np.uint32)
-    rep_e = np.zeros((31), dtype=np.uint32)
-    rep_less5 = np.zeros((31), dtype=np.uint32)
-    add_e = np.zeros((31), dtype=np.uint32)
-    add_less_d = np.zeros((31), dtype=np.uint32)
-    vsd_e = np.zeros((31), dtype=np.uint32)
-    vsd_less_t = np.zeros((31), dtype=np.uint32)
-
-    add_less_d005 = np.zeros((31), dtype=np.uint32)
-    add_less_d015 = np.zeros((31), dtype=np.uint32)
-    add_less_d02 = np.zeros((31), dtype=np.uint32)
-    add_less_d025 = np.zeros((31), dtype=np.uint32)
-    add_less_d03 = np.zeros((31), dtype=np.uint32)
-    add_less_d035 = np.zeros((31), dtype=np.uint32)
-    add_less_d04 = np.zeros((31), dtype=np.uint32)
-    add_less_d045 = np.zeros((31), dtype=np.uint32)
-    add_less_d05 = np.zeros((31), dtype=np.uint32)
-    add_less_d055 = np.zeros((31), dtype=np.uint32)
-    add_less_d06 = np.zeros((31), dtype=np.uint32)
-    add_less_d065 = np.zeros((31), dtype=np.uint32)
-    add_less_d07 = np.zeros((31), dtype=np.uint32)
-    add_less_d075 = np.zeros((31), dtype=np.uint32)
-    add_less_d08 = np.zeros((31), dtype=np.uint32)
-    add_less_d085 = np.zeros((31), dtype=np.uint32)
-    add_less_d09 = np.zeros((31), dtype=np.uint32)
-    add_less_d095 = np.zeros((31), dtype=np.uint32)
-    add_less_d1 = np.zeros((31), dtype=np.uint32)
+        model_dia[int(key)] = value['diameter'] * fac
 
     # target annotation
-    pc1, mv1, mv1_mm = load_pcd('01')
-    pc2, mv2, mv2_mm = load_pcd('02')
-    pc3, mv3, mv3_mm = load_pcd('03')
-    pc4, mv4, mv4_mm = load_pcd('04')
-    pc5, mv5, mv5_mm = load_pcd('05')
-    pc6, mv6, mv6_mm = load_pcd('06')
-    pc7, mv7, mv7_mm = load_pcd('07')
-    pc8, mv8, mv8_mm = load_pcd('08')
-    pc9, mv9, mv9_mm = load_pcd('09')
-    pc10, mv10, mv10_mm = load_pcd('10')
-    pc11, mv11, mv11_mm = load_pcd('11')
-    pc12, mv12, mv12_mm = load_pcd('12')
-    pc13, mv13, mv13_mm = load_pcd('13')
-    pc14, mv14, mv14_mm = load_pcd('14')
-    pc15, mv15, mv15_mm = load_pcd('15')
-    pc16, mv16, mv16_mm = load_pcd('16')
-    pc17, mv17, mv17_mm = load_pcd('17')
-    pc18, mv18, mv18_mm = load_pcd('18')
-    pc19, mv19, mv19_mm = load_pcd('19')
-    pc20, mv20, mv20_mm = load_pcd('20')
-    pc21, mv21, mv21_mm = load_pcd('21')
-    pc22, mv22, mv22_mm = load_pcd('22')
-    pc23, mv23, mv23_mm = load_pcd('23')
-    pc24, mv24, mv24_mm = load_pcd('24')
-    pc25, mv25, mv25_mm = load_pcd('25')
-    pc26, mv26, mv26_mm = load_pcd('26')
-    pc27, mv27, mv27_mm = load_pcd('27')
-    pc28, mv28, mv28_mm = load_pcd('28')
-    pc29, mv29, mv29_mm = load_pcd('29')
-    pc30, mv30, mv30_mm = load_pcd('30')
+    pc1, mv1 = load_pcd(data_path, '000001')
+    pc2, mv2 = load_pcd(data_path, '000002')
+    pc3, mv3 = load_pcd(data_path, '000003')
+    pc4, mv4 = load_pcd(data_path, '000004')
+    pc5, mv5 = load_pcd(data_path, '000005')
+    pc6, mv6 = load_pcd(data_path, '000006')
+    pc7, mv7 = load_pcd(data_path, '000007')
+    pc8, mv8 = load_pcd(data_path, '000008')
+    pc9, mv9 = load_pcd(data_path, '000009')
+    pc10, mv10 = load_pcd(data_path, '000010')
+    pc11, mv11 = load_pcd(data_path, '000011')
+    pc12, mv12 = load_pcd(data_path, '000012')
+    pc13, mv13 = load_pcd(data_path, '000013')
+    pc14, mv14 = load_pcd(data_path, '000014')
+    pc15, mv15 = load_pcd(data_path, '000015')
+    pc16, mv16 = load_pcd(data_path, '000016')
+    pc17, mv17 = load_pcd(data_path, '000017')
+    pc18, mv18 = load_pcd(data_path, '000018')
+    pc19, mv19 = load_pcd(data_path, '000019')
+    pc20, mv20 = load_pcd(data_path, '000020')
+    pc21, mv21 = load_pcd(data_path, '000021')
+    pc22, mv22 = load_pcd(data_path, '000022')
+    pc23, mv23 = load_pcd(data_path, '000023')
+    pc24, mv24 = load_pcd(data_path, '000024')
+    pc25, mv25 = load_pcd(data_path, '000025')
+    pc26, mv26 = load_pcd(data_path, '000026')
+    pc27, mv27 = load_pcd(data_path, '000027')
+    pc28, mv28 = load_pcd(data_path, '000028')
+    pc29, mv29 = load_pcd(data_path, '000029')
+    pc30, mv30 = load_pcd(data_path, '000030')
 
-    for index in progressbar.progressbar(range(generator.size()), prefix='Tless evaluation: '):
+    #for index in progressbar.progressbar(range(generator.size()), prefix='Tless evaluation: '):
+    for index, sample in enumerate(generator):
         print(index)
 
-        image_raw = generator.load_image(index)
-        image = generator.preprocess_image(image_raw)
-        image, scale = generator.resize_image(image)
-        image_dep_path = generator.load_image_dep(index)
+        image = sample[0]
+        gt_labels = sample[1]
+        gt_boxes = sample[2]
+        gt_poses = sample[3]
+        gt_calib = sample[4]
 
-        if keras.backend.image_data_format() == 'channels_first':
-            image = image.transpose((2, 0, 1))
-
-        anno = generator.load_annotations(index)
-
-        t_cat = anno['labels'].astype(np.int8) + 1
-        obj_name = []
-        for idx, obj_temp in enumerate(t_cat):
-            if obj_temp < 10:
-                obj_name.append('0' + str(obj_temp))
-            else:
-                obj_name.append(str(obj_temp))
-        t_bbox = np.asarray(anno['bboxes'], dtype=np.float32)
-        gt_poses = anno['poses']
-        gt_calib = anno['K']
+        print(image.shape)
+        print(np.nanmin(image), np.nanmax(image))
 
         # run network
-        boxes, boxes3D, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        print(np.min(scores), np.max(scores))
 
-        # correct boxes for image scale
-        boxes /= scale
+        boxes3D = boxes3D[labels != -1, :]
+        scores = scores[labels != -1]
+        confs = consistency[labels != -1]
+        poses = poses[labels != -1]
+        masks = mask[mask != -1]
+        labels = labels[labels != -1]
 
-        # change to (x, y, w, h) (MS COCO standard)
-        boxes[:, :, 2] -= boxes[:, :, 0]
-        boxes[:, :, 3] -= boxes[:, :, 1]
+        print(boxes3D.shape)
+        print(scores.shape)
+        print(confs.shape)
+        print(poses.shape)
+        print(labels.shape)
 
-        rotD[t_cat] += 1
-        rep_e[t_cat] += 1
-        add_e[t_cat] += 1
-        vsd_e[t_cat] += 1
-        fn[t_cat] += 1
-        fn55[t_cat] += 1
-        fn6[t_cat] += 1
-        fn65[t_cat] += 1
-        fn7[t_cat] += 1
-        fn75[t_cat] += 1
-        fn8[t_cat] += 1
-        fn85[t_cat] += 1
-        fn9[t_cat] += 1
-        fn925[t_cat] += 1
-        fn95[t_cat] += 1
-        fn975[t_cat] += 1
+        print('unique: ', np.unique(labels))
+        for inv_cls in np.unique(labels):
 
-        # end interlude
-        fn_add[t_cat] += 1
-        fnit = np.zeros((31), dtype=np.uint32)
-        fnit[t_cat] +=1
-
-        vsd_true = False
-
-        # compute predicted labels and scores
-        for box, box3D, score, label in zip(boxes[0], boxes3D[0], scores[0], labels[0]):
-            # scores are sorted, so we can break
-            if score < threshold:
-                continue
-
-            if label < 0:
-                continue
+            true_cls = inv_cls + 1
+            cls = true_cls
 
             cls = generator.label_to_inv_label(label)
             control_points = box3D

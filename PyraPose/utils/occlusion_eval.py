@@ -27,107 +27,6 @@ cxkin = 325.26110
 cykin = 242.04899
 
 
-def get_evaluation_kiru(pcd_temp_,pcd_scene_,inlier_thres,tf,final_th, model_dia):#queue
-    tf_pcd =np.eye(4)
-    pcd_temp_.transform(tf)
-
-    mean_temp = np.mean(np.array(pcd_temp_.points)[:, 2])
-    mean_scene = np.median(np.array(pcd_scene_.points)[:, 2])
-    pcd_diff = mean_scene - mean_temp
-
-    #open3d.draw_geometries([pcd_temp_])
-    # align model with median depth of scene
-    new_pcd_trans = []
-    for i, point in enumerate(pcd_temp_.points):
-        poi = np.asarray(point)
-        poi = poi + [0.0, 0.0, pcd_diff]
-        new_pcd_trans.append(poi)
-    tf = np.array(tf)
-    tf[2, 3] = tf[2, 3] + pcd_diff
-    pcd_temp_.points = open3d.Vector3dVector(np.asarray(new_pcd_trans))
-    open3d.estimate_normals(pcd_temp_, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=5.0, max_nn=10))
-
-    pcd_min = mean_scene - (model_dia * 2)
-    pcd_max = mean_scene + (model_dia * 2)
-    new_pcd_scene = []
-    for i, point in enumerate(pcd_scene_.points):
-        if point[2] > pcd_min or point[2] < pcd_max:
-            new_pcd_scene.append(point)
-    pcd_scene_.points = open3d.Vector3dVector(np.asarray(new_pcd_scene))
-    #open3d.draw_geometries([pcd_scene_])
-    open3d.estimate_normals(pcd_scene_, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=5.0, max_nn=10))
-
-    reg_p2p = open3d.registration.registration_icp(pcd_temp_,pcd_scene_ , inlier_thres, np.eye(4),
-                                                   open3d.registration.TransformationEstimationPointToPoint(),
-                                                   open3d.registration.ICPConvergenceCriteria(max_iteration = 5)) #5?
-    tf = np.matmul(reg_p2p.transformation,tf)
-    tf_pcd = np.matmul(reg_p2p.transformation,tf_pcd)
-    pcd_temp_.transform(reg_p2p.transformation)
-
-    open3d.estimate_normals(pcd_temp_, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=2.0, max_nn=30))
-    #open3d.draw_geometries([pcd_scene_])
-    points_unfiltered = np.asarray(pcd_temp_.points)
-    last_pcd_temp = []
-    for i, normal in enumerate(pcd_temp_.normals):
-        if normal[2] < 0:
-            last_pcd_temp.append(points_unfiltered[i, :])
-    if not last_pcd_temp:
-        normal_array = np.asarray(pcd_temp_.normals) * -1
-        pcd_temp_.normals = open3d.Vector3dVector(normal_array)
-        points_unfiltered = np.asarray(pcd_temp_.points)
-        last_pcd_temp = []
-        for i, normal in enumerate(pcd_temp_.normals):
-            if normal[2] < 0:
-                last_pcd_temp.append(points_unfiltered[i, :])
-    #print(np.asarray(last_pcd_temp))
-    pcd_temp_.points = open3d.Vector3dVector(np.asarray(last_pcd_temp))
-
-    open3d.estimate_normals(pcd_temp_, search_param=open3d.KDTreeSearchParamHybrid(
-        radius=5.0, max_nn=30))
-
-    hyper_tresh = inlier_thres
-    for i in range(4):
-        inlier_thres = reg_p2p.inlier_rmse*2
-        hyper_thres = hyper_tresh * 0.75
-        if inlier_thres < 1.0:
-            inlier_thres = hyper_tresh * 0.75
-            hyper_tresh = inlier_thres
-        reg_p2p = open3d.registration.registration_icp(pcd_temp_,pcd_scene_ , inlier_thres, np.eye(4),
-                                                       open3d.registration.TransformationEstimationPointToPlane(),
-                                                       open3d.registration.ICPConvergenceCriteria(max_iteration = 1)) #5?
-        tf = np.matmul(reg_p2p.transformation,tf)
-        tf_pcd = np.matmul(reg_p2p.transformation,tf_pcd)
-        pcd_temp_.transform(reg_p2p.transformation)
-    inlier_rmse = reg_p2p.inlier_rmse
-
-    #open3d.draw_geometries([pcd_temp_, pcd_scene_])
-
-    ##Calculate fitness with depth_inlier_th
-    if(final_th>0):
-
-        inlier_thres = final_th #depth_inlier_th*2 #reg_p2p.inlier_rmse*3
-        reg_p2p = open3d.registration.registration_icp(pcd_temp_,pcd_scene_, inlier_thres, np.eye(4),
-                                                       open3d.registration.TransformationEstimationPointToPlane(),
-                                                       open3d.registration.ICPConvergenceCriteria(max_iteration = 1)) #5?
-        tf = np.matmul(reg_p2p.transformation, tf)
-        tf_pcd = np.matmul(reg_p2p.transformation, tf_pcd)
-        pcd_temp_.transform(reg_p2p.transformation)
-
-    #open3d.draw_geometries([last_pcd_temp_, pcd_scene_])
-
-    if( np.abs(np.linalg.det(tf[:3,:3])-1)>0.001):
-        tf[:3,0]=tf[:3,0]/np.linalg.norm(tf[:3,0])
-        tf[:3,1]=tf[:3,1]/np.linalg.norm(tf[:3,1])
-        tf[:3,2]=tf[:3,2]/np.linalg.norm(tf[:3,2])
-    if( np.linalg.det(tf) < 0) :
-        tf[:3,2]=-tf[:3,2]
-
-    return tf,inlier_rmse,tf_pcd,reg_p2p.fitness
-
-
 def toPix_array(translation):
 
     xpix = ((translation[:, 0] * fxkin) / translation[:, 2]) + cxkin
@@ -255,7 +154,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
     mesh_info = os.path.join(data_path, "meshes/models_info.yml")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
-    avg_dimension = np.ndarray((16), dtype=np.float32)
 
     for key, value in yaml.load(open(mesh_info)).items():
         fac = 0.001
@@ -277,16 +175,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                   [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
         model_dia[int(key)] = value['diameter'] * fac
-        avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1 = load_pcd(data_path,'000001')
-    pc5, mv5 = load_pcd(data_path,'000005')
-    pc6, mv6 = load_pcd(data_path,'000006')
-    pc8, mv8 = load_pcd(data_path,'000008')
-    pc9, mv9 = load_pcd(data_path,'000009')
-    pc10, mv10 = load_pcd(data_path,'000010')
-    pc11, mv11 = load_pcd(data_path,'000011')
-    pc12, mv12 = load_pcd(data_path,'000012')
+    pc1, mv1 = load_pcd(data_path, '000001')
+    pc5, mv5 = load_pcd(data_path, '000005')
+    pc6, mv6 = load_pcd(data_path, '000006')
+    pc8, mv8 = load_pcd(data_path, '000008')
+    pc9, mv9 = load_pcd(data_path, '000009')
+    pc10, mv10 = load_pcd(data_path, '000010')
+    pc11, mv11 = load_pcd(data_path, '000011')
+    pc12, mv12 = load_pcd(data_path, '000012')
 
 
     allPoses = np.zeros((16), dtype=np.uint32)

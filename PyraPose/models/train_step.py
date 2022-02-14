@@ -47,7 +47,6 @@ class CustomModel(tf.keras.Model):
 
         return return_losses
 
-
     def call(self, inputs, training=False):
         x = self.pyrapose(inputs[0])
         if training:

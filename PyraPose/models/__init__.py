@@ -28,6 +28,7 @@ class Backbone(object):
             'Locations_Hacked'          : layers.Locations_Hacked(),
             '_per_cls_l1'               : losses.per_cls_l1(),
             '_per_cls_l1_trans'               : losses.per_cls_l1_trans(),
+            '_per_cls_l1_pose'         : losses.per_cls_l1_trans(),
             '_per_cls_l1_sym'               : losses.per_cls_l1_sym(),
             '_projection_deviation'     : losses.projection_deviation()
         }

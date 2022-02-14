@@ -190,7 +190,7 @@ if __name__ == "__main__":
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
     elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/bop_datasets/tless/models_eval/models_info.json'
+        mesh_info = '/home/stefan/data/bop_datasets/tless/models/models_eval/models_info.json'
         num_objects = 30
     elif dataset == 'homebrewed':
         mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'

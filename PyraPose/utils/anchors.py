@@ -257,6 +257,8 @@ def anchor_targets_bbox(
                 symmetry_mask = np.zeros(8)
                 symmetry_mask[0] = 1
 
+                print('anchors; ',  annotations['cam_params'][idx])
+
                 is_sym = False
                 sym_disc = annotations['sym_dis'][idx]
                 if np.sum(np.abs(sym_disc)) != 0:

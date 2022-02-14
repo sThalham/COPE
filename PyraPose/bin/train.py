@@ -163,10 +163,10 @@ def create_generators(args, preprocess_image):
             num_parallel_calls=args.workers
         )
         dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
-        mesh_info = os.path.join(args.linemod_path, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(args.linemod_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -251,10 +251,10 @@ def create_generators(args, preprocess_image):
             num_parallel_calls=args.workers
         )
         dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
-        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(args.tless_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -283,6 +283,7 @@ def create_generators(args, preprocess_image):
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
             break
+        intrinsics *= 1.0/1.125
 
     elif args.dataset_type == 'homebrewed':
         from ..preprocessing.data_hb import HomebrewedDataset
