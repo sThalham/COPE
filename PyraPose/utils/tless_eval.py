@@ -172,7 +172,8 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
 
         # run network
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
-        print(np.min(scores), np.max(scores))
+        #print('poses: ', poses)
+        print(np.min(poses), np.max(poses))
 
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
@@ -180,6 +181,8 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
         poses = poses[labels != -1]
         masks = mask[mask != -1]
         labels = labels[labels != -1]
+
+        #print('poses -1: ', poses)
 
         print(boxes3D.shape)
         print(scores.shape)
@@ -194,7 +197,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
 
             pose_votes = boxes3D[labels == inv_cls]
             scores_votes = scores[labels == inv_cls]
-            poses_votes = poses[labels == inv_cls]
+            poses_votes = poses[labels == inv_cls, inv_cls]
             confs_votes = confs[labels == inv_cls]
             labels_votes = labels[labels == inv_cls]
             mask_votes = masks[labels == inv_cls]
@@ -228,7 +231,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
             # pos_anchors = anchor_params[cls_indices, :]
 
             ind_anchors = np.where(labels_votes == inv_cls)[0]
-            print(ind_anchors)
             # pos_anchors = pos_anchors[0]
 
             per_obj_hyps = []
@@ -276,17 +278,11 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
                     pos_anchors = np.delete(pos_anchors, indcs2rm, axis=0)
                     ind_anchors = np.delete(ind_anchors, indcs2rm, axis=0)
 
-                print('obj_inds per instance: ', obj_inds)
                 per_obj_hyps.append(obj_inds)
                 per_obj_cls.append(cls)
 
             for inst, hyps in enumerate(per_obj_hyps):
 
-                #anno_ind = np.argwhere(anno['labels'] == cls)
-                #print(anno_ind)
-                #t_tra = anno['poses'][anno_ind[0][0]][:3]
-                #t_rot = anno['poses'][anno_ind[0][0]][3:]
-                print('hyps: ', hyps)
 
                 box_votes = pose_votes[hyps, :]
                 k_hyp = box_votes.shape[0]
@@ -294,6 +290,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
                 ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
+                '''
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -305,35 +302,54 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
                                                                    flags=cv2.SOLVEPNP_EPNP)
                 R_est, _ = cv2.Rodrigues(orvec)
                 t_est = otvec.T
+                t_bop = t_est * 1000.0
+                '''
 
-                eDbox = R_est.dot(ori_points.T).T
-                # print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
-                eDbox = eDbox + np.repeat(t_est, 8, axis=0)
-                # eDbox = eDbox + np.repeat(t_est, 8, axis=0)
-                # print(eDbox.shape)
-                est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
-                # print(est3D)
-                eDbox = np.reshape(est3D, (16))
-                pose = eDbox.astype(np.uint16)
-                colGT = (255, 0, 0)
-                colEst = (0, 204, 0)
+                print('pose votes: ', poses_votes.shape)
+                direct_votes = poses_votes[hyps, :]
+                print('direct votes: ', direct_votes.shape)
 
-                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-                image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
-                                     2)
-                image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
-                                     2)
-                image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
-                                     2)
-                image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
-                                     2)
+                for pdx in range(direct_votes.shape[0]):
+
+                    pose_hyp = direct_votes[pdx, :]
+                    #print('pose: ', pose_hyp)
+                    R_est = np.eye(3)
+                    R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
+                    R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
+                    R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
+                    R_est[:3, 2] = R3 / np.linalg.norm(R3)
+                    ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
+                    t_est = pose_hyp[:3].T * 0.001
+                    t_bop = t_est * 1000.0
+
+                    eDbox = R_est.dot(ori_points.T).T
+                    # print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
+                    eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                    #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
+                    # print(eDbox.shape)
+                    est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                    # print(est3D)
+                    eDbox = np.reshape(est3D, (16))
+                    pose = eDbox.astype(np.uint16)
+                    colGT = (255, 0, 0)
+                    colEst = (0, 204, 0)
+
+                    image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                                         2)
 
                 eval_line = []
                 R_bop = [str(i) for i in R_est.flatten().tolist()]
@@ -346,7 +362,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
 
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image, image_mask], axis=0)
-        cv2.imwrite(name, image)
+        cv2.imwrite(name, image_raw)
 
     wd_path = os.getcwd()
     csv_target = os.path.join(wd_path, 'sthalham-pp_tless-test.csv')

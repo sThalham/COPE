@@ -104,8 +104,8 @@ def filter_detections(
     locations = keras.backend.gather(locations, indices)
 
     filter_class = tf.stack([tf.range(tf.shape(indices)[0]), tf.cast(indices, tf.int32)], axis=-1)
-    translation = tf.gather_nd(translation, filter_class)
-    rotation = tf.gather_nd(rotation, filter_class)
+    #translation = tf.gather_nd(translation, filter_class)
+    #rotation = tf.gather_nd(rotation, filter_class)
     confidence = tf.gather_nd(confidence, filter_class)
     confidence = keras.backend.abs(confidence)
     confidence = tf.math.reduce_sum(confidence, axis=1)
@@ -113,10 +113,10 @@ def filter_detections(
     # zero pad the outputs
     pad_size = keras.backend.maximum(0, max_detections - keras.backend.shape(scores)[0])
     boxes3D     = backend.pad(boxes3D, [[0, pad_size], [0, 0]], constant_values=-1)
-    translation = backend.pad(translation, [[0, pad_size], [0, 0]], constant_values=-1)
-    rotation    = backend.pad(rotation, [[0, pad_size], [0, 0]], constant_values=-1)
-    #translation = backend.pad(translation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
-    #rotation = backend.pad(rotation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
+    #translation = backend.pad(translation, [[0, pad_size], [0, 0]], constant_values=-1)
+    #rotation    = backend.pad(rotation, [[0, pad_size], [0, 0]], constant_values=-1)
+    translation = backend.pad(translation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
+    rotation = backend.pad(rotation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
     #confidence  = backend.pad(confidence, [[0, pad_size], [0, 0]], constant_values=-1)
     confidence = backend.pad(confidence, [[0, pad_size]], constant_values=-1)
     locations   = backend.pad(locations, [[0, pad_size], [0, 0]], constant_values=-1)
@@ -140,8 +140,8 @@ def filter_detections(
     labels.set_shape([max_detections])
     #translation.set_shape([max_detections, 3])
     #rotation.set_shape([max_detections, 6])
-    translation.set_shape([max_detections, 3])
-    rotation.set_shape([max_detections, 6])
+    translation.set_shape([max_detections, num_classes, 3])
+    rotation.set_shape([max_detections, num_classes, 6])
     confidence.set_shape([max_detections])
     indices.set_shape([max_detections])
     #tf.print('rotation reshaped: ', tf.shape(rotation))
@@ -237,8 +237,10 @@ class FilterDetections(keras.layers.Layer):
             (input_shape[2][0], self.max_detections, 2),
             (input_shape[1][0], self.max_detections),
             (input_shape[1][0], self.max_detections),
-            (input_shape[3][0], self.max_detections, 3),
-            (input_shape[4][0], self.max_detections, 6),
+            (input_shape[3][0], self.max_detections, self.num_classes, 3),
+            (input_shape[4][0], self.max_detections, self.num_classes, 6),
+            #(input_shape[3][0], self.max_detections, 3),
+            #(input_shape[4][0], self.max_detections, 6),
             (input_shape[5][0], self.max_detections, 15),
             (input_shape[1][0], self.max_detections),
         ] + [

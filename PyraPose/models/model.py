@@ -391,9 +391,11 @@ def inference_model(
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
 
-    poses = tf.concat([detections[4], detections[5]], axis=2)
+    poses = tf.concat([detections[4], detections[5]], axis=3)
+
     poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
+    print('poses: ', poses)
 
     # construct the model
     # return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)

@@ -66,7 +66,7 @@ def create_generator(args):
                                    [x_minus, y_minus, z_plus]])
             correspondences[int(key) - 1, :, :] = three_box_solo
             sphere_diameters[int(key) - 1] = value['diameter']
-        path = os.path.join(args.tless_path, 'annotations', 'instances_train.json')
+        path = os.path.join(args.tless_path, 'annotations', 'instances_val.json')
         with open(path, 'r') as js:
             data = json.load(js)
         image_ann = data["images"]

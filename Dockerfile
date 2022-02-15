@@ -32,8 +32,8 @@ RUN pip install PyOpenGL
 RUN pip install imgaug
 RUN pip install pyyaml==5.4.1
 
-RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
+#RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
 
 # Go to pix2pix root
-WORKDIR /PyraPoseAF
+#WORKDIR /PyraPoseAF
 

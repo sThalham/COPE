@@ -173,9 +173,7 @@ class TlessDataset(tf.data.Dataset):
                 CHECK DONE HERE: Annotations + images correct
             """
             ids = image_ids[image_index]
-            image_num = int(str(ids)[-13:-8])
-            print('id: ', ids)
-            print('im id: ', image_num)
+            image_num = int(str(ids)[1:])
 
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
@@ -188,7 +186,8 @@ class TlessDataset(tf.data.Dataset):
             #annotations = {'mask': mask, 'labels': np.empty((0,)),
             #               'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
             #               'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
-            annotations = {'labels': np.empty((0,)),
+            annotations = {'image_num': np.array([image_num]),
+                            'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)),
                            'poses': np.empty((0, 7)),
                            'cam_params': np.empty((0, 4))}
@@ -251,7 +250,7 @@ class TlessDataset(tf.data.Dataset):
             for adx, item in enumerate(y_t.items()):
                 anno.append(item[1])
 
-            yield image_num, x_t, anno[0], anno[1], anno[2], anno[3]
+            yield anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
