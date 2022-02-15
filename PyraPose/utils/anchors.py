@@ -257,8 +257,6 @@ def anchor_targets_bbox(
                 symmetry_mask = np.zeros(8)
                 symmetry_mask[0] = 1
 
-                print('anchors; ',  annotations['cam_params'][idx])
-
                 is_sym = False
                 sym_disc = annotations['sym_dis'][idx]
                 if np.sum(np.abs(sym_disc)) != 0:
@@ -390,8 +388,8 @@ def anchor_targets_bbox(
                 locations_batch[index, locations_positive_obj, cls, 2] = ((tra[2] * 0.001) - 1.0) * 3.0
                 locations_batch[index, locations_positive_obj, cls, -1] = 1
 
-                rotations_batch[index, locations_positive_obj, cls, :, :6] = hyps_pose[:, :3, :2].reshape(8, 6)
-                #rotations_batch[index, locations_positive_obj, cls, :6] = full_T[:3, :2].reshape(6)
+                rotations_batch[index, locations_positive_obj, cls, :, :6] = np.transpose(hyps_pose[:, :3, :2], axes=(0, 2, 1)).reshape(8, 6)
+                #rotations_batch[index, locations_positive_obj, cls, :6] = full_T[:3, :2].T.reshape(6)
                 #rotations_batch[index, locations_positive_obj, cls, :, -1] = 1
                 rotations_batch[index, locations_positive_obj, cls, :, -1] = symmetry_mask
 
