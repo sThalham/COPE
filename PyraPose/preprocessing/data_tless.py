@@ -172,7 +172,10 @@ class TlessDataset(tf.data.Dataset):
             """ Load annotations for an image_index.
                 CHECK DONE HERE: Annotations + images correct
             """
-            # ids = image_ids[image_index]
+            ids = image_ids[image_index]
+            image_num = int(str(ids)[-13:-8])
+            print('id: ', ids)
+            print('im id: ', image_num)
 
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
@@ -248,7 +251,7 @@ class TlessDataset(tf.data.Dataset):
             for adx, item in enumerate(y_t.items()):
                 anno.append(item[1])
 
-            yield x_t, anno[0], anno[1], anno[2], anno[3]
+            yield image_num, x_t, anno[0], anno[1], anno[2], anno[3]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
@@ -523,6 +526,7 @@ class TlessDataset(tf.data.Dataset):
         if set_name=='val':
             return tf.data.Dataset.from_generator(self._sample,
                                               output_signature=(
+                                                  tf.TensorSpec(shape=(1), dtype=tf.int64),
                                                   tf.TensorSpec(shape=(480, 640, 3), dtype=tf.float32),
                                                   tf.TensorSpec(shape=(None, ), dtype=tf.float32),
                                                   tf.TensorSpec(shape=(None, 4), dtype=tf.float32),

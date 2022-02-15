@@ -27,7 +27,7 @@ def filter_detections(
     rotation,
     confidence,
     num_classes,
-    score_threshold       = 0.05,
+    score_threshold       = 0.5,
     max_detections        = 300,
 ):
     """ Filter detections using the boxes and classification values.

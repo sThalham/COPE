@@ -272,8 +272,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             true_cls = inv_cls + 1
             cls = true_cls
 
-            print('inv_cls: ', inv_cls)
-
             pose_votes = boxes3D[labels == inv_cls]
             scores_votes = scores[labels == inv_cls]
             poses_votes = poses[labels == inv_cls]
