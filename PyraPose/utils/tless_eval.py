@@ -215,7 +215,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
             max_box_y = np.nanmax(pose_votes[:, 1::2], axis=1)
 
             pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
-            print(pos_anchors.shape)
 
             # pos_anchors = anchor_params[cls_indices, :]
 
@@ -272,14 +271,13 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
 
             for inst, hyps in enumerate(per_obj_hyps):
 
-
                 box_votes = pose_votes[hyps, :]
                 k_hyp = box_votes.shape[0]
 
                 ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
-                '''
+
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -292,32 +290,33 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
                 R_est, _ = cv2.Rodrigues(orvec)
                 t_est = otvec.T
                 t_bop = t_est * 1000.0
-                '''
 
-                print('pose votes: ', poses_votes.shape)
+
                 direct_votes = poses_votes[hyps, :]
-                print('direct votes: ', direct_votes.shape)
 
                 for pdx in range(direct_votes.shape[0]):
 
+                    # direct pose
                     pose_hyp = direct_votes[pdx, :]
-                    #print('pose: ', pose_hyp)
                     R_est = np.eye(3)
                     R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
                     R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
                     R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
                     R_est[:3, 2] = R3 / np.linalg.norm(R3)
-                    ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
                     t_est = pose_hyp[:3].T * 0.001
+                    t_est[:2] = t_est[:2] * 100.0
                     t_bop = t_est * 1000.0
 
+                    print('tra: ', t_est)
+
                     eDbox = R_est.dot(ori_points.T).T
-                    # print(eDbox.shape, np.repeat(t_est, 8, axis=1).T.shape)
                     eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
-                    #eDbox = eDbox + np.repeat(t_est, 8, axis=0)
-                    # print(eDbox.shape)
                     est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
-                    # print(est3D)
+
+                    # bounding box estimation
+                    #est3D = pose_votes[pdx, :]
+
+                    # used for viz of both
                     eDbox = np.reshape(est3D, (16))
                     pose = eDbox.astype(np.uint16)
                     colGT = (255, 0, 0)
