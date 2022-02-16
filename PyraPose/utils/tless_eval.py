@@ -145,7 +145,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
     eval_img = []
     #for index in progressbar.progressbar(range(generator.size()), prefix='Tless evaluation: '):
     for index, sample in enumerate(generator):
-        print(index)
 
         image_id = sample[0]
         image = sample[1]
@@ -172,8 +171,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
 
         # run network
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
-        #print('poses: ', poses)
-        print(np.min(poses), np.max(poses))
 
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
@@ -181,14 +178,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
         poses = poses[labels != -1]
         masks = mask[mask != -1]
         labels = labels[labels != -1]
-
-        #print('poses -1: ', poses)
-
-        print(boxes3D.shape)
-        print(scores.shape)
-        print(confs.shape)
-        print(poses.shape)
-        print(labels.shape)
 
         for inv_cls in np.unique(labels):
 
