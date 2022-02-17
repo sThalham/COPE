@@ -10,7 +10,7 @@ import open3d
 from ..utils import ply_loader
 from ..utils.anchors import locations_for_shape
 from .pose_error import reproj, add, adi, re, te, vsd
-import yaml
+import json
 import sys
 import matplotlib.pyplot as plt
 import time
@@ -27,10 +27,10 @@ cxkin = 325.26110
 cykin = 242.04899
 
 
-def toPix_array(translation):
+def toPix_array(translation, fx, fy, cx, cy):
 
-    xpix = ((translation[:, 0] * fxkin) / translation[:, 2]) + cxkin
-    ypix = ((translation[:, 1] * fykin) / translation[:, 2]) + cykin
+    xpix = ((translation[:, 0] * fx) / translation[:, 2]) + cx
+    ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy
     #zpix = translation[2] * fxkin
 
     return np.stack((xpix, ypix), axis=1) #, zpix]
@@ -113,49 +113,14 @@ def boxoverlap(a, b):
 
     return ovlap
 
-def denorm_box(locations, regression, obj_diameter):
-    mean = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    #std = [150, 150,  150,  150,  150,  150,  150,  150,  150,  150,  150, 150, 150, 150, 150, 150]
-    std = np.full(16, 0.65)
-    #std = np.full(18, 0.95)
 
-    #regression = np.where(regression > 0, np.log(regression + 1.0), regression)
-    #regression = np.where(regression < 0, -np.log(-regression + 1.0), regression)
+def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
-    obj_diameter = obj_diameter * 1000.0
-
-    x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
-    y1 = locations[:, :, 1] - (regression[:, :, 1] * (std[1] * obj_diameter) + mean[1])
-    x2 = locations[:, :, 0] - (regression[:, :, 2] * (std[2] * obj_diameter) + mean[2])
-    y2 = locations[:, :, 1] - (regression[:, :, 3] * (std[3] * obj_diameter) + mean[3])
-    x3 = locations[:, :, 0] - (regression[:, :, 4] * (std[4] * obj_diameter) + mean[4])
-    y3 = locations[:, :, 1] - (regression[:, :, 5] * (std[5] * obj_diameter) + mean[5])
-    x4 = locations[:, :, 0] - (regression[:, :, 6] * (std[6] * obj_diameter) + mean[6])
-    y4 = locations[:, :, 1] - (regression[:, :, 7] * (std[7] * obj_diameter) + mean[7])
-    x5 = locations[:, :, 0] - (regression[:, :, 8] * (std[8] * obj_diameter) + mean[8])
-    y5 = locations[:, :, 1] - (regression[:, :, 9] * (std[9] * obj_diameter) + mean[9])
-    x6 = locations[:, :, 0] - (regression[:, :, 10] * (std[10] * obj_diameter) + mean[10])
-    y6 = locations[:, :, 1] - (regression[:, :, 11] * (std[11] * obj_diameter) + mean[11])
-    x7 = locations[:, :, 0] - (regression[:, :, 12] * (std[12] * obj_diameter) + mean[12])
-    y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
-    x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
-    y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
-    #x9 = locations[:, :, 0] - (regression[:, :, 16] * (std[16] * obj_diameter) + mean[0])
-    #y9 = locations[:, :, 1] - (regression[:, :, 17] * (std[17] * obj_diameter) + mean[1])
-
-    pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
-    #pred_boxes = np.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8, x9, y9], axis=2)
-
-    return pred_boxes
-
-
-def evaluate_occlusion(generator, model, data_path, threshold=0.3):
-
-    mesh_info = os.path.join(data_path, "meshes/models_info.yml")
+    mesh_info = os.path.join(data_path, "meshes/models_info.json")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
     model_dia = np.zeros((31), dtype=np.float32)
 
-    for key, value in yaml.load(open(mesh_info)).items():
+    for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x'] * fac
         y_minus = value['min_y'] * fac
@@ -185,30 +150,43 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
     pc11, mv11 = load_pcd(data_path, '000011')
     pc12, mv12 = load_pcd(data_path, '000012')
 
-
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
     falsePoses = np.zeros((16), dtype=np.uint32)
     trueDets = np.zeros((16), dtype=np.uint32)
+    falseDets = np.zeros((16), dtype=np.uint32)
 
-    for index in progressbar.progressbar(range(generator.size()), prefix='LineMOD evaluation: '):
-        image_raw = generator.load_image(index)
-        image = generator.preprocess_image(image_raw)
-        image, scale = generator.resize_image(image)
+    eval_img = []
+    for index, sample in enumerate(generator):
 
-        anno = generator.load_annotations(index)
+        image_id = sample[0]
+        image = sample[1]
+        gt_labels = sample[2].numpy()
+        gt_boxes = sample[3].numpy()
+        gt_poses = sample[4].numpy()
+        gt_calib = sample[5].numpy()
 
-        if len(anno['labels']) < 1:
-            continue
+        gt_label_list = []
+        for obj in range(gt_labels.shape[0]):
+            allPoses[int(gt_labels[obj]) + 1] += 1
+            gt_label_list.append(int(gt_labels[obj]) + 1)
 
-        checkLab = anno['labels']  # +1 to real_class
-        for idx, lab in enumerate(checkLab):
-            allPoses[int(lab) + 1] += 1
-            checkLab[idx] += 1
+        fxkin = gt_calib[0, 0]
+        fykin = gt_calib[0, 1]
+        cxkin = gt_calib[0, 2]
+        cykin = gt_calib[0, 3]
+
+        image_raw = image.numpy()
+        image_raw[..., 0] += 103.939
+        image_raw[..., 1] += 116.779
+        image_raw[..., 2] += 123.68
+        image_raw = image_raw.astype(np.uint8)
+
+        image_mask = copy.deepcopy(image)
+        image_box = copy.deepcopy(image)
+        image_poses = copy.deepcopy(image)
 
         # run network
-        t_start = time.time()
-        eval_img = []
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
 
         boxes3D = boxes3D[labels != -1, :]
@@ -222,51 +200,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         image_box = copy.deepcopy(image_raw)
         image_poses = copy.deepcopy(image_raw)
 
-        for idx, lab in enumerate(checkLab):
-            if lab == 1:
-                continue
-            t_tra = anno['poses'][idx][:3]
-            t_rot = anno['poses'][idx][3:]
-            t_rot = tf3d.quaternions.quat2mat(t_rot)
-            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
-            t_gt = np.array(t_tra, dtype=np.float32)
-            t_gt = t_gt * 0.001
-
-            ori_points = np.ascontiguousarray(threeD_boxes[int(lab), :, :], dtype=np.float32)
-            colGT = (255, 0, 0)
-            tDbox = R_gt.dot(ori_points.T).T
-            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
-            box3D = toPix_array(tDbox)
-            tDbox = np.reshape(box3D, (16))
-            tDbox = tDbox.astype(np.uint16)
-
-            '''
-
-            image = cv2.line(image, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
-            image = cv2.line(image, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
-            image = cv2.line(image, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
-                             2)
-            image = cv2.line(image, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                             colGT, 2)
-            image = cv2.line(image, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
-                             colGT, 2)
-            image = cv2.line(image, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
-                             colGT, 2)
-            image = cv2.line(image, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                             colGT, 2)
-            '''
-
-        print('unique: ', np.unique(labels))
         for inv_cls in np.unique(labels):
 
             true_cls = inv_cls + 1
@@ -274,8 +207,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
 
             pose_votes = boxes3D[labels == inv_cls]
             scores_votes = scores[labels == inv_cls]
-            poses_votes = poses[labels == inv_cls]
-            confs_votes = confs[labels == inv_cls, inv_cls]
+            poses_votes = poses[labels == inv_cls, inv_cls]
+            confs_votes = confs[labels == inv_cls]
             labels_votes = labels[labels == inv_cls]
             mask_votes = masks[labels == inv_cls]
 
@@ -292,41 +225,18 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             image_mask = np.where(P4_mask > 0, P4_mask, image_mask)
             image_mask = np.where(P5_mask > 0, P5_mask, image_mask)
 
-            cls_mask = scores_votes
-
-            cls_indices = np.where(cls_mask > threshold)
-
-            if cls not in checkLab:
-                continue
-
-            if len(cls_indices[0]) < 1:
-                continue
-
-            trueDets[true_cls] += 1
-
-            n_hyps = 3
-            if confs.shape[0] < n_hyps:
-                n_hyps = confs.shape[0]
-            conf_ranks = np.argsort(confs[:, cls])
-            print('conf_ranks: ', confs[conf_ranks, cls])
-            poses_cls = np.mean(poses[conf_ranks[:n_hyps], :], axis=0)
-
-            '''
-            print(pose_votes.shape)
-            start_anc = time.time()
             min_box_x = np.nanmin(pose_votes[:, ::2], axis=1)
             min_box_y = np.nanmin(pose_votes[:, 1::2], axis=1)
             max_box_x = np.nanmax(pose_votes[:, ::2], axis=1)
             max_box_y = np.nanmax(pose_votes[:, 1::2], axis=1)
 
             pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
-            print(pos_anchors.shape)
 
-            #pos_anchors = anchor_params[cls_indices, :]
+            ind_anchors = np.where(labels_votes == inv_cls)[0]
 
-            ind_anchors = scores[labels == cls]
-            print(ind_anchors.shape)
-            #pos_anchors = pos_anchors[0]
+            per_obj_hyps = []
+            per_obj_cls = []
+            per_obj_poses = []
             per_obj_hyps = []
 
             while pos_anchors.shape[0] > 0:
@@ -369,11 +279,182 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                     pos_anchors = np.delete(pos_anchors, indcs2rm, axis=0)
                     ind_anchors = np.delete(ind_anchors, indcs2rm, axis=0)
 
-                print('obj_inds per instance: ', obj_inds)
+                per_obj_cls.append(cls)
                 per_obj_hyps.append(obj_inds)
 
-            print('mult_hyp: ', time.time() - start_anc)
-            '''
+                for inst, hyps in enumerate(per_obj_hyps):
+
+                    inv_cls = per_obj_cls[inst]
+                    true_cls = inv_cls + 1
+                    gt_idx = np.argwhere(gt_labels == inv_cls)
+                    gt_pose = gt_poses[gt_idx, :]
+                    gt_box = gt_boxes[gt_idx, :]
+
+                    if true_cls not in [1, 5, 6, 8, 9, 10, 11, 12]:
+                        continue
+                    elif true_cls not in gt_label_list:
+                        falseDets[true_cls] += 1
+                        continue
+
+                    gt_pose = gt_pose[0][0]
+                    gt_box = gt_box[0][0]
+
+                    box_votes = pose_votes[hyps, :]
+                    k_hyp = box_votes.shape[0]
+
+                    # detection
+                    min_x = int(np.mean(np.nanmin(box_votes[:, ::2], axis=1), axis=0))
+                    min_y = int(np.mean(np.nanmin(box_votes[:, 1::2], axis=1), axis=0))
+                    max_x = int(np.mean(np.nanmax(box_votes[:, ::2], axis=1), axis=0))
+                    max_y = int(np.mean(np.nanmax(box_votes[:, 1::2], axis=1), axis=0))
+
+                    image_raw = cv2.rectangle(image_raw, (min_x, min_y), (max_x, max_y), (255, 255, 255), 3)
+
+                    ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
+                    K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
+
+                    est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
+                    obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
+                    obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
+                    retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=obj_points,
+                                                                       imagePoints=est_points, cameraMatrix=K,
+                                                                       distCoeffs=None, rvec=None, tvec=None,
+                                                                       useExtrinsicGuess=False, iterationsCount=300,
+                                                                       reprojectionError=5.0, confidence=0.99,
+                                                                       flags=cv2.SOLVEPNP_EPNP)
+                    R_est, _ = cv2.Rodrigues(orvec)
+                    t_est = otvec.T
+                    t_est = t_est[0, :]
+                    t_bop = t_est * 1000.0
+
+                    t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+                    R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                    t_gt = np.array(gt_pose[:3], dtype=np.float32)
+                    t_gt = t_gt * 0.001
+
+                    if true_cls == 1:
+                        model_vsd = mv1
+                    elif true_cls == 5:
+                        model_vsd = mv5
+                    elif true_cls == 6:
+                        model_vsd = mv6
+                    elif true_cls == 8:
+                        model_vsd = mv8
+                    elif true_cls == 9:
+                        model_vsd = mv9
+                    elif true_cls == 10:
+                        model_vsd = mv10
+                    elif true_cls == 11:
+                        model_vsd = mv11
+                    elif true_cls == 12:
+                        model_vsd = mv12
+
+                    if cls == 10 or cls == 11:
+                        err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                    else:
+                        err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+
+                    if err_add < model_dia[true_cls] * 0.1:
+                        if true_cls in gt_label_list:
+                            truePoses[true_cls] += 1
+                            gt_label_list.remove(true_cls)
+                    else:
+                        falsePoses[true_cls] += 1
+
+                    print(' ')
+                    print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+
+                    print('t_est: ', t_est.shape)
+
+                    eDbox = R_est.dot(ori_points.T).T
+                    print(eDbox.shape)
+                    eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                    print(eDbox.shape)
+                    est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                    print(est3D.shape)
+                    eDbox = np.reshape(est3D, (16))
+                    pose = eDbox.astype(np.uint16)
+                    colGT = (255, 0, 0)
+                    colEst = (0, 204, 0)
+
+                    image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                    image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                                         2)
+
+
+                    direct_votes = poses_votes[hyps, :]
+
+                    '''
+                    for pdx in range(direct_votes.shape[0]):
+                        # direct pose
+                        pose_hyp = direct_votes[pdx, :]
+                        R_est = np.eye(3)
+                        R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
+                        R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
+                        R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
+                        R_est[:3, 2] = R3 / np.linalg.norm(R3)
+                        t_est = pose_hyp[:3].T * 0.001
+                        t_bop = t_est * 1000.0
+                        
+                        eDbox = R_est.dot(ori_points.T).T
+                        eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                        est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+
+                        # bounding box estimation
+                        # est3D = pose_votes[pdx, :]
+
+                        # used for viz of both
+                        eDbox = np.reshape(est3D, (16))
+                        pose = eDbox.astype(np.uint16)
+                        colGT = (255, 0, 0)
+                        colEst = (0, 204, 0)
+
+                        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                        image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                                             2)
+                        image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                                             2)
+                        image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                                             2)
+                        image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                                             2)
+                    '''
+
+                    eval_line = []
+                    R_bop = [str(i) for i in R_est.flatten().tolist()]
+                    R_bop = ' '.join(R_bop)
+                    eval_line.append(R_bop)
+                    t_bop = [str(i) for i in t_bop.flatten().tolist()]
+                    t_bop = ' '.join(t_bop)
+                    eval_line.append(t_bop)
+                    eval_img.append(eval_line)
+
+
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        # image_row1 = np.concatenate([image, image_mask], axis=0)
+        cv2.imwrite(name, image_raw)
+
+        '''
 
             anno_ind = np.argwhere(anno['labels'] == cls)
             print(anno_ind)
@@ -404,7 +485,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             t_gt = np.array(t_tra, dtype=np.float32)
             t_gt = t_gt * 0.001
 
-            '''
             k_hyp = pose_votes.shape[0]
             # min residual
             # res_idx = np.argmin(res_sum)
@@ -428,20 +508,17 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec.T
-            '''
 
             #R_est = tf3d.quaternions.quat2mat(poses_cls[3:])
             #t_est = poses_cls[:3] * 0.001
 
-            R_est = np.eye(3)
-            R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
-            R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
-            R3 = np.cross(R_est[:3, 0], poses_cls[6:])
-            R_est[:3, 2] = R3 / np.linalg.norm(R3)
+            #R_est = np.eye(3)
+            #R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
+            #R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
+            #R3 = np.cross(R_est[:3, 0], poses_cls[6:])
+            #R_est[:3, 2] = R3 / np.linalg.norm(R3)
             ##R_est[:3, 1] = np.cross(R_est[:3, 2], R_est[:3, 0])
-            t_est = poses_cls[:3] * 0.001
-            print('t_est: ', t_est)
-            print('t_gt: ', t_gt)
+            #t_est = poses_cls[:3] * 0.001
 
             t_bop = t_est * 1000.0
 
@@ -454,7 +531,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
-            '''
+            
             R_bop = [str(i) for i in R_est.flatten().tolist()]
             R_bop = ' '.join(R_bop)
             eval_line.append(R_bop)
@@ -525,7 +602,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
                                  2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                  2)
-            '''
 
             image = image_box
             for idx in range(pose_votes.shape[0]):
@@ -589,6 +665,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.3):
         #    with open(csv_target, 'a') as outfile:
         #        myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
         #        myWriter.writerow(line_indexed)
+        '''
 
     recall = np.zeros((16), dtype=np.float32)
     precision = np.zeros((16), dtype=np.float32)

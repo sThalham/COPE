@@ -78,7 +78,7 @@ def load_classes(categories):
     return classes, labels, labels_inverse, labels_rev
 
 
-class LinemodDataset(tf.data.Dataset):
+class OcclusionDataset(tf.data.Dataset):
 
     def _sample(data_dir, set_name, batch_size, image_min_side=480, image_max_side=640):
 

@@ -84,8 +84,7 @@ def boxoverlap(a, b):
     return ovlap
 
 
-def evaluate_tless(generator, model, data_path, threshold=0.05):
-    threshold = 0.5
+def evaluate_tless(generator, model, data_path, threshold=0.5):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.json")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
@@ -159,7 +158,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.05):
         cykin = gt_calib[0, 3]
 
         image_raw = image.numpy()
-        print(image_raw.shape, image_raw.dtype)
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68

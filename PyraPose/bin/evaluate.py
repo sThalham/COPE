@@ -65,7 +65,45 @@ def create_generator(args):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             sphere_diameters[int(key)-1] = value['diameter']
-        path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
+        path = os.path.join(args.linemod_path, 'annotations', 'instances_val.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+
+    elif args.dataset_type == 'occlusion':
+        from ..preprocessing.data_occlusion import OcclusionDataset
+
+        dataset = OcclusionDataset(args.occlusion_path, 'val', batch_size=1)
+        num_classes = 15
+        mesh_info = os.path.join(args.occlusion_path, 'annotations', 'models_info' + '.json')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in json.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
+        path = os.path.join(args.occlusion_path, 'annotations', 'instances_val.json')
         with open(path, 'r') as js:
             data = json.load(js)
         image_ann = data["images"]

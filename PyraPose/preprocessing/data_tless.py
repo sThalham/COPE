@@ -501,7 +501,7 @@ class TlessDataset(tf.data.Dataset):
                     x_s[index], scale = resize_image(x_s[index], min_side=image_min_side, max_side=image_max_side)
                     y_s[index]['cam_params'] *= scale
 
-                    x_s[index] = augment_image(x_s[index], seq)
+                    #x_s[index] = augment_image(x_s[index], seq)
 
                     # transform a single group entry
                     x_s[index], y_s[index] = random_transform_group_entry(x_s[index], y_s[index])
