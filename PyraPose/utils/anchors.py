@@ -59,27 +59,33 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        #image_raw = image
-        #image_raw[..., 0] += 103.939
-        #image_raw[..., 1] += 116.779
-        #image_raw[..., 2] += 123.68
+        image_raw = image
+        image_raw[..., 0] += 103.939
+        image_raw[..., 1] += 116.779
+        image_raw[..., 2] += 123.68
         #is_there_sym = False
         #raw_images = []
         #raw_images.append(copy.deepcopy(image_raw))
         #raw_images.append(copy.deepcopy(image_raw))
         #raw_images.append(copy.deepcopy(image_raw))
         #raw_images.append(copy.deepcopy(image_raw))
+        img_P3 = copy.deepcopy(image_raw)
+        img_P4 = copy.deepcopy(image_raw)
+        img_P5 = copy.deepcopy(image_raw)
 
         image_locations = locations_for_shape(image.shape)
         image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
         # w/o mask
         mask = annotations['mask'][0]
+        mask = cv2.medianBlur(mask, 7)
+
         # vanilla
         masks_level = []
         for jdx, resx in enumerate(image_shapes):
             mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
             masks_level.append(mask_level.flatten())
-        #    masks_level.append(np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten())
+            back_objs = np.where(mask_level == 0)[0] + location_offset[jdx]
+            labels_batch[index, back_objs, -1] = 0
 
         #calculated_boxes = np.empty((0, 16))
 
@@ -96,6 +102,25 @@ def anchor_targets_bbox(
                 reso_van = -2
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
+            if reso_idx==0:
+                vizmask = np.zeros((4800, 3))
+                vizmask[locations_positive_obj, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+                vizmask = np.reshape(vizmask, (60, 80, 3))
+                vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                img_P3 = np.where(vizmask > 0, vizmask, img_P3)
+            elif reso_idx==1:
+                vizmask = np.zeros((1200, 3))
+                vizmask[locations_positive_obj-4800, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+                vizmask = np.reshape(vizmask, (30, 40, 3))
+                vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                img_P4 = np.where(vizmask > 0, vizmask, img_P4)
+            elif reso_idx==2:
+                vizmask = np.zeros((300, 3))
+                vizmask[locations_positive_obj-6000, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+                vizmask = np.reshape(vizmask, (15, 20, 3))
+                vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                img_P5 = np.where(vizmask > 0, vizmask, img_P5)
 
             #ego_pose = np.eye(4)
             #ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
@@ -444,6 +469,16 @@ def anchor_targets_bbox(
             name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
             cv2.imwrite(name, images_row1)
         '''
+        img_P3 = img_P3.astype(np.uint8)
+        img_P4 = img_P4.astype(np.uint8)
+        img_P5 = img_P5.astype(np.uint8)
+        rind = np.random.randint(0, 1000)
+        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P3.jpg'
+        cv2.imwrite(name, img_P3)
+        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P4.jpg'
+        cv2.imwrite(name, img_P4)
+        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P5.jpg'
+        cv2.imwrite(name, img_P5)
 
         #single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
         #print('sum bboxes: ', np.sum(single_hyp_box))

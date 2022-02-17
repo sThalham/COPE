@@ -173,12 +173,12 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'tless'
-    traintestval = 'val'
+    dataset = 'icbin'
+    traintestval = 'train'
     visu = False
 
-    root = "/home/stefan/data/bop_datasets/tless/test_primesense"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/tless_PBR_BOP/'
+    root = "/home/stefan/data/bop_datasets/icbin/train_pbr"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/icbin_PBR_BOP/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -195,6 +195,9 @@ if __name__ == "__main__":
     elif dataset == 'homebrewed':
         mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
         num_objects = 33
+    elif dataset == 'icbin':
+        mesh_info = '/home/stefan/data/bop_datasets/icbin/models_eval/models_info.json'
+        num_objects = 2
     else:
         print('unknown dataset')
 
@@ -356,7 +359,10 @@ if __name__ == "__main__":
                 print("storing image in : ", fileName)
 
             mask_ind = 0
-            mask_img = np.zeros((540, 720), dtype=np.uint8)
+            if dataset=='tless':
+                mask_img = np.zeros((540, 720), dtype=np.uint8)
+            else:
+                mask_img = np.zeros((480, 640), dtype=np.uint8)
             bbvis = []
             cnt = 0
             # bbsca = 720.0 / 640.0

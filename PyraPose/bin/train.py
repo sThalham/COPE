@@ -239,6 +239,7 @@ def create_generators(args, preprocess_image):
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
             break
+
     elif args.dataset_type == 'tless':
         from ..preprocessing.data_tless import TlessDataset
 
@@ -296,6 +297,7 @@ def create_generators(args, preprocess_image):
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
             num_parallel_calls=args.workers
         )
+        dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
         mesh_info = os.path.join(args.hb_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
@@ -317,6 +319,51 @@ def create_generators(args, preprocess_image):
             correspondences[int(key)-1, :, :] = three_box_solo
             sphere_diameters[int(key)-1] = value['diameter']
         path = os.path.join(args.hb_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+
+    elif args.dataset_type == 'icbin':
+        from ..preprocessing.data_icbin import ICbinDataset
+
+        dataset = ICbinDataset(args.icbin_path, 'train', batch_size=args.batch_size)
+        num_classes = 2
+        train_samples = 50000
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
+        )
+        dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
+        mesh_info = os.path.join(args.icbin_path, 'annotations', 'models_info' + '.json')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in yaml.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = value['diameter']
+        path = os.path.join(args.icbin_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
         image_ann = data["images"]
@@ -397,6 +444,9 @@ def parse_args(args):
 
     hb_parser = subparsers.add_parser('homebrewed')
     hb_parser.add_argument('hb_path', help='Path to dataset directory (ie. /tmp/hb).')
+
+    icbin_parser = subparsers.add_parser('icbin')
+    icbin_parser.add_argument('icbin_path', help='Path to dataset directory (ie. /tmp/icbin).')
 
     custom_parser = subparsers.add_parser('custom')
     custom_parser.add_argument('custom_path', help='Path to dataset directory (ie. /tmp/custom).')
