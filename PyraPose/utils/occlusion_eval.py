@@ -122,12 +122,19 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
     for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
-        x_minus = value['min_x'] * fac
-        y_minus = value['min_y'] * fac
-        z_minus = value['min_z'] * fac
-        x_plus = value['size_x'] * fac + x_minus
-        y_plus = value['size_y'] * fac + y_minus
-        z_plus = value['size_z'] * fac + z_minus
+        #x_minus = value['min_x'] * fac
+        #y_minus = value['min_y'] * fac
+        #z_minus = value['min_z'] * fac
+        #x_plus = value['size_x'] * fac + x_minus
+        #y_plus = value['size_y'] * fac + y_minus
+        #z_plus = value['size_z'] * fac + z_minus
+        norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+        x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+        y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+        z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+        x_minus = x_plus * -1.0
+        y_minus = y_plus * -1.0
+        z_minus = z_plus * -1.0
         three_box_solo = np.array([
                                     #[0.0, 0.0, 0.0],
                                     [x_plus, y_plus, z_plus],

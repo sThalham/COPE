@@ -59,19 +59,19 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
         #is_there_sym = False
         #raw_images = []
         #raw_images.append(copy.deepcopy(image_raw))
         #raw_images.append(copy.deepcopy(image_raw))
         #raw_images.append(copy.deepcopy(image_raw))
-        #raw_images.append(copy.deepcopy(image_raw))
-        img_P3 = copy.deepcopy(image_raw)
-        img_P4 = copy.deepcopy(image_raw)
-        img_P5 = copy.deepcopy(image_raw)
+        ##raw_images.append(copy.deepcopy(image_raw))
+        #img_P3 = copy.deepcopy(image_raw)
+        #img_P4 = copy.deepcopy(image_raw)
+        #img_P5 = copy.deepcopy(image_raw)
 
         image_locations = locations_for_shape(image.shape)
         image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
@@ -103,6 +103,7 @@ def anchor_targets_bbox(
             reso_idx = int(2 + reso_van)
             locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
+            '''
             if reso_idx==0:
                 vizmask = np.zeros((4800, 3))
                 vizmask[locations_positive_obj, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
@@ -121,6 +122,7 @@ def anchor_targets_bbox(
                 vizmask = np.reshape(vizmask, (15, 20, 3))
                 vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
                 img_P5 = np.where(vizmask > 0, vizmask, img_P5)
+            '''
 
             #ego_pose = np.eye(4)
             #ego_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
@@ -422,14 +424,14 @@ def anchor_targets_bbox(
                 reprojection_batch[index, locations_positive_obj, cls] = 1
 
                 '''
-                rot = np.asarray(allo_pose, dtype=np.float32)
-                tra = pose[:3]
-                tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
-                tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
+                #rot = np.asarray(pose[], dtype=np.float32)
+                #tra = pose[:3]
+                #tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
+                #tDbox = tDbox + np.repeat(tra[np.newaxis, 0:3], 8, axis=0)
                 # add noise to pose
-                box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
-                                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
-                box3D = np.reshape(box3D, (16))
+                #box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
+                #                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
+                #box3D = np.reshape(box3D, (16))
                 tDbox = box3D.astype(np.uint16)
                 colGT = (0, 205, 0)
                 image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
@@ -461,29 +463,29 @@ def anchor_targets_bbox(
                 '''
 
         '''
-        if is_there_sym:
-            rind = np.random.randint(0, 1000)
-            images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
-            #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
-            #image_raw = np.concatenate([images_row1, images_row2], axis=0)
-            name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
-            cv2.imwrite(name, images_row1)
-        '''
+        rind = np.random.randint(0, 1000)
+        #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
+        #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
+        #image_raw = np.concatenate([images_row1, images_row2], axis=0)
+        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
+        cv2.imwrite(name, image_raw)
+
         img_P3 = img_P3.astype(np.uint8)
         img_P4 = img_P4.astype(np.uint8)
         img_P5 = img_P5.astype(np.uint8)
         rind = np.random.randint(0, 1000)
         name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P3.jpg'
-        cv2.imwrite(name, img_P3)
+        #cv2.imwrite(name, img_P3)
         name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P4.jpg'
-        cv2.imwrite(name, img_P4)
+        #cv2.imwrite(name, img_P4)
         name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'P5.jpg'
-        cv2.imwrite(name, img_P5)
+        #cv2.imwrite(name, img_P5)
 
         #single_hyp_box = np.amax(regression_batch[:, :, :, :, :-1], axis=3)
         #print('sum bboxes: ', np.sum(single_hyp_box))
         #print('true locations: ', np.sum(np.amax(np.amax(regression_batch[:, :, :, :, -1], axis=-1), axis=-1)))
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
+        '''
 
     return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch
     #return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)

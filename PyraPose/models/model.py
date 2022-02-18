@@ -104,13 +104,13 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     }
 
     if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(16, None))
+        inputs = keras.layers.Input(shape=(16, num_classes, None))
     else:
-        inputs = keras.layers.Input(shape=(None, 16))
+        inputs = keras.layers.Input(shape=(None, num_classes, 16))
 
     outputs = inputs
 
-    outputs = keras.layers.Reshape((-1, 16))(outputs)
+    outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
     outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
     outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
     translations = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
@@ -132,6 +132,7 @@ def __create_PFPN(C3, C4, C5, feature_size=256):
     options = {
         'activation': 'relu',
         'padding': 'same',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
     # 3x3 conv for test 4
@@ -271,7 +272,6 @@ def pyrapose(
     pyramids.append(keras.layers.Concatenate(axis=1, name='cls')([location_P3, location_P4, location_P5]))
 
     location_coordinates = layers.Locations_Hacked(name='denorm_locations')(P3)
-    #location_coordinates = layers.Locations_Hacked(shape=[[135, 240], [68, 120], [34, 60]], name='denorm_locations')(P3)
     locations_tiled = tf.tile(tf.expand_dims(location_coordinates, axis=2, name='locations_expanded'),
                               [1, 1, num_classes, 1])
     rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
@@ -282,11 +282,13 @@ def pyrapose(
     regression_tiled = regression_tiled * rep_object_diameters
 
     destd_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
+    destd_boxes_x = tf.math.subtract(destd_boxes[:, :, :, ::2], intrinsics[2])
+    destd_boxes_y = tf.math.subtract(destd_boxes[:, :, :, 1::2], intrinsics[3])
+    destd_boxes = tf.concat([destd_boxes_x[:, :, :, :, tf.newaxis], destd_boxes_y[:, :, :, :, tf.newaxis]], axis=4)
+    destd_boxes = tf.reshape(destd_boxes, shape=[tf.shape(regression)[0], tf.shape(regression)[1], num_classes, 16])
 
-    #location = pose_branch[1](destd_boxes)
-    #rotation = pose_branch[0](destd_boxes)
-    location = pose_branch[1](regression)
-    rotation = pose_branch[0](regression)
+    location = pose_branch[1](destd_boxes)
+    rotation = pose_branch[0](destd_boxes)
     pyramids.append(location)
     pyramids.append(rotation)
 
@@ -294,7 +296,6 @@ def pyrapose(
     y = location[:, :, :, 1] * 500.0
     z = ((location[:, :, :, 2] * (1 / 3)) + 1.0) * 1000.0
     trans = tf.stack([x, y, z], axis=3)
-    #trans = tf.tile(trans[:, :, tf.newaxis, tf.newaxis, :], [1, 1, num_classes, 8, 1])
     trans = tf.tile(trans[:, :, :, tf.newaxis, :], [1, 1, 1, 8, 1])
 
     r1 = rotation[:, :, :, :3]
@@ -302,7 +303,6 @@ def pyrapose(
     r3 = tf.linalg.cross(r1, r2)
     r3 = tf.math.l2_normalize(r3, axis=3)
     rot = tf.stack([r1, r2, r3], axis=4)
-    #rot = tf.tile(rot[:, :, tf.newaxis, :, :], [1, 1, num_classes, 1, 1])
 
     rep_obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
     box3d = tf.linalg.matmul(rot, rep_obj_correspondences, transpose_a=False, transpose_b=True)
@@ -311,10 +311,10 @@ def pyrapose(
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
     projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
-    projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
+    #projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
     projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[1]
     projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
-    projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
+    #projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
     #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])

@@ -550,9 +550,13 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=0)
         normalizer = tf.math.reduce_max(anchor_state, axis=2)
-        normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(in_shape[4],
-                                                                      dtype=tf.float32)  # accumulate over batch, locations and regressed values
+        normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(in_shape[4], dtype=tf.float32)
+        # * tf.cast(num_classes, dtype=tf.float32)
+        #* tf.cast(in_shape[4], dtype=tf.float32)  # accumulate over batch, locations and regressed values
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
+
+        #tf.print('per_cls_loss: ', per_cls_loss)
+        #tf.print('normalizer: ', normalizer)
 
         #vanilla best sym_hyp
         #regression_loss = tf.math.reduce_min(regression_loss, axis=0) # reduce regression loss to min hypothesis
