@@ -159,6 +159,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     eval_img = []
     for index, sample in enumerate(generator):
 
+        print('Proecessing sample ', index)
+
         image_id = sample[0]
         image = sample[1]
         gt_labels = sample[2].numpy()
@@ -166,10 +168,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         gt_poses = sample[4].numpy()
         gt_calib = sample[5].numpy()
 
+        if gt_labels.size == 0:
+            continue
+
         gt_label_list = []
+        gt_poses_list = []
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
             gt_label_list.append(int(gt_labels[obj]) + 1)
+            gt_poses_list.append(int(gt_labels[obj]) + 1)
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -284,18 +291,17 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
                 for inst, hyps in enumerate(per_obj_hyps):
 
-                    inv_cls = per_obj_cls[inst]
+                    inv_cls = per_obj_cls[inst] - 1
                     true_cls = inv_cls + 1
                     gt_idx = np.argwhere(gt_labels == inv_cls)
                     gt_pose = gt_poses[gt_idx, :]
                     gt_box = gt_boxes[gt_idx, :]
 
-                    if true_cls not in [1, 5, 6, 8, 9, 10, 11, 12]:
-                        continue
-                    elif true_cls not in gt_label_list:
-                        falseDets[true_cls] += 1
+                    if true_cls not in [1, 5, 6, 8, 9, 10, 11, 12] or gt_pose.size == 0: #filter for benchvise, bowl and mug
                         continue
 
+                    print(true_cls)
+                    print(gt_pose)
                     gt_pose = gt_pose[0][0]
                     gt_box = gt_box[0][0]
 
@@ -307,6 +313,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                     min_y = int(np.mean(np.nanmin(box_votes[:, 1::2], axis=1), axis=0))
                     max_x = int(np.mean(np.nanmax(box_votes[:, ::2], axis=1), axis=0))
                     max_y = int(np.mean(np.nanmax(box_votes[:, 1::2], axis=1), axis=0))
+                    est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
+
+                    iou = boxoverlap(est_box, gt_box)
+
+                    if iou > 0.5 and true_cls in gt_label_list:
+                        trueDets[true_cls] += 1
+                        gt_label_list.remove(true_cls)
+                    else:
+                        falseDets[true_cls] += 1
 
                     image_raw = cv2.rectangle(image_raw, (min_x, min_y), (max_x, max_y), (255, 255, 255), 3)
 
@@ -355,27 +370,57 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                         err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
 
                     if err_add < model_dia[true_cls] * 0.1:
-                        if true_cls in gt_label_list:
+                        if true_cls in gt_poses_list:
                             truePoses[true_cls] += 1
-                            gt_label_list.remove(true_cls)
+                            gt_poses_list.remove(true_cls)
                     else:
                         falsePoses[true_cls] += 1
 
                     print(' ')
                     print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
-                    print('t_est: ', t_est.shape)
+                    tDbox = R_gt.dot(ori_points.T).T
+                    tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
+                    box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
+                    tDbox = np.reshape(box3D, (16))
+                    tDbox = tDbox.astype(np.uint16)
 
                     eDbox = R_est.dot(ori_points.T).T
-                    print(eDbox.shape)
                     eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
-                    print(eDbox.shape)
                     est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
-                    print(est3D.shape)
                     eDbox = np.reshape(est3D, (16))
                     pose = eDbox.astype(np.uint16)
                     colGT = (255, 0, 0)
                     colEst = (0, 204, 0)
+                    if err_add > model_dia[true_cls] * 0.1:
+                        colEst = (0, 0, 255)
+
+                    image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+                                         colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
+                                         colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
+                                         colGT,
+                                         2)
+                    image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+                                         colGT,
+                                         2)
 
                     image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
                     image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -452,7 +497,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         # image_row1 = np.concatenate([image, image_mask], axis=0)
-        cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_raw)
 
         '''
 
@@ -670,26 +715,37 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     recall = np.zeros((16), dtype=np.float32)
     precision = np.zeros((16), dtype=np.float32)
     detections = np.zeros((16), dtype=np.float32)
+    det_precision = np.zeros((16), dtype=np.float32)
     for i in range(1, (allPoses.shape[0])):
         recall[i] = truePoses[i] / allPoses[i]
-        #precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
+        precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
         detections[i] = trueDets[i] / allPoses[i]
-        precision[i] = recall[i]/detections[i]
+        det_precision[i] = trueDets[i] / (trueDets[i] + falseDets[i])
 
         if np.isnan(recall[i]):
             recall[i] = 0.0
         if np.isnan(precision[i]):
             precision[i] = 0.0
+        if np.isnan(detections[i]):
+            detections[i] = 0.0
+        if np.isnan(det_precision[i]):
+            det_precision[i] = 0.0
 
+        print('-------------------------------------')
         print('CLS: ', i)
-        print('true detections: ', detections[i])
-        print('recall: ', recall[i])
-        print('precision: ', precision[i])
+        print('detection recall: ', detections[i])
+        print('detection precision: ', detections[i])
+        print('poses recall: ', recall[i])
+        print('poses precision: ', precision[i])
+        print('-------------------------------------')
 
-    recall_all = np.sum(recall[1:]) / 8.0
-    precision_all = np.sum(precision[1:]) / 8.0
-    detections_all = np.sum(detections[1:]) / 8.0
+    filter_indices = [1, 5, 6, 8, 9, 10, 11, 12]
+    recall_all = np.sum(np.take(recall, filter_indices, axis=0)) / 8.0
+    precision_all = np.sum(np.take(precision, filter_indices, axis=0)) / 8.0
+    detections_all = np.sum(np.take(detections, filter_indices, axis=0)) / 8.0
+    det_precision_all = np.sum(np.take(det_precision, filter_indices, axis=0)) / 8.0
     print('ALL: ')
-    print('true detections: ', detections_all)
-    print('recall: ', recall_all)
-    print('precision: ', precision_all)
+    print('mean detection recall: ', detections_all)
+    print('mean detection precision: ', det_precision_all)
+    print('mean pose recall: ', recall_all)
+    print('mean pose precision: ', precision_all)

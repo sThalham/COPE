@@ -309,16 +309,35 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     pc14, mv14 = load_pcd(data_path,'000014')
     pc15, mv15 = load_pcd(data_path,'000015')
 
+    allPoses = np.zeros((16), dtype=np.uint32)
+    truePoses = np.zeros((16), dtype=np.uint32)
+    falsePoses = np.zeros((16), dtype=np.uint32)
+    trueDets = np.zeros((16), dtype=np.uint32)
+    falseDets = np.zeros((16), dtype=np.uint32)
+
     eval_img = []
+
     # for index in progressbar.progressbar(range(generator.size()), prefix='Tless evaluation: '):
     for index, sample in enumerate(generator):
 
-        image_id = sample[0]
+        print('Proecessing sample ', index)
+
+        image_id = sample[0].numpy()
         image = sample[1]
-        gt_labels = sample[2]
-        gt_boxes = sample[3]
-        gt_poses = sample[4]
-        gt_calib = sample[5]
+        gt_labels = sample[2].numpy()
+        gt_boxes = sample[3].numpy()
+        gt_poses = sample[4].numpy()
+        gt_calib = sample[5].numpy()
+
+        if gt_labels==2 or gt_labels==6 or gt_labels.size == 0:
+            continue
+
+        gt_label_list = []
+        gt_pose_list = []
+        for obj in range(gt_labels.shape[0]):
+            allPoses[int(gt_labels[obj]) + 1] += 1
+            gt_label_list.append(int(gt_labels[obj]) + 1)
+            gt_pose_list.append(int(gt_labels[obj]) + 1)
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -338,7 +357,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         # run network
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         # print('poses: ', poses)
-        print(np.min(poses), np.max(poses))
 
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
@@ -351,6 +369,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
             true_cls = inv_cls + 1
             cls = true_cls
+
+            if true_cls not in gt_label_list:
+                continue
 
             pose_votes = boxes3D[labels == inv_cls]
             scores_votes = scores[labels == inv_cls]
@@ -383,7 +404,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             max_box_y = np.nanmax(pose_votes[:, 1::2], axis=1)
 
             pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
-            print(pos_anchors.shape)
 
             # pos_anchors = anchor_params[cls_indices, :]
 
@@ -440,8 +460,41 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
             for inst, hyps in enumerate(per_obj_hyps):
 
+                inv_cls = per_obj_cls[inst] - 1
+                true_cls = inv_cls + 1
+                gt_idx = np.argwhere(gt_labels == inv_cls)
+                gt_pose = gt_poses[int(gt_idx), :]
+                gt_box = gt_boxes[int(gt_idx), :]
+
+                #if true_cls not in [1, 5, 6, 8, 9, 10, 11, 12]:
+                #    continue
+                #elif true_cls not in gt_label_list:
+                #    falseDets[true_cls] += 1
+                #    continue
+
+                #gt_pose = gt_pose[0][0]
+                #gt_box = gt_box[0][0]
+
                 box_votes = pose_votes[hyps, :]
                 k_hyp = box_votes.shape[0]
+
+                # detection
+                min_x = int(np.mean(np.nanmin(box_votes[:, ::2], axis=1), axis=0))
+                min_y = int(np.mean(np.nanmin(box_votes[:, 1::2], axis=1), axis=0))
+                max_x = int(np.mean(np.nanmax(box_votes[:, ::2], axis=1), axis=0))
+                max_y = int(np.mean(np.nanmax(box_votes[:, 1::2], axis=1), axis=0))
+
+                est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
+
+                iou = boxoverlap(est_box, gt_box)
+
+                if iou > 0.5 and true_cls in gt_label_list:
+                    trueDets[true_cls] += 1
+                    gt_label_list.remove(true_cls)
+                else:
+                    falseDets[true_cls] += 1
+
+                image_raw = cv2.rectangle(image_raw, (min_x, min_y), (max_x, max_y), (255, 255, 255), 3)
 
                 ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
@@ -457,10 +510,119 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                    flags=cv2.SOLVEPNP_EPNP)
                 R_est, _ = cv2.Rodrigues(orvec)
                 t_est = otvec.T
+                t_est = t_est[0, :]
                 t_bop = t_est * 1000.0
+
+                t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                t_gt = np.array(gt_pose[:3], dtype=np.float32)
+                t_gt = t_gt * 0.001
 
                 direct_votes = poses_votes[hyps, :]
 
+                if true_cls == 1:
+                    model_vsd = mv1
+                elif true_cls == 2:
+                    model_vsd = mv2
+                elif true_cls == 4:
+                    model_vsd = mv4
+                elif true_cls == 5:
+                    model_vsd = mv5
+                elif true_cls == 6:
+                    model_vsd = mv6
+                elif true_cls == 8:
+                    model_vsd = mv8
+                elif true_cls == 9:
+                    model_vsd = mv9
+                elif true_cls == 10:
+                    model_vsd = mv10
+                elif true_cls == 11:
+                    model_vsd = mv11
+                elif true_cls == 12:
+                    model_vsd = mv12
+                elif true_cls == 13:
+                    model_vsd = mv13
+                elif true_cls == 14:
+                    model_vsd = mv14
+                elif true_cls == 15:
+                    model_vsd = mv15
+
+                if cls == 10 or cls == 11:
+                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                else:
+                    err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+
+                if err_add < model_dia[true_cls] * 0.1:
+                    if true_cls in gt_pose_list:
+                        truePoses[true_cls] += 1
+                        gt_pose_list.remove(true_cls)
+                else:
+                    falsePoses[true_cls] += 1
+
+                print(' ')
+                print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+
+                tDbox = R_gt.dot(ori_points.T).T
+                tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
+                box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
+                tDbox = np.reshape(box3D, (16))
+                tDbox = tDbox.astype(np.uint16)
+
+                eDbox = R_est.dot(ori_points.T).T
+                eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                eDbox = np.reshape(est3D, (16))
+                pose = eDbox.astype(np.uint16)
+                colGT = (255, 0, 0)
+                colEst = (0, 204, 0)
+                if err_add > model_dia[true_cls] * 0.1:
+                    colEst = (0, 0, 255)
+
+                image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+                                     colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
+                                     colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
+                                     colGT,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+                                     colGT,
+                                     2)
+
+                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                                     2)
+                image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                                     2)
+
+                '''
                 for pdx in range(direct_votes.shape[0]):
 
                     # direct pose votes
@@ -512,10 +674,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 t_bop = ' '.join(t_bop)
                 eval_line.append(t_bop)
                 eval_img.append(eval_line)
+                '''
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(image_id) + '.png'
+        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         # image_row1 = np.concatenate([image, image_mask], axis=0)
-        cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_raw)
 
 
         '''
@@ -851,42 +1014,38 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     recall = np.zeros((16), dtype=np.float32)
     precision = np.zeros((16), dtype=np.float32)
     detections = np.zeros((16), dtype=np.float32)
+    det_precision = np.zeros((16), dtype=np.float32)
     for i in range(1, (allPoses.shape[0])):
         recall[i] = truePoses[i] / allPoses[i]
-        #precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
+        precision[i] = truePoses[i] / (truePoses[i] + falsePoses[i])
         detections[i] = trueDets[i] / allPoses[i]
-        precision[i] = recall[i] / detections[i]
+        det_precision[i] = trueDets[i] / (trueDets[i] + falseDets[i])
 
         if np.isnan(recall[i]):
             recall[i] = 0.0
         if np.isnan(precision[i]):
             precision[i] = 0.0
         if np.isnan(detections[i]):
-            precision[i] = 0.0
+            detections[i] = 0.0
+        if np.isnan(det_precision[i]):
+            det_precision[i] = 0.0
 
+        print('-------------------------------------')
         print('CLS: ', i)
-        print('true detections: ', detections[i])
-        print('recall: ', recall[i])
-        print('precision: ', precision[i])
+        print('detection recall: ', detections[i])
+        print('detection precision: ', detections[i])
+        print('poses recall: ', recall[i])
+        print('poses precision: ', precision[i])
+        print('-------------------------------------')
 
-    recall_all = np.sum(recall[1:]) / 13.0
-    precision_all = np.sum(precision[1:]) / 13.0
-    detections_all = np.nansum(detections[1:]) / 13.0
+    filter_indices = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
+    recall_all = np.sum(np.take(recall, filter_indices, axis=0)) / 13.0
+    precision_all = np.sum(np.take(precision, filter_indices, axis=0)) / 13.0
+    detections_all = np.sum(np.take(detections, filter_indices, axis=0)) / 13.0
+    det_precision_all = np.sum(np.take(det_precision, filter_indices, axis=0)) / 13.0
     print('ALL: ')
-    print('true detections: ', detections_all)
-    print('recall: ', recall_all)
-    print('precision: ', precision_all)
+    print('mean detection recall: ', detections_all)
+    print('mean detection precision: ', det_precision_all)
+    print('mean pose recall: ', recall_all)
+    print('mean pose precision: ', precision_all)
 
-    print('Errors')
-    e_x = np.array(e_x)
-    print('e_x: ', np.mean(e_x), np.var(e_x))
-    e_y = np.array(e_y)
-    print('e_y: ', np.mean(e_y), np.var(e_y))
-    e_z = np.array(e_z)
-    print('e_z: ', np.mean(e_z), np.var(e_z))
-    e_roll = np.array(e_roll)
-    print('e_roll: ', np.mean(e_roll), np.var(e_roll))
-    e_pitch = np.array(e_pitch)
-    print('e_pitch: ', np.mean(e_pitch), np.var(e_pitch))
-    e_yaw = np.array(e_yaw)
-    print('e_yaw: ', np.mean(e_yaw), np.var(e_yaw))
