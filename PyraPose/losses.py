@@ -395,7 +395,7 @@ def per_cls_l1_trans(num_classes=0, weight=1.0, sigma=3.0):
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=1)
 
         # comp norm per class
-        normalizer = tf.math.reduce_sum(anchor_anno, axis=1) * tf.cast(in_shape[3], dtype=tf.float32) # accumulate over batch, locations and regressed values
+        normalizer = tf.math.reduce_sum(anchor_anno, axis=1) * tf.cast(num_classes, dtype=tf.float32) # accumulate over batch, locations and regressed values
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
 
         return weight * tf.math.reduce_sum(loss, axis=0)
@@ -550,7 +550,7 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=0)
         normalizer = tf.math.reduce_max(anchor_state, axis=2)
-        normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(in_shape[4], dtype=tf.float32)
+        normalizer = tf.math.reduce_sum(normalizer, axis=0) * tf.cast(num_classes, dtype=tf.float32)
         # * tf.cast(num_classes, dtype=tf.float32)
         #* tf.cast(in_shape[4], dtype=tf.float32)  # accumulate over batch, locations and regressed values
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
@@ -606,7 +606,7 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
         regression_loss = tf.where(tf.math.equal(anchor_anno, 1), per_loc_loss, 0.0)
 
         # comp norm per class
-        normalizer = tf.math.reduce_sum(anchor_state, axis=0) * tf.cast(in_shape_es[3], dtype=tf.float32)
+        normalizer = tf.math.reduce_sum(anchor_state, axis=0)  * tf.cast(num_classes, dtype=tf.float32)
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0])
 
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
