@@ -190,7 +190,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             #sphere_diameters[int(key)-1] = value['diameter']
-            sphere_diameters[int(key)] = norm_pts
+            sphere_diameters[int(key)-1] = norm_pts
         path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -242,7 +242,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             #sphere_diameters[int(key)-1] = value['diameter']
-            sphere_diameters[int(key)] = norm_pts
+            sphere_diameters[int(key)-1] = norm_pts
         path = os.path.join(args.ycbv_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -295,7 +295,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             #sphere_diameters[int(key)-1] = value['diameter']
-            sphere_diameters[int(key)] = norm_pts
+            sphere_diameters[int(key)-1] = norm_pts
         path = os.path.join(args.tless_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -349,7 +349,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             #sphere_diameters[int(key)-1] = value['diameter']
-            sphere_diameters[int(key)] = norm_pts
+            sphere_diameters[int(key)-1] = norm_pts
         path = os.path.join(args.hb_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -402,6 +402,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
             sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key) - 1] = norm_pts
         path = os.path.join(args.icbin_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
