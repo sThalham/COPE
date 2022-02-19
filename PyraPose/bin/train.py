@@ -167,19 +167,19 @@ def create_generators(args, preprocess_image):
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in json.load(open(mesh_info)).items():
-            #x_minus = value['min_x']
-            #y_minus = value['min_y']
-            #z_minus = value['min_z']
-            #x_plus = value['size_x'] + x_minus
-            #y_plus = value['size_y'] + y_minus
-            #z_plus = value['size_z'] + z_minus
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            x_minus = x_plus * -1.0
-            y_minus = y_plus * -1.0
-            z_minus = z_plus * -1.0
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -189,7 +189,8 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
         path = os.path.join(args.linemod_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -218,19 +219,19 @@ def create_generators(args, preprocess_image):
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in yaml.load(open(mesh_info)).items():
-            #x_minus = value['min_x']
-            #y_minus = value['min_y']
-            #z_minus = value['min_z']
-            #x_plus = value['size_x'] + x_minus
-            #y_plus = value['size_y'] + y_minus
-            #z_plus = value['size_z'] + z_minus
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            x_minus = x_plus * -1.0
-            y_minus = y_plus * -1.0
-            z_minus = z_plus * -1.0
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -240,7 +241,8 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
         path = os.path.join(args.ycbv_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -270,19 +272,19 @@ def create_generators(args, preprocess_image):
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in json.load(open(mesh_info)).items():
-            #x_minus = value['min_x']
-            #y_minus = value['min_y']
-            #z_minus = value['min_z']
-            #x_plus = value['size_x'] + x_minus
-            #y_plus = value['size_y'] + y_minus
-            #z_plus = value['size_z'] + z_minus
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            x_minus = x_plus * -1.0
-            y_minus = y_plus * -1.0
-            z_minus = z_plus * -1.0
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -292,7 +294,8 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
         path = os.path.join(args.tless_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -323,19 +326,19 @@ def create_generators(args, preprocess_image):
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in yaml.load(open(mesh_info)).items():
-            #x_minus = value['min_x']
-            #y_minus = value['min_y']
-            #z_minus = value['min_z']
-            #x_plus = value['size_x'] + x_minus
-            #y_plus = value['size_y'] + y_minus
-            #z_plus = value['size_z'] + z_minus
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            x_minus = x_plus * -1.0
-            y_minus = y_plus * -1.0
-            z_minus = z_plus * -1.0
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -345,7 +348,8 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
         path = os.path.join(args.hb_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)

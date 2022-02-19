@@ -594,7 +594,8 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
         regression = tf.reshape(y_pred, [in_shape_es[0] * in_shape_es[1], in_shape_es[2], in_shape_es[3]])
         regression = tf.gather(regression, indices, axis=0)
 
-        regression_diff = keras.backend.abs(regression) * 0.01
+        #regression_diff = keras.backend.abs(regression) #* 0.01
+        regression_diff = regression
         regression_loss = backend.where(
             keras.backend.less(regression_diff, 1.0 / sigma_squared),
             0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),

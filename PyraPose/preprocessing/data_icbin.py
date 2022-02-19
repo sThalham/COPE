@@ -317,19 +317,19 @@ class ICbinDataset(tf.data.Dataset):
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
         for key, value in json.load(open(mesh_info)).items():
-            #x_minus = value['min_x']
-            #y_minus = value['min_y']
-            #z_minus = value['min_z']
-            #x_plus = value['size_x'] + x_minus
-            #y_plus = value['size_y'] + y_minus
-            #z_plus = value['size_z'] + z_minus
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            x_minus = x_plus * -1.0
-            y_minus = y_plus * -1.0
-            z_minus = z_plus * -1.0
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -339,7 +339,8 @@ class ICbinDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
-            sphere_diameters[int(key)] = value['diameter']
+            #sphere_diameters[int(key)] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
 
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
@@ -515,7 +516,7 @@ class ICbinDataset(tf.data.Dataset):
                     x_s[index], scale = resize_image(x_s[index], min_side=image_min_side, max_side=image_max_side)
                     y_s[index]['cam_params'] *= scale
 
-                    #x_s[index] = augment_image(x_s[index], seq)
+                    x_s[index] = augment_image(x_s[index], seq)
 
                     # transform a single group entry
                     x_s[index], y_s[index] = random_transform_group_entry(x_s[index], y_s[index])

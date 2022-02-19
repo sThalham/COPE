@@ -285,7 +285,7 @@ def pyrapose(
     destd_boxes_x = tf.math.subtract(destd_boxes[:, :, :, ::2], intrinsics[2])
     destd_boxes_y = tf.math.subtract(destd_boxes[:, :, :, 1::2], intrinsics[3])
     destd_boxes = tf.concat([destd_boxes_x[:, :, :, :, tf.newaxis], destd_boxes_y[:, :, :, :, tf.newaxis]], axis=4)
-    destd_boxes = tf.reshape(destd_boxes, shape=[tf.shape(regression)[0], tf.shape(regression)[1], num_classes, 16])
+    destd_boxes = tf.reshape(destd_boxes, shape=[tf.shape(regression)[0], tf.shape(regression)[1], num_classes, 16]) * 0.01 # factor for scaling
 
     location = pose_branch[1](destd_boxes)
     rotation = pose_branch[0](destd_boxes)
@@ -317,10 +317,11 @@ def pyrapose(
     #projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
     #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
-    pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])
+    pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16]) * 0.01 # factor for scaling
 
     #discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
     discrepancy = destd_boxes - pro_boxes
+    discrepancy = tf.math.abs(discrepancy)
 
     rename_layer = keras.layers.Lambda(lambda x: x, name='reprojection')
     reprojection = rename_layer(discrepancy)

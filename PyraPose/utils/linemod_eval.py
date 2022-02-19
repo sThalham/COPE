@@ -161,7 +161,7 @@ def load_pcd(data_path, cat):
     #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
     #    radius=0.1, max_nn=30))
     # open3d.draw_geometries([pcd_model])
-    model_vsd['pts'] = model_vsd['pts'] * 0.001
+    model_vsd['pts'] = model_vsd['pts'] #* 0.001
 
     return pcd_model, model_vsd
 '''
@@ -275,12 +275,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
-        x_minus = value['min_x'] * fac
-        y_minus = value['min_y'] * fac
-        z_minus = value['min_z'] * fac
-        x_plus = value['size_x'] * fac + x_minus
-        y_plus = value['size_y'] * fac + y_minus
-        z_plus = value['size_z'] * fac + z_minus
+        #x_minus = value['min_x'] * fac
+        #y_minus = value['min_y'] * fac
+        #z_minus = value['min_z'] * fac
+        #x_plus = value['size_x'] * fac + x_minus
+        #y_plus = value['size_y'] * fac + y_minus
+        #z_plus = value['size_z'] * fac + z_minus
+        norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+        x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+        y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+        z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+        x_minus = x_plus * -1.0
+        y_minus = y_plus * -1.0
+        z_minus = z_plus * -1.0
         three_box_solo = np.array([
                                     #[0.0, 0.0, 0.0],
                                     [x_plus, y_plus, z_plus],
@@ -292,7 +299,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                   [x_minus, y_minus, z_minus],
                                   [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
-        model_dia[int(key)] = value['diameter'] * fac
+        model_dia[int(key)] = value['diameter'] #* fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
     pc1, mv1 = load_pcd(data_path,'000001')
@@ -499,6 +506,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
+                '''
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -512,13 +520,31 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 t_est = otvec.T
                 t_est = t_est[0, :]
                 t_bop = t_est * 1000.0
+                '''
 
                 t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
                 R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
                 t_gt = np.array(gt_pose[:3], dtype=np.float32)
-                t_gt = t_gt * 0.001
+                t_gt = t_gt #* 0.001
 
+                # direct pose regression
                 direct_votes = poses_votes[hyps, :]
+                direct_confs = confs_votes[hyps]
+
+                n_hyps = 3
+                if direct_confs.shape[0] < n_hyps:
+                    n_hyps = direct_confs.shape[0]
+                conf_ranks = np.argsort(direct_confs)
+                poses_cls = np.mean(direct_votes[conf_ranks[:n_hyps], :], axis=0)
+
+                # R6d
+                R_est = np.eye(3)
+                R_est[:3, 0] = poses_cls[3:6] / np.linalg.norm(poses_cls[3:6])
+                R_est[:3, 1] = poses_cls[6:] / np.linalg.norm(poses_cls[6:])
+                R3 = np.cross(R_est[:3, 0], poses_cls[6:])
+                R_est[:3, 2] = R3 / np.linalg.norm(R3)
+                t_est = poses_cls[:3] #* 0.001
+                print('t_est: ', t_est)
 
                 if true_cls == 1:
                     model_vsd = mv1
@@ -562,6 +588,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
+                '''
                 tDbox = R_gt.dot(ori_points.T).T
                 tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
                 box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
@@ -621,27 +648,27 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                      2)
                 image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                      2)
-
                 '''
+
                 for pdx in range(direct_votes.shape[0]):
 
                     # direct pose votes
-                    #pose_hyp = direct_votes[pdx, :]
-                    #R_est = np.eye(3)
-                    #R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
-                    #R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
-                    #R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
-                    #R_est[:3, 2] = R3 / np.linalg.norm(R3)
-                    #t_est = pose_hyp[:3].T * 0.001
-                    #t_bop = t_est * 1000.0
+                    pose_hyp = direct_votes[pdx, :]
+                    R_est = np.eye(3)
+                    R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
+                    R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
+                    R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
+                    R_est[:3, 2] = R3 / np.linalg.norm(R3)
+                    t_est = pose_hyp[:3].T #* 0.001
+                    t_bop = t_est * 1000.0
 
-                    #eDbox = R_est.dot(ori_points.T).T
-                    #eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                    eDbox = R_est.dot(ori_points.T).T
+                    eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
                     # eDbox = eDbox + np.repeat(t_est, 8, axis=0)
-                    #est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                    est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
 
                     # bounding box estimation
-                    est3D = pose_votes[pdx, :]
+                    #est3D = pose_votes[pdx, :]
 
                     # used by both
                     eDbox = np.reshape(est3D, (16))
@@ -666,19 +693,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                          2)
 
-                eval_line = []
-                R_bop = [str(i) for i in R_est.flatten().tolist()]
-                R_bop = ' '.join(R_bop)
-                eval_line.append(R_bop)
-                t_bop = [str(i) for i in t_bop.flatten().tolist()]
-                t_bop = ' '.join(t_bop)
-                eval_line.append(t_bop)
-                eval_img.append(eval_line)
-                '''
+                #eval_line = []
+                #R_bop = [str(i) for i in R_est.flatten().tolist()]
+                #R_bop = ' '.join(R_bop)
+                #eval_line.append(R_bop)
+                #t_bop = [str(i) for i in t_bop.flatten().tolist()]
+                #t_bop = ' '.join(t_bop)
+                #eval_line.append(t_bop)
+                #eval_img.append(eval_line)
 
-        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         # image_row1 = np.concatenate([image, image_mask], axis=0)
-        #cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_raw)
 
 
         '''
