@@ -16,7 +16,7 @@ limitations under the License.
 
 import tensorflow.keras as keras
 import tensorflow as tf
-from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm, poses_denorm, box_projection
+from ..backend import resize_images, transpose, shift, bbox_transform_inv, clip_by_value, box3D_transform_inv, box3D_denorm, box3D_norm, poses_denorm, box_projection
 from ..utils import anchors as utils_anchors
 
 import numpy as np
@@ -328,6 +328,58 @@ class DenormRegression(keras.layers.Layer):
 
     def get_config(self):
         config = super(DenormRegression, self).get_config()
+        config.update({
+            'mean': self.mean.tolist(),
+            'std' : self.std.tolist(),
+        })
+
+        return config
+
+
+class NormRegression(keras.layers.Layer):
+    """ Keras layer for applying regression values to boxes.
+    """
+
+    def __init__(self, mean=None, std=None, *args, **kwargs):
+        """ Initializer for the RegressBoxes layer.
+
+        Args
+            mean: The mean value of the regression values which was used for normalization.
+            std: The standard value of the regression values which was used for normalization.
+        """
+        if mean is None:
+            mean = np.full(16, 0)  # np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        if std is None:
+            std = np.full(16, 0.65)
+        else:
+            std = np.full(16, std)
+        if mean is None:
+            raise ValueError('Object diameters are required for de-standardization.')
+
+        if isinstance(mean, (list, tuple)):
+            mean = np.array(mean)
+        elif not isinstance(mean, np.ndarray):
+            raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+        if isinstance(std, (list, tuple)):
+            std = np.array(std)
+        elif not isinstance(std, np.ndarray):
+            raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+        self.mean = mean
+        self.std  = std
+        #self.obj_diameters = diameter_tensor
+        super(NormRegression, self).__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        regression, locations = inputs
+        return box3D_norm(regression, locations, mean=self.mean, std=self.std)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[1]
+
+    def get_config(self):
+        config = super(NormRegression, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
             'std' : self.std.tolist(),

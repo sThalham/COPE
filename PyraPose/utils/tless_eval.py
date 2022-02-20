@@ -92,19 +92,19 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
 
     for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
-        #x_minus = value['min_x'] * fac
-        #y_minus = value['min_y'] * fac
-        #z_minus = value['min_z'] * fac
-        #x_plus = value['size_x'] * fac + x_minus
-        #y_plus = value['size_y'] * fac + y_minus
-        #z_plus = value['size_z'] * fac + z_minus
+        x_minus = value['min_x'] * fac
+        y_minus = value['min_y'] * fac
+        z_minus = value['min_z'] * fac
+        x_plus = value['size_x'] * fac + x_minus
+        y_plus = value['size_y'] * fac + y_minus
+        z_plus = value['size_z'] * fac + z_minus
         norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-        x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-        y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-        z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-        x_minus = x_plus * -1.0
-        y_minus = y_plus * -1.0
-        z_minus = z_plus * -1.0
+        #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+        #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+        #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+        #x_minus = x_plus * -1.0
+        #y_minus = y_plus * -1.0
+        #z_minus = z_plus * -1.0
         three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                    [x_plus, y_plus, z_minus],
                                    [x_plus, y_minus, z_minus],
@@ -154,10 +154,10 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
 
         image_id = sample[0]
         image = sample[1]
-        gt_labels = sample[2]
-        gt_boxes = sample[3]
-        gt_poses = sample[4]
-        gt_calib = sample[5]
+        gt_labels = sample[2].numpy()
+        gt_boxes = sample[3].numpy()
+        gt_poses = sample[4].numpy()
+        gt_calib = sample[5].numpy()
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -302,23 +302,23 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 for pdx in range(direct_votes.shape[0]):
 
                     # direct pose
-                    #pose_hyp = direct_votes[pdx, :]
-                    #R_est = np.eye(3)
-                    #R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
-                    #R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
-                    #R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
-                    #R_est[:3, 2] = R3 / np.linalg.norm(R3)
-                    #t_est = pose_hyp[:3].T * 0.001
-                    #t_bop = t_est * 1000.0
+                    pose_hyp = direct_votes[pdx, :]
+                    R_est = np.eye(3)
+                    R_est[:3, 0] = pose_hyp[3:6] / np.linalg.norm(pose_hyp[3:6])
+                    R_est[:3, 1] = pose_hyp[6:] / np.linalg.norm(pose_hyp[6:])
+                    R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
+                    R_est[:3, 2] = R3 / np.linalg.norm(R3)
+                    t_est = pose_hyp[:3].T * 0.001
+                    t_bop = t_est * 1000.0
 
                     #print('tra: ', t_est)
 
-                    #eDbox = R_est.dot(ori_points.T).T
-                    #eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
-                    #est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                    eDbox = R_est.dot(ori_points.T).T
+                    eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                    est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
 
                     # bounding box estimation
-                    est3D = pose_votes[pdx, :]
+                    #est3D = pose_votes[pdx, :]
 
                     # used for viz of both
                     eDbox = np.reshape(est3D, (16))
@@ -354,7 +354,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
 
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image, image_mask], axis=0)
-        cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_mask)
 
     wd_path = os.getcwd()
     csv_target = os.path.join(wd_path, 'sthalham-pp_tless-test.csv')

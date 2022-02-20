@@ -275,19 +275,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
     for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
-        #x_minus = value['min_x'] * fac
-        #y_minus = value['min_y'] * fac
-        #z_minus = value['min_z'] * fac
-        #x_plus = value['size_x'] * fac + x_minus
-        #y_plus = value['size_y'] * fac + y_minus
-        #z_plus = value['size_z'] * fac + z_minus
+        x_minus = value['min_x'] * fac
+        y_minus = value['min_y'] * fac
+        z_minus = value['min_z'] * fac
+        x_plus = value['size_x'] * fac + x_minus
+        y_plus = value['size_y'] * fac + y_minus
+        z_plus = value['size_z'] * fac + z_minus
         norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-        x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-        y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-        z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-        x_minus = x_plus * -1.0
-        y_minus = y_plus * -1.0
-        z_minus = z_plus * -1.0
+        #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+        #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+        #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+        #x_minus = x_plus * -1.0
+        #y_minus = y_plus * -1.0
+        #z_minus = z_plus * -1.0
         three_box_solo = np.array([
                                     #[0.0, 0.0, 0.0],
                                     [x_plus, y_plus, z_plus],
@@ -544,7 +544,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 R3 = np.cross(R_est[:3, 0], poses_cls[6:])
                 R_est[:3, 2] = R3 / np.linalg.norm(R3)
                 t_est = poses_cls[:3] #* 0.001
-                print('t_est: ', t_est)
 
                 if true_cls == 1:
                     model_vsd = mv1
@@ -588,15 +587,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
-                '''
+
                 tDbox = R_gt.dot(ori_points.T).T
-                tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T
+                tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T * 0.001
                 box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
                 tDbox = np.reshape(box3D, (16))
                 tDbox = tDbox.astype(np.uint16)
 
                 eDbox = R_est.dot(ori_points.T).T
-                eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
+                eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) * 0.001
                 est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
                 eDbox = np.reshape(est3D, (16))
                 pose = eDbox.astype(np.uint16)
@@ -648,8 +647,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                      2)
                 image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                      2)
-                '''
 
+                '''
                 for pdx in range(direct_votes.shape[0]):
 
                     # direct pose votes
@@ -660,7 +659,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     R3 = np.cross(R_est[:3, 0], pose_hyp[6:])
                     R_est[:3, 2] = R3 / np.linalg.norm(R3)
                     t_est = pose_hyp[:3].T #* 0.001
-                    t_bop = t_est * 1000.0
+                    t_bop = t_est #* 1000.0
 
                     eDbox = R_est.dot(ori_points.T).T
                     eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)
@@ -674,7 +673,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     eDbox = np.reshape(est3D, (16))
                     pose = eDbox.astype(np.uint16)
                     colGT = (255, 0, 0)
-                    colEst = (0, 204, 0)
+                    colEst = (0, 155, 155)
 
                     image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
                     image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -692,7 +691,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                          2)
                     image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
                                          2)
-
+                '''
                 #eval_line = []
                 #R_bop = [str(i) for i in R_est.flatten().tolist()]
                 #R_bop = ' '.join(R_bop)

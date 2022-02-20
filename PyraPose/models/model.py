@@ -323,9 +323,22 @@ def pyrapose(
     discrepancy = destd_boxes - pro_boxes
     discrepancy = tf.math.abs(discrepancy)
 
-    rename_layer = keras.layers.Lambda(lambda x: x, name='reprojection')
-    reprojection = rename_layer(discrepancy)
-    pyramids.append(reprojection)
+    rename_layer = keras.layers.Lambda(lambda x: x, name='consistency')
+    consistency = rename_layer(discrepancy)
+    pyramids.append(consistency)
+
+    # standardized reporjection
+    projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
+    projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
+    projection = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
+    projection = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])
+    projection= layers.NormRegression(name='NormProjection')([projection, locations_tiled])
+    projection = tf.math.divide_no_nan(projection, rep_object_diameters)
+
+    rename_layer_2 = keras.layers.Lambda(lambda x: x, name='projection')
+    projection = rename_layer_2(projection)
+
+    pyramids.append(projection)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
