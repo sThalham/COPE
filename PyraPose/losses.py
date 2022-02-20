@@ -485,6 +485,7 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
     def _per_cls_l1_sym(y_true, y_pred, hyp_mask):
 
+
         regression_target = y_true[:, :, :, :, :-1]
         anchor_state = y_true[:, :, :, :, -1]
 
@@ -497,6 +498,7 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
             y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[4]])
         else:
             y_pred_res = tf.reshape(y_pred, [in_shape[0] * in_shape[1], in_shape[2], in_shape[4]])
+
         regression = tf.gather(y_pred_res, indices, axis=0)
         y_true_res = tf.reshape(regression_target, [in_shape[0] * in_shape[1], in_shape[2], in_shape[3], in_shape[4]])
         regression_target = tf.gather(y_true_res, indices, axis=0)
@@ -618,14 +620,9 @@ def per_cls_l1_rep(num_classes=0, weight=1.0, sigma=3.0):
         # don't want sparse tensors
         # L = 2 * l ((min+max) - x) * (1/(min+max))
         regression_loss = tf.math.reduce_sum(regression_loss, axis=2)
-        if hyp_mask == None:
-            minmax = (tf.math.reduce_min(regression_loss, axis=0) + tf.math.reduce_max(regression_loss, axis=0))
-            scaler = (tf.math.divide_no_nan(1.0, minmax)) * (minmax - regression_loss)
-            regression_loss = regression_loss * scaler * 2.0
 
         regression_loss = tf.transpose(regression_loss, perm=[2, 1, 0])
         anchor_anno = tf.gather(anchor_state, indices, axis=0)
-        pose_hyp_anno = tf.math.reduce_sum(anchor_anno, axis=2)
         regression_loss = tf.where(tf.math.equal(anchor_anno, 1.0), regression_loss, 0.0)
 
         regression_loss = tf.where(tf.math.equal(hyp_mask, 1.0), regression_loss, 0.0)

@@ -91,7 +91,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
             'translations'  : losses.per_cls_l1_trans(num_classes=num_classes, weight=1.0),
             'rotations'     : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
             'consistency'   : losses.projection_deviation(num_classes=num_classes, weight=0.1),
-            'projection'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=1.3),
+            'projection'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
         },
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )
@@ -402,7 +402,7 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
             sphere_diameters[int(key) - 1] = norm_pts
         path = os.path.join(args.icbin_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
