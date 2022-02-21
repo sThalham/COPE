@@ -352,6 +352,16 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 R_est[:3, 2] = R3 / np.linalg.norm(R3)
                 t_est = poses_cls[:3]  # * 0.001
 
+                xpix = ((t_est[0] * fxkin) / t_est[2]) + 320
+                ypix = ((t_est[1] * fykin) / t_est[2]) + 240
+                t_est[0] = ((xpix - cxkin) * t_est[2]) / fxkin
+                t_est[1] = ((ypix - cykin) * t_est[2]) / fykin
+                #t_est[0] += ((320 - cxkin) * fxkin) / t_est[2]
+                #t_est[1] += ((320 - cxkin) * fxkin) / t_est[2]
+
+                print('x: ', t_est[0], t_est[0] + ((320 - cxkin) * fxkin) / t_est[2])
+                print('y: ', t_est[1], t_est[1] + ((320 - cxkin) * fxkin) / t_est[2])
+
                 # transform to cam
 
                 if cls == 1:
