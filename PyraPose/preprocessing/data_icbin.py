@@ -137,9 +137,9 @@ class ICbinDataset(tf.data.Dataset):
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
             #x_minus = x_plus * -1.0
             #y_minus = y_plus * -1.0
             #z_minus = z_plus * -1.0

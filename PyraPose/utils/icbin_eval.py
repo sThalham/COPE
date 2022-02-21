@@ -84,7 +84,7 @@ def boxoverlap(a, b):
     return ovlap
 
 
-def evaluate_tless(generator, model, data_path, threshold=0.5):
+def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.json")
     threeD_boxes = np.ndarray((31, 8, 3), dtype=np.float32)
@@ -119,6 +119,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
     # target annotation
     pc1, mv1 = load_pcd(data_path, '000001')
     pc2, mv2 = load_pcd(data_path, '000002')
+    '''
     pc3, mv3 = load_pcd(data_path, '000003')
     pc4, mv4 = load_pcd(data_path, '000004')
     pc5, mv5 = load_pcd(data_path, '000005')
@@ -147,6 +148,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
     pc28, mv28 = load_pcd(data_path, '000028')
     pc29, mv29 = load_pcd(data_path, '000029')
     pc30, mv30 = load_pcd(data_path, '000030')
+    '''
 
     allPoses = np.zeros((31), dtype=np.uint32)
     truePoses = np.zeros((31), dtype=np.uint32)
@@ -174,8 +176,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
             allPoses[int(gt_labels[obj]) + 1] += 1
             gt_label_list.append(int(gt_labels[obj]) + 1)
             gt_poses_list.append(int(gt_labels[obj]) + 1)
-
-        print('gt_calib: ', gt_calib)
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -271,7 +271,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                         for qdx in range(len(obj_ancs)):
                             # loop through anchors belonging to instance
                             iou = boxoverlap(obj_ancs[qdx], box_b)
-                            if iou > 0.75:
+                            if iou > 0.7:
                                 # print('anc_anchors: ', pos_anchors)
                                 # print('ind_anchors: ', ind_anchors)
                                 # print('adx: ', adx)
@@ -303,8 +303,8 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 if gt_pose.size == 0:  # filter for benchvise, bowl and mug
                     continue
 
-                gt_pose = gt_pose[0][0]
-                gt_box = gt_box[0][0]
+                #gt_pose = gt_pose[0][0]
+                #gt_box = gt_box[0][0]
 
                 box_votes = pose_votes[hyps, :]
                 k_hyp = box_votes.shape[0]
@@ -312,7 +312,6 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
-                '''
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -327,13 +326,13 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 t_est = t_est[0, :] * 1000.0
                 #print(t_est)
                 t_bop = t_est * 1000.0
+
+                #t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+                #R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                #t_gt = np.array(gt_pose[:3], dtype=np.float32)
+                #t_gt = t_gt  # * 0.001
+
                 '''
-
-                t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
-                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
-                t_gt = np.array(gt_pose[:3], dtype=np.float32)
-                t_gt = t_gt #* 0.001
-
                 # direct pose regression
                 direct_votes = poses_votes[hyps, :]
                 direct_confs = confs_votes[hyps]
@@ -351,74 +350,31 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 R3 = np.cross(R_est[:3, 0], poses_cls[6:])
                 R_est[:3, 2] = R3 / np.linalg.norm(R3)
                 t_est = poses_cls[:3]  # * 0.001
-
-                # transform to cam
+                '''
 
                 if cls == 1:
                     model_vsd = mv1
                 elif cls == 2:
                     model_vsd = mv2
-                elif cls == 3:
-                    model_vsd = mv3
-                elif cls == 4:
-                    model_vsd = mv4
-                elif cls == 5:
-                    model_vsd = mv5
-                elif cls == 6:
-                    model_vsd = mv6
-                elif cls == 7:
-                    model_vsd = mv7
-                elif cls == 8:
-                    model_vsd = mv8
-                elif cls == 9:
-                    model_vsd = mv9
-                elif cls == 10:
-                    model_vsd = mv10
-                elif cls == 11:
-                    model_vsd = mv11
-                elif cls == 12:
-                    model_vsd = mv12
-                elif cls == 13:
-                    model_vsd = mv13
-                elif cls == 14:
-                    model_vsd = mv14
-                elif cls == 15:
-                    model_vsd = mv15
-                elif cls == 16:
-                    model_vsd = mv16
-                elif cls == 17:
-                    model_vsd = mv17
-                elif cls == 18:
-                    model_vsd = mv18
-                elif cls == 19:
-                    model_vsd = mv19
-                elif cls == 20:
-                    model_vsd = mv20
-                elif cls == 21:
-                    model_vsd = mv21
-                elif cls == 22:
-                    model_vsd = mv22
-                elif cls == 23:
-                    model_vsd = mv23
-                elif cls == 24:
-                    model_vsd = mv24
-                elif cls == 25:
-                    model_vsd = mv25
-                elif cls == 26:
-                    model_vsd = mv26
-                elif cls == 27:
-                    model_vsd = mv27
-                elif cls == 28:
-                    model_vsd = mv28
-                elif cls == 29:
-                    model_vsd = mv29
-                elif cls == 30:
-                    model_vsd = mv30
 
-                if cls in [1, 2, 3, 4, 14, 15, 16, 17, 25]:
-                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-                else:
+                add_errors = []
+                for gtdx in range(gt_pose.shape[0]):
+                    t_rot = tf3d.quaternions.quat2mat(gt_pose[gtdx, 0, 3:])
+                    R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                    t_gt = np.array(gt_pose[gtdx, 0, :3], dtype=np.float32)
+                    t_gt = t_gt #* 0.001
+
                     err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                    add_errors.append(err_add)
+
+                idx_add = np.argmin(np.array(add_errors))
+                err_add = add_errors[idx_add]
+                gt_pose = gt_pose[idx_add, 0, :]
+
+                t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                t_gt = np.array(gt_pose[:3], dtype=np.float32)
+                t_gt = t_gt  # * 0.001
 
                 if err_add < model_dia[true_cls] * 0.1:
                     if true_cls in gt_poses_list:

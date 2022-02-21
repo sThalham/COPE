@@ -506,7 +506,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 ori_points = np.ascontiguousarray(threeD_boxes[cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
-                '''
+
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -518,15 +518,15 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                    flags=cv2.SOLVEPNP_EPNP)
                 R_est, _ = cv2.Rodrigues(orvec)
                 t_est = otvec.T
-                t_est = t_est[0, :]
+                t_est = t_est[0, :] * 1000.0
                 t_bop = t_est * 1000.0
-                '''
 
                 t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
                 R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
                 t_gt = np.array(gt_pose[:3], dtype=np.float32)
                 t_gt = t_gt #* 0.001
 
+                '''
                 # direct pose regression
                 direct_votes = poses_votes[hyps, :]
                 direct_confs = confs_votes[hyps]
@@ -544,6 +544,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 R3 = np.cross(R_est[:3, 0], poses_cls[6:])
                 R_est[:3, 2] = R3 / np.linalg.norm(R3)
                 t_est = poses_cls[:3] #* 0.001
+                '''
 
                 if true_cls == 1:
                     model_vsd = mv1

@@ -102,6 +102,7 @@ class TlessDataset(tf.data.Dataset):
         cats = {}
         image_ids = []
         image_paths = []
+        intrinsics = []
         imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
 
         for img in image_ann:
@@ -110,6 +111,7 @@ class TlessDataset(tf.data.Dataset):
                 fy = img["fy"]
                 cx = img["cx"]
                 cy = img["cy"]
+            intrinsics.append([img["fx"], img["fy"], img["cx"], img["cy"]])
             image_ids.append(img['id'])  # to correlate indexing to self.image_ann
             image_paths.append(os.path.join(data_dir, 'images', set_name, img['file_name']))
 
@@ -186,6 +188,8 @@ class TlessDataset(tf.data.Dataset):
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
             anns = imgToAnns[image_ids[image_index]]
+            intri = intrinsics[image_index]
+            print(intri)
 
             path = image_paths[image_index]
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
@@ -195,12 +199,13 @@ class TlessDataset(tf.data.Dataset):
             #               'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
             #               'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
             annotations = {'image_num': np.array([image_num]),
-                            'labels': np.empty((0,)),
+                           'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)),
                            'poses': np.empty((0, 7)),
                            'cam_params': np.empty((0, 4))}
 
             for idx, a in enumerate(anns):
+                print('anno: ', anns)
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -231,10 +236,10 @@ class TlessDataset(tf.data.Dataset):
                 #annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
                 #                                          axis=0)
                 annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
-                    fx,
-                    fy,
-                    cx,
-                    cy,
+                    intri[0],
+                    intri[1],
+                    intri[2],
+                    intri[3],
                 ]]], axis=0)
                 #annotations['sym_dis'] = np.concatenate(
                 #    [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)

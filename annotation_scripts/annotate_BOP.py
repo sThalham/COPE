@@ -174,10 +174,10 @@ def create_BB(rgb):
 if __name__ == "__main__":
 
     dataset = 'icbin'
-    traintestval = 'train'
+    traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/bop_datasets/icbin/train_pbr"  # path to train samples, depth + rgb
+    root = "/home/stefan/data/bop_datasets/icbin/test"  # path to train samples, depth + rgb
     target = '/home/stefan/data/train_data/icbin_PBR_BOP/'
 
     if dataset == 'linemod':
@@ -476,7 +476,7 @@ if __name__ == "__main__":
 
                     phler = True
                     if phler:
-                        pose = np.asarray(bbvis[i], dtype=np.float32)
+                        pose = np.asarray(bbvis[i], dtype=np.int16)
 
                         colR = 250
                         colG = 25

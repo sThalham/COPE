@@ -24,6 +24,7 @@ class Backbone(object):
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
             'ProjectBoxes'              :layers.ProjectBoxes(),
             'DenormRegression'          : layers.DenormRegression(),
+            'NormRegression'          : layers.NormRegression(),
             'Locations'                 : layers.Locations(),
             'Locations_Hacked'          : layers.Locations_Hacked(),
             '_per_cls_l1'               : losses.per_cls_l1(),
@@ -81,8 +82,8 @@ def convert_model(model, diameters, classes):
 
 
 def assert_training_model(model):
-    assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'reprojection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    #assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'consistency', 'projection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    #assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'reprojection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'consistency', 'projection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):
