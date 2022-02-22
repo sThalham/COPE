@@ -365,7 +365,7 @@ def inference_model(
         object_diameters=None,
         num_classes=None,
         name='pyrapose',
-        score_threshold=0.5,
+        score_threshold=0.35,
         max_detections=300,
         **kwargs
 ):
@@ -394,26 +394,33 @@ def inference_model(
     #confidences = model.outputs[4]
     #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
 
+    #detections = layers.FilterDetections(
+    #    name='filtered_detections',
+    #    score_threshold=score_threshold,
+    #    max_detections=max_detections,
+    #    num_classes=num_classes,
+    #)([regression, classification, locations, translations, rotations, consistency])
+
+    tf_diameter = tf.convert_to_tensor(object_diameters)
+    #print('tf_diameter: ', tf_diameter)
+    #print('detections 3: ', detections[3])
+    #rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
+    rep_object_diameters = tf.tile(tf_diameter[:, tf.newaxis], [1, 16])
+    #print('rep_object_diameter: ', rep_object_diameters)
+
+    #poses = tf.concat([detections[4], detections[5]], axis=3)
+    poses = tf.concat([translations, rotations], axis=3)
+    poses = layers.DenormPoses(name='poses_world')(poses)
+    boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations, rep_object_diameters])
+
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
         num_classes=num_classes,
-    #)([regression, classification, locations, translations, rotations, confidences])
-    )([regression, classification, locations, translations, rotations, consistency])
+        # )([regression, classification, locations, translations, rotations, confidences])
+    )([boxes3D, classification, poses, consistency])
 
-    tf_diameter = tf.convert_to_tensor(object_diameters)
-    rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
-
-    poses = tf.concat([detections[4], detections[5]], axis=3)
-
-    poses = layers.DenormPoses(name='poses_world')(poses)
-    boxes3D = layers.RegressBoxes3D(name='boxes3D')([detections[0], detections[1], rep_object_diameters])
-    print('poses: ', poses)
-
-    # construct the model
-    # return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
-    # return keras.models.Model(inputs=model.inputs, outputs=[regression, classification], name=name)
-    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6]], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
     return keras.models.Model(inputs=model.inputs,
                               outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)

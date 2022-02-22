@@ -139,13 +139,18 @@ def poses_denorm(regression):
     x = regression[:, :, :, 0] * 500.0
     y = regression[:, :, :, 1] * 500.0
     z = ((regression[:, :, :, 2] * (1/3)) + 1.0) * 1000.0
-    r00 = regression[:, :, :, 3]
-    r01 = regression[:, :, :, 4]
-    r02 = regression[:, :, :, 5]
-    r10 = regression[:, :, :, 6]
-    r11 = regression[:, :, :, 7]
-    r12 = regression[:, :, :, 8]
-    pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12], axis=3)
+    #r00 = regression[:, :, :, 3]
+    #r01 = regression[:, :, :, 4]
+    #r02 = regression[:, :, :, 5]
+    #r10 = regression[:, :, :, 6]
+    #r11 = regression[:, :, :, 7]
+    #r12 = regression[:, :, :, 8]
+
+    r3 = tf.linalg.cross(regression[:, :, :, 3:6], regression[:, :, :, 6:])
+    r3 = tf.math.l2_normalize(r3, axis=3)
+
+    #pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12, ], axis=3)
+    pred_poses = keras.backend.stack([regression[:, :, :, 3:9], r3, x, y, z], axis=3)
 
     return pred_poses
 
