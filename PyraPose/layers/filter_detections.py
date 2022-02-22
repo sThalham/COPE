@@ -22,9 +22,6 @@ from .. import backend
 def filter_detections(
     boxes3D,
     classification,
-    #locations,
-    #translation,
-    #rotation,
     poses,
     confidence,
     num_classes,
@@ -68,28 +65,22 @@ def filter_detections(
         hei = y2 - y1 + 1
         inter = wid * hei
 
-        aarea = (a[:, 2] - a[:, 0] + 1.0) * (a[:, 3] - a[:, 1] + 1.0)
-        barea = (b[:, 2] - b[:, 0] + 1.0) * (b[:, 3] - b[:, 1] + 1.0)
+        aarea = (a[:, :, 2] - a[:, :, 0] + 1.0) * (a[:, :, 3] - a[:, :, 1] + 1.0)
+        barea = (b[:, :, 2] - b[:, :, 0] + 1.0) * (b[:, :, 3] - b[:, :, 1] + 1.0)
         # intersection over union overlap
         ovlap = tf.math.divide_no_nan(inter, (aarea + barea - inter))
         # set invalid entries to 0 overlap
 
         return ovlap
 
-    def _filter_detections(scores, labels, boxes3D, poses, confidence):
+    def _filter_detections(label, scores, boxes3D, poses, confidence):
         # threshold based on score
         indices = tf.where(tf.math.greater(scores, score_threshold))
 
-        # add indices to list of all indices
-        labels = tf.gather_nd(labels, indices)
-        indices = tf.stack([indices[:, 0], labels], axis=1)
-
-        boxes3D = tf.gather(boxes3D[:, labels[0], :], indices[:, 0], axis=0)
-        poses = tf.gather(poses[:, labels[0], :], indices[:, 0], axis=0)
-        confidence = tf.gather(confidence[:, labels[0]], indices[:, 0], axis=0)
-
-        print('boxes3D: ', boxes3D)
-
+        boxes3D = tf.gather(boxes3D, indices[:, 0], axis=0)
+        poses = tf.gather(poses, indices[:, 0], axis=0)
+        confidence = tf.gather(confidence, indices[:, 0], axis=0)
+        
         x_min = tf.math.reduce_min(boxes3D[:, ::2], axis=1)
         y_min = tf.math.reduce_min(boxes3D[:, 1::2], axis=1)
         x_max = tf.math.reduce_min(boxes3D[:, ::2], axis=1)
@@ -104,13 +95,21 @@ def filter_detections(
 
         return indices, poses
 
+    print('labels: ', classification)
+    print('boxes3D: ', boxes3D)
+    print('poses: ', poses)
+    print('confidence: ', confidence)
+
+    in_shape = tf.shape(boxes3D)
+    classification = tf.reshape(classification, [in_shape[0] * in_shape[1], num_classes])
+    boxes3D = tf.reshape(boxes3D, [in_shape[0] * in_shape[1], num_classes, 16])
+    poses = tf.reshape(poses, [in_shape[0] * in_shape[1], num_classes, 12])
+    confidence = tf.reshape(confidence, [in_shape[0] * in_shape[1], num_classes])
+
     all_indices = []
     all_poses = []
     for c in range(int(classification.shape[1])):
-        scores = classification[:, c]
-        #labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
-        labels = c * tf.ones((tf.shape(scores)[0],), dtype='int64')
-        indices, poses = _filter_detections(scores, labels, boxes3D, poses, confidence)
+        indices, poses = _filter_detections(c, classification[:, c], boxes3D[:, c, :], poses[:, c, :], confidence[:, c])
         all_indices.append(indices)
         all_poses.append(poses)
         #all_indices.append(_filter_detections(scores, labels, boxes3D, poses, confidence))

@@ -29,24 +29,24 @@ def box3D_transform_inv(regression, locations, obj_diameter, mean=None, std=None
     if std is None:
         std = [0.65, 0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65,  0.65, 0.65, 0.65, 0.65, 0.65, 0.65]
 
-    x1 = locations[:, :, 0] - (regression[:, :, 0] * (std[0] * obj_diameter) + mean[0])
-    y1 = locations[:, :, 1] - (regression[:, :, 1] * (std[1] * obj_diameter) + mean[1])
-    x2 = locations[:, :, 0] - (regression[:, :, 2] * (std[2] * obj_diameter) + mean[2])
-    y2 = locations[:, :, 1] - (regression[:, :, 3] * (std[3] * obj_diameter) + mean[3])
-    x3 = locations[:, :, 0] - (regression[:, :, 4] * (std[4] * obj_diameter) + mean[4])
-    y3 = locations[:, :, 1] - (regression[:, :, 5] * (std[5] * obj_diameter) + mean[5])
-    x4 = locations[:, :, 0] - (regression[:, :, 6] * (std[6] * obj_diameter) + mean[6])
-    y4 = locations[:, :, 1] - (regression[:, :, 7] * (std[7] * obj_diameter) + mean[7])
-    x5 = locations[:, :, 0] - (regression[:, :, 8] * (std[8] * obj_diameter) + mean[8])
-    y5 = locations[:, :, 1] - (regression[:, :, 9] * (std[9] * obj_diameter) + mean[9])
-    x6 = locations[:, :, 0] - (regression[:, :, 10] * (std[10] * obj_diameter) + mean[10])
-    y6 = locations[:, :, 1] - (regression[:, :, 11] * (std[11] * obj_diameter) + mean[11])
-    x7 = locations[:, :, 0] - (regression[:, :, 12] * (std[12] * obj_diameter) + mean[12])
-    y7 = locations[:, :, 1] - (regression[:, :, 13] * (std[13] * obj_diameter) + mean[13])
-    x8 = locations[:, :, 0] - (regression[:, :, 14] * (std[14] * obj_diameter) + mean[14])
-    y8 = locations[:, :, 1] - (regression[:, :, 15] * (std[15] * obj_diameter) + mean[15])
+    x1 = locations[:, :, :, 0] - (regression[:, :, :, 0] * (std[0] * obj_diameter) + mean[0])
+    y1 = locations[:, :, :, 1] - (regression[:, :, :, 1] * (std[1] * obj_diameter) + mean[1])
+    x2 = locations[:, :, :, 0] - (regression[:, :, :, 2] * (std[2] * obj_diameter) + mean[2])
+    y2 = locations[:, :, :, 1] - (regression[:, :, :, 3] * (std[3] * obj_diameter) + mean[3])
+    x3 = locations[:, :, :, 0] - (regression[:, :, :, 4] * (std[4] * obj_diameter) + mean[4])
+    y3 = locations[:, :, :, 1] - (regression[:, :, :, 5] * (std[5] * obj_diameter) + mean[5])
+    x4 = locations[:, :, :, 0] - (regression[:, :, :, 6] * (std[6] * obj_diameter) + mean[6])
+    y4 = locations[:, :, :, 1] - (regression[:, :, :, 7] * (std[7] * obj_diameter) + mean[7])
+    x5 = locations[:, :, :, 0] - (regression[:, :, :, 8] * (std[8] * obj_diameter) + mean[8])
+    y5 = locations[:, :, :, 1] - (regression[:, :, :, 9] * (std[9] * obj_diameter) + mean[9])
+    x6 = locations[:, :, :, 0] - (regression[:, :, :, 10] * (std[10] * obj_diameter) + mean[10])
+    y6 = locations[:, :, :, 1] - (regression[:, :, :, 11] * (std[11] * obj_diameter) + mean[11])
+    x7 = locations[:, :, :, 0] - (regression[:, :, :, 12] * (std[12] * obj_diameter) + mean[12])
+    y7 = locations[:, :, :, 1] - (regression[:, :, :, 13] * (std[13] * obj_diameter) + mean[13])
+    x8 = locations[:, :, :, 0] - (regression[:, :, :, 14] * (std[14] * obj_diameter) + mean[14])
+    y8 = locations[:, :, :, 1] - (regression[:, :, :, 15] * (std[15] * obj_diameter) + mean[15])
 
-    pred_boxes = keras.backend.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=2)
+    pred_boxes = keras.backend.stack([x1, y1, x2, y2, x3, y3, x4, y4, x5, y5, x6, y6, x7, y7, x8, y8], axis=3)
 
     return pred_boxes
 
@@ -150,7 +150,7 @@ def poses_denorm(regression):
     r3 = tf.math.l2_normalize(r3, axis=3)
 
     #pred_poses = keras.backend.stack([x, y, z, r00, r01, r02, r10, r11, r12, ], axis=3)
-    pred_poses = keras.backend.stack([regression[:, :, :, 3:9], r3, x, y, z], axis=3)
+    pred_poses = tf.concat([regression[:, :, :, 3:9], r3, x[:, :, :, tf.newaxis], y[:, :, :, tf.newaxis], z[:, :, :, tf.newaxis]], axis=3)
 
     return pred_poses
 

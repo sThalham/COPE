@@ -405,22 +405,23 @@ def inference_model(
     #print('tf_diameter: ', tf_diameter)
     #print('detections 3: ', detections[3])
     #rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
-    rep_object_diameters = tf.tile(tf_diameter[:, tf.newaxis], [1, 16])
-    #print('rep_object_diameter: ', rep_object_diameters)
+    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
+    rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
     #poses = tf.concat([detections[4], detections[5]], axis=3)
     poses = tf.concat([translations, rotations], axis=3)
     poses = layers.DenormPoses(name='poses_world')(poses)
-    boxes3D = layers.RegressBoxes3D(name='boxes3D')([regression, locations, rep_object_diameters])
+    boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
+    consistency = tf.math.reduce_sum(consistency, axis=3)
 
     detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
         num_classes=num_classes,
-        # )([regression, classification, locations, translations, rotations, confidences])
     )([boxes3D, classification, poses, consistency])
 
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
     return keras.models.Model(inputs=model.inputs,
-                              outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
+                              outputs=[detections[1], detections[2], detections[3], detections[4], detections[5], detections[6]], name=name)
