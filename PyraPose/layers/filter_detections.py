@@ -75,13 +75,15 @@ def filter_detections(
         tf.print('indicator pre: ', tf.shape(indicator), tf.reduce_sum(indicator))
         all_ind = tf.where(indicator==1)
         uni, _ = tf.unique(all_ind[:, 1])
-        ind_filter = tf.map_fn(
-            lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)),
-            uni)
+        ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
 
-        indicator = tf.zeros_like(indicator)
+        #indicator = tf.zeros_like(indicator)
         filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
-        indicator[filtered_indices[:, 0], filtered_indices[:, 1]] = 1
+        value_updates = tf.constant(1.0, shape=(tf.shape(filtered_indices)[0]))
+        indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtpype=tf.int64))
+
+        #indicator[filtered_indices].assign(1.0)
+        #indicator = tf.sparse_to_dense(filtered_indices, tf.zeros_like(indicator), tf.ones(tf.shape(filtered_indices)[0]))
         tf.print('indicator post: ', tf.shape(indicator), tf.reduce_sum(indicator))
 
         return indicator
@@ -105,14 +107,23 @@ def filter_detections(
 
         true_ovlaps = boxoverlap(boxes)
 
+        #true_ovlaps = tf.where(true_ovlaps == 0.0, 10000.0, true_ovlaps)
         broadcast_confidence = true_ovlaps * confidence
-        sort_conf = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')
-        print('sort_conf: ', sort_conf)
+        sort_args = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')
+        sort_conf = tf.sort(broadcast_confidence, axis=1, direction='ASCENDING')
+        conf_mask = tf.where(tf.math.greater(sort_conf, 0.0), 1.0, 0.0)
+        conf_mask = tf.tile(conf_mask[:, :, tf.newaxis], [1, 1, 12])
 
-        poses_tiled = tf.tile(poses[:, tf.newaxis, :], [1, tf.shape(poses)[0], 1])
         print('poses_tiled: ', poses_tiled)
-        sorted_poses = tf.gather_nd(poses_tiled, indices=sort_conf)
-        print('sorted poses: ', sorted_poses)
+        sorted_poses = tf.gather(poses, indices=sort_args)
+        filt_poses = conf_mask * sorted_poses
+
+        # set indices > n_hyps to zero
+        # sum poses and divide by actual n_hyp
+        # indicator = tf.convert_to_tensor(np.array([[1.0, 1.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]))
+        # conf = tf.convert_to_tensor(np.array([0.09, 0.12, 0.21, 0.18])
+        # poses = tf.random.uniform(shape=[4, 12])
+
         filtered_poses = tf.math.reduce_mean(sorted_poses[:, :3, :], axis=1)
         ov_tiled = tf.tile(true_ovlaps[:, :, tf.newaxis], [1, 1, 12])
         poses = tf.where(tf.math.reduce_sum(ov_tiled, axis=1) < 3, -1 * tf.ones([tf.shape(poses)[0], 12]), filtered_poses)
