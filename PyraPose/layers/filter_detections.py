@@ -81,11 +81,21 @@ def filter_detections(
         indicator = tf.where(tf.math.greater(ovlap, iou_threshold), 1.0, 0.0)
         all_ind = tf.where(indicator==1)
         uni, _ = tf.unique(all_ind[:, 1])
-        ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
 
-        filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
-        value_updates = tf.tile(tf.convert_to_tensor(np.array([1.0])), [tf.shape(filtered_indices)[0]])
+        # slow filter
+        #ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
+        #filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
+        #value_updates = tf.tile(tf.convert_to_tensor(np.array([1.0])), [tf.shape(filtered_indices)[0]])
+        #indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int64))
+
+        # faster filter?
+        # top-notch tensorizing #1
+        max_col = tf.math.argmax(indicator, axis=1)
+        rep_rows = tf.range(0, tf.shape(indicator)[0])
+        filtered_indices = tf.concat([tf.cast(max_col, dtype=tf.int32)[:, tf.newaxis], rep_rows[:, tf.newaxis]], axis=1)
+        value_updates = tf.math.reduce_max(indicator, axis=1)
         indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int64))
+
         indicator = tf.cast(indicator, dtype=tf.float32)
 
         tf.print('indicator post: ', tf.shape(indicator), tf.reduce_sum(indicator))
@@ -149,6 +159,8 @@ def filter_detections(
     def dummy_fn():
         return tf.cast(tf.ones([1, 2]) * -1.0, dtype=tf.int64), tf.ones([1, 12]) * -1.0
 
+
+    # replace with vectorized_map
     all_indices = []
     all_poses = []
     for c in range(int(classification.shape[1])):
