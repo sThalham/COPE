@@ -203,6 +203,13 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         n_img = 0
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
 
+        print('b3d: ', boxes3D.shape)
+        print('scores: ', scores.shape)
+        print('labels: ', labels.shape)
+        print('poses: ', poses.shape)
+
+        print('labels: ', labels)
+
         boxes3D = boxes3D[labels != -1, :]
         scores = scores[labels != -1]
         confs = consistency[labels != -1]

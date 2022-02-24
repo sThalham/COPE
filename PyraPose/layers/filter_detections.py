@@ -17,6 +17,8 @@ limitations under the License.
 import tensorflow.keras as keras
 import tensorflow as tf
 from .. import backend
+import numpy as np
+
 
 
 def filter_detections(
@@ -26,7 +28,8 @@ def filter_detections(
     confidence,
     num_classes,
     score_threshold       = 0.35,
-    iou_threshold       = 0.8,
+    iou_threshold         = 0.1,
+    pose_hyps             = 3,
     max_detections        = 300,
 ):
     """ Filter detections using the boxes and classification values.
@@ -59,17 +62,24 @@ def filter_detections(
         x2 = tf.math.minimum(a[:, :, 2], b[:, :, 2])
         y2 = tf.math.minimum(a[:, :, 3], b[:, :, 3])
 
-        wid = x2 - x1 + 1
-        hei = y2 - y1 + 1
+        tf.print('x1: ', x1[:, 0])
+        tf.print('y1: ', y1[:, 0])
+        tf.print('x2: ', x2[:, 0])
+        tf.print('y2: ', y2[:, 0])
+
+        wid = x2 - x1 #+ 1
+        hei = y2 - y1 #+ 1
         inter = wid * hei
 
-        aarea = (a[:, :, 2] - a[:, :, 0] + 1.0) * (a[:, :, 3] - a[:, :, 1] + 1.0)
-        barea = (b[:, :, 2] - b[:, :, 0] + 1.0) * (b[:, :, 3] - b[:, :, 1] + 1.0)
+        aarea = (a[:, :, 2] - a[:, :, 0]) * (a[:, :, 3] - a[:, :, 1])
+        barea = (b[:, :, 2] - b[:, :, 0]) * (b[:, :, 3] - b[:, :, 1])
 
         # intersection over union overlap
         ovlap = tf.math.divide_no_nan(inter, (aarea + barea - inter))
+        tf.print()
         ovlap = tf.where(tf.math.less_equal(wid, 0.0), 0.0, ovlap)
         ovlap = tf.where(tf.math.less_equal(hei, 0.0), 0.0, ovlap)
+
         # set invalid entries to 0 overlap
         indicator = tf.where(tf.math.greater(ovlap, iou_threshold), 1.0, 0.0)
         tf.print('indicator pre: ', tf.shape(indicator), tf.reduce_sum(indicator))
@@ -77,13 +87,11 @@ def filter_detections(
         uni, _ = tf.unique(all_ind[:, 1])
         ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
 
-        #indicator = tf.zeros_like(indicator)
         filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
-        value_updates = tf.constant(1.0, shape=(tf.shape(filtered_indices)[0]))
-        indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtpype=tf.int64))
+        value_updates = tf.tile(tf.convert_to_tensor(np.array([1.0])), [tf.shape(filtered_indices)[0]])
+        indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int64))
+        indicator = tf.cast(indicator, dtype=tf.float32)
 
-        #indicator[filtered_indices].assign(1.0)
-        #indicator = tf.sparse_to_dense(filtered_indices, tf.zeros_like(indicator), tf.ones(tf.shape(filtered_indices)[0]))
         tf.print('indicator post: ', tf.shape(indicator), tf.reduce_sum(indicator))
 
         return indicator
@@ -93,6 +101,7 @@ def filter_detections(
         indices = tf.where(tf.math.greater(scores, score_threshold))
         labels = tf.gather_nd(labels, indices)
         indices = tf.stack([indices[:, 0], labels], axis=1)
+        tf.print('indices: ', indices)
 
         boxes3D = tf.gather(boxes3D, indices[:, 0], axis=0)
         poses = tf.gather(poses, indices[:, 0], axis=0)
@@ -107,42 +116,31 @@ def filter_detections(
 
         true_ovlaps = boxoverlap(boxes)
 
-        #true_ovlaps = tf.where(true_ovlaps == 0.0, 10000.0, true_ovlaps)
         broadcast_confidence = true_ovlaps * confidence
+        broadcast_confidence = tf.where(broadcast_confidence == 0, 1000.0, broadcast_confidence)
         sort_args = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')
         sort_conf = tf.sort(broadcast_confidence, axis=1, direction='ASCENDING')
-        conf_mask = tf.where(tf.math.greater(sort_conf, 0.0), 1.0, 0.0)
+        conf_mask = tf.where(tf.math.equal(sort_conf, 1000.0), 0.0, 1.0)
+        repeats = tf.math.minimum(pose_hyps, tf.shape(poses)[0])
+        n_hyps = tf.tile(repeats[tf.newaxis], [tf.shape(poses)[0]])
+        n_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
+
+        conf_mask = conf_mask * n_hyps
         conf_mask = tf.tile(conf_mask[:, :, tf.newaxis], [1, 1, 12])
 
-        print('poses_tiled: ', poses_tiled)
         sorted_poses = tf.gather(poses, indices=sort_args)
         filt_poses = conf_mask * sorted_poses
 
-        # set indices > n_hyps to zero
-        # sum poses and divide by actual n_hyp
-        # indicator = tf.convert_to_tensor(np.array([[1.0, 1.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]))
-        # conf = tf.convert_to_tensor(np.array([0.09, 0.12, 0.21, 0.18])
-        # poses = tf.random.uniform(shape=[4, 12])
+        denom = tf.math.reduce_sum(conf_mask, axis=1)
+        mean_poses = tf.math.reduce_sum(filt_poses, axis=1)
+        poses = tf.math.divide_no_nan(mean_poses, denom)
 
-        filtered_poses = tf.math.reduce_mean(sorted_poses[:, :3, :], axis=1)
-        ov_tiled = tf.tile(true_ovlaps[:, :, tf.newaxis], [1, 1, 12])
-        poses = tf.where(tf.math.reduce_sum(ov_tiled, axis=1) < 3, -1 * tf.ones([tf.shape(poses)[0], 12]), filtered_poses)
+        zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
+        bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
+        poses = tf.boolean_mask(poses, bool_mask, axis=0)
+        indices = tf.boolean_mask(indices, bool_mask, axis=0)
 
-        #poses_con = []
-        #for ov in range(int(true_ovlaps.shape[1])):
-        #    filt_confs = true_ovlaps[:, ov] * confidence
-        #    sort_conf = tf.argsort(filt_confs, direction='ASCENDING')
-        #    if tf.reduce_sum(true_ovlaps[:, ov]) < 3.0:
-        #        poses_con.append(-1 * tf.ones([12]))
-        #    else:
-        #        poses_con.append(tf.math.reduce_mean(poses[sort_conf[:3], :], axis=0))
-
-        #poses_con = tf.concat(poses_con, axis=0)
-
-        #broadcast_confidence = true_ovlaps * confidence
-        #broadcast_poses = tf
-        #tf.print('confidence: ', confidence)
-        #tf.print('true_ovlaps: ', broadcast_confidence[:, 0])
+        tf.print('indices post: ', indices)
 
         return indices, poses
 
@@ -233,8 +231,10 @@ class FilterDetections(keras.layers.Layer):
     def __init__(
         self,
         num_classes=None,
-        score_threshold       = 0.5,
-        max_detections        = 300,
+        score_threshold=0.35,
+        iou_threshold=0.8,
+        pose_hyps=3,
+        max_detections=300,
         **kwargs
     ):
         """ Filters detections using score threshold, NMS and selecting the top-k detections.
@@ -249,6 +249,8 @@ class FilterDetections(keras.layers.Layer):
         """
         self.num_classes = num_classes
         self.score_threshold       = score_threshold
+        self.iou_threshold = iou_threshold
+        self.pose_hyps = pose_hyps
         self.max_detections        = max_detections
         super(FilterDetections, self).__init__(**kwargs)
 
@@ -275,9 +277,11 @@ class FilterDetections(keras.layers.Layer):
                 classification,
                 poses,
                 confidence,
-                num_classes= self.num_classes,
-                score_threshold       = self.score_threshold,
-                max_detections        = self.max_detections,
+                num_classes             = self.num_classes,
+                iou_threshold           = self.iou_threshold,
+                score_threshold         = self.score_threshold,
+                pose_hyps               = self.pose_hyps,
+                max_detections          = self.max_detections,
             )
 
         # call filter_detections on each batch
@@ -323,6 +327,8 @@ class FilterDetections(keras.layers.Layer):
         config = super(FilterDetections, self).get_config()
         config.update({
             'num_classes'           : self.num_classes,
+            'iou_threshold'         : self.iou_threshold,
+            'pose_hyps'             : self.pose_hyps,
             'score_threshold'       : self.score_threshold,
             'max_detections'        : self.max_detections,
             'parallel_iterations'   : 32,
