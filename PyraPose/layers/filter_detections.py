@@ -82,12 +82,14 @@ def filter_detections(
         all_ind = tf.where(indicator==1)
         uni, _ = tf.unique(all_ind[:, 1])
 
+        ################################
         # slow filter
         #ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
         #filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
         #value_updates = tf.tile(tf.convert_to_tensor(np.array([1.0])), [tf.shape(filtered_indices)[0]])
         #indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int64))
-
+        ############################
+        # --------------------------
         # faster filter?
         # top-notch tensorizing #1
         max_col = tf.math.argmax(indicator, axis=1)
@@ -95,6 +97,7 @@ def filter_detections(
         filtered_indices = tf.concat([tf.cast(max_col, dtype=tf.int32)[:, tf.newaxis], rep_rows[:, tf.newaxis]], axis=1)
         value_updates = tf.math.reduce_max(indicator, axis=1)
         indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int64))
+        ###################################
 
         indicator = tf.cast(indicator, dtype=tf.float32)
 
@@ -159,24 +162,41 @@ def filter_detections(
     def dummy_fn():
         return tf.cast(tf.ones([1, 2]) * -1.0, dtype=tf.int64), tf.ones([1, 12]) * -1.0
 
-
+    ##############################################
+    # inefficient loop over classes
     # replace with vectorized_map
-    all_indices = []
-    all_poses = []
-    for c in range(int(classification.shape[1])):
-        scores = classification[:, c]
-        labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
-
-        indices = tf.where(tf.math.greater(scores, score_threshold))
-        indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
-        #indices, filt_poses = _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c])
-        all_indices.append(indices)
-        all_poses.append(filt_poses)
-        #all_indices.append(_filter_detections(scores, labels, boxes3D, poses, confidence))
-
+    #def dummy_fn():
+    #    return tf.cast(tf.ones([1, 2]) * -1.0, dtype=tf.int64), tf.ones([1, 12]) * -1.0
+    #all_indices = []
+    #all_poses = []
+    #for c in range(int(classification.shape[1])):
+    #    scores = classification[:, c]
+    #    labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
+    #    indices = tf.where(tf.math.greater(scores, score_threshold))
+    #    indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
+    #    #indices, filt_poses = _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c])
+    #    all_indices.append(indices)
+    #    all_poses.append(filt_poses)
     # concatenate indices to single tensor
-    indices = tf.concat(all_indices, axis=0)
-    poses = tf.concat(all_poses, axis=0)
+    #indices = tf.concat(all_indices, axis=0)
+    #poses = tf.concat(all_poses, axis=0)
+    ################################################
+    # --------------------------------------------
+    # vectorized_map over classes
+    def no_detect_filter(scores_cls, boxes3D_cls, poses_cls, confidence_cls):
+        labels_cls = c * tf.ones((keras.backend.shape(scores_cls)[0],), dtype='int64')
+        indices = tf.where(tf.math.greater(scores_cls, score_threshold))
+        indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels_cls, boxes3D_cls, poses_cls, confidence_cls), lambda: dummy_fn())
+
+        return indices, filt_poses
+
+    class_perm = tf.transpose(classification, perm=[1, 0])
+    boxes_perm = tf.transpose(boxes3D, perm=[1, 0, 2])
+    poses_perm = tf.transpose(poses, perm=[1, 0, 2])
+    conf_perm = tf.transpose(confidence, perm=[1, 0])
+    vec_out = tf.vectorized_map(no_detect_filter, (class_perm, boxes_perm, poses_perm, conf_perm), dtype=(tf.int32, tf.bool))
+    indices = vec_out[0]
+    poses = vec_out[1]
 
     #tf.print('all_ poses: ', tf.shape(all_poses))
     #tf.print('indices: ', tf.shape(indices))
