@@ -202,21 +202,142 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         t_img = 0
         n_img = 0
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        print('t: ', time.time()- start_t)
 
-        print('b3d: ', boxes3D.shape)
-        print('scores: ', scores.shape)
-        print('labels: ', labels.shape)
-        print('poses: ', poses.shape)
+
+        scores = scores[labels != -1]
+        poses = poses[labels != -1]
+        labels = labels[labels != -1]
 
         print('labels: ', labels)
 
-        boxes3D = boxes3D[labels != -1, :]
-        scores = scores[labels != -1]
-        confs = consistency[labels != -1]
-        poses = poses[labels != -1]
-        masks = mask[mask != -1]
-        labels = labels[labels != -1]
+        for odx, inv_cls in enumerate(labels):
 
+            gt_idx = np.argwhere(gt_labels == inv_cls)
+            gt_pose = gt_poses[gt_idx, :]
+
+            if gt_pose.size == 0:  # filter for benchvise, bowl and mug
+                continue
+
+            true_cls = inv_cls + 1
+
+            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
+            K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
+
+            pose = poses[odx, :]
+
+            R_est = np.array(pose[:9]).reshape((3, 3)).T
+            t_est = np.array(pose[-3:])
+            print('R: ', R_est)
+            print('t: ', t_est)
+
+            t_e_now = time.time()
+            if inv_cls == 1:
+                model_vsd = mv1
+            elif inv_cls == 2:
+                model_vsd = mv2
+
+            add_errors = []
+            for gtdx in range(gt_pose.shape[0]):
+                t_rot = tf3d.quaternions.quat2mat(gt_pose[gtdx, 0, 3:])
+                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                t_gt = np.array(gt_pose[gtdx, 0, :3], dtype=np.float32)
+                t_gt = t_gt  # * 0.001
+
+                err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                add_errors.append(err_add)
+
+            idx_add = np.argmin(np.array(add_errors))
+            err_add = add_errors[idx_add]
+            gt_pose = gt_pose[idx_add, 0, :]
+
+            t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+            t_gt = np.array(gt_pose[:3], dtype=np.float32)
+            t_gt = t_gt  # * 0.001
+
+            # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
+            #    continue
+            if err_add < model_dia[true_cls] * 0.1:
+                if true_cls in gt_poses_list:
+                    truePoses[true_cls] += 1
+                    gt_poses_list.remove(true_cls)
+            else:
+                falsePoses[true_cls] += 1
+
+            print(' ')
+            # print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+
+            tDbox = R_gt.dot(ori_points.T).T
+            tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T * 0.001
+            box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
+            tDbox = np.reshape(box3D, (16))
+            tDbox = tDbox.astype(np.uint16)
+
+            eDbox = R_est.dot(ori_points.T).T
+            eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) * 0.001
+            est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+            eDbox = np.reshape(est3D, (16))
+            pose = eDbox.astype(np.uint16)
+            colEst1 = (0, 145, 195)
+            colEst = (0, 204, 0)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (0, 0, 255)
+
+            # image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+            #                     colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
+            #                     colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
+            #                     colGT,
+            #                     2)
+            # image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+            #                     colGT,
+            #                     2)
+
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 3)
+
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 3)
+            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 3)
+
+        '''
         for inv_cls in np.unique(labels):
 
             true_cls = inv_cls + 1
@@ -229,7 +350,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             labels_votes = labels[labels == inv_cls]
             mask_votes = masks[labels == inv_cls]
 
-            '''
             col_box = (
             int(np.random.uniform() * 255.0), int(np.random.uniform() * 255.0), int(np.random.uniform() * 255.0))
             pyramids = np.zeros((6300, 3))
@@ -243,7 +363,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             image_mask = np.where(P3_mask > 0, P3_mask, image_mask)
             image_mask = np.where(P4_mask > 0, P4_mask, image_mask)
             image_mask = np.where(P5_mask > 0, P5_mask, image_mask)
-            '''
 
             #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '_' + str(cls) + '.png'
             #image_row1 = np.concatenate([image, image_mask], axis=0)
@@ -347,7 +466,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                 ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
                 K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
-                '''
+                
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((int(k_hyp * 8), 1, 2))
                 obj_points = np.repeat(ori_points[np.newaxis, :, :], k_hyp, axis=0)
                 obj_points = obj_points.reshape((int(k_hyp * 8), 1, 3))
@@ -362,7 +481,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                 t_est = t_est[0, :] * 1000.0
                 #print(t_est)
                 t_bop = t_est * 1000.0
-                '''
+                
 
                 #t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
                 #R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
@@ -549,12 +668,14 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         times[n_img] = t_img
         times_count[n_img] += 1
         print('t_now', t_img, n_img)
+        '''
 
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
-        image_row1 = np.concatenate([image_ori, image_raw], axis=1)
-        image_row2 = np.concatenate([image_mask, image_poses], axis=1)
-        image_rows = np.concatenate([image_row1, image_row2], axis=0)
-        cv2.imwrite(name, image_rows)
+        #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
+        #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
+        #image_rows = np.concatenate([image_row1, image_row2], axis=0)
+        #cv2.imwrite(name, image_rows)
+        cv2.imwrite(name, image_raw)
 
     #times
     print('Number of objects ----- t')
