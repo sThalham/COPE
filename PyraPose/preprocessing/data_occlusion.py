@@ -257,7 +257,10 @@ class OcclusionDataset(tf.data.Dataset):
             for adx, item in enumerate(y_t.items()):
                 anno.append(item[1])
 
-            yield anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
+            img_path = image_paths[image_index]
+            scene_id = np.array([int(img_path[-15:-9])])
+
+            yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
@@ -588,6 +591,7 @@ class OcclusionDataset(tf.data.Dataset):
         if set_name=='val':
             return tf.data.Dataset.from_generator(self._sample,
                                               output_signature=(
+                                                  tf.TensorSpec(shape=(1), dtype=tf.int64),
                                                   tf.TensorSpec(shape=(1), dtype=tf.int64),
                                                   tf.TensorSpec(shape=(480, 640, 3), dtype=tf.float32),
                                                   tf.TensorSpec(shape=(None, ), dtype=tf.float32),
