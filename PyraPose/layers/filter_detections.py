@@ -75,11 +75,11 @@ def filter_detections(
 
         # set invalid entries to 0 overlap
         indicator = tf.where(tf.math.greater(ovlap, iou_threshold), 1.0, 0.0)
-        all_ind = tf.where(indicator==1)
-        uni, _ = tf.unique(all_ind[:, 1])
 
         ################################
         # slow filter
+        # all_ind = tf.where(indicator==1)
+        # uni, _ = tf.unique(all_ind[:, 1])
         #ind_filter = tf.map_fn(lambda x: tf.argmax(tf.cast(tf.equal(all_ind[:, 1], x), tf.int64)), uni)
         #filtered_indices = tf.gather(all_ind, ind_filter, axis=0)
         #value_updates = tf.tile(tf.convert_to_tensor(np.array([1.0])), [tf.shape(filtered_indices)[0]])
@@ -94,12 +94,7 @@ def filter_detections(
         value_updates = tf.math.reduce_max(indicator, axis=1)
         indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int32))
         ###################################
-
         indicator = tf.cast(indicator, dtype=tf.float32)
-
-        #tf.print('indicator: ', indicator[:6, :6])
-        #tf.print('shape: ', tf.shape(indicator))
-        #tf.print('sum', tf.math.reduce_sum(indicator, axis=1)[:6])
 
         return indicator
 
@@ -141,8 +136,10 @@ def filter_detections(
         mean_poses = tf.math.reduce_sum(filt_poses, axis=1)
         poses = tf.math.divide_no_nan(mean_poses, denom)
 
-        zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
-        bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
+        #zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
+        #bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
+        zero_vector = tf.ones(shape=(tf.shape(poses)[0]), dtype=tf.float32) * 0.0
+        bool_mask = tf.math.greater(tf.math.reduce_max(denom, axis=1), zero_vector)
         poses = tf.boolean_mask(poses, bool_mask, axis=0)
         indices = tf.boolean_mask(indices, bool_mask, axis=0)
         indices = tf.cast(indices, dtype=tf.int32)

@@ -198,6 +198,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
 
+            '''
             t_rot = tf3d.quaternions.quat2mat(gt_poses[obj, 3:])
             R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
@@ -239,6 +240,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                 colGT,
                                 2)
+            '''
 
         # run network
         start_t = time.time()
@@ -361,6 +363,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 gt_boxes[idx_add, :] = -1
             else:
                 falseDets[true_cls] += 1
+            '''
 
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
@@ -383,17 +386,20 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            '''
 
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1
 
+        '''
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         cv2.imwrite(name, image_raw)
+        '''
 
     #times
     print('Number of objects ----- t')
