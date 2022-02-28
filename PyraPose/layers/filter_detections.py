@@ -148,8 +148,9 @@ def filter_detections(
         poses = tf.boolean_mask(poses, bool_mask, axis=0)
         indices = tf.boolean_mask(indices, bool_mask, axis=0)
         indices = tf.cast(indices, dtype=tf.int32)
+        boxes3D = tf.boolean_mask(boxes3D, bool_mask, axis=0)
 
-        return indices, poses
+        return indices, poses, boxes3D
 
     in_shape = tf.shape(boxes3D)
     classification = tf.reshape(classification, [in_shape[0] * in_shape[1], num_classes])
@@ -222,8 +223,6 @@ def filter_detections(
 
     # zero pad the outputs
     pad_size = keras.backend.maximum(0, max_detections - tf.shape(scores)[0])
-    #boxes3D     = backend.pad(boxes3D, [[0, pad_size], [0, 0]], constant_values=-1)
-    #translation = backend.pad(translation, [[0, pad_size], [0, 0]], constant_values=-1)
     poses    = tf.pad(poses, [[0, pad_size], [0, 0]], constant_values=-1)
     #translation = backend.pad(translation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
     #rotation = backend.pad(rotation, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
@@ -245,7 +244,6 @@ def filter_detections(
     #print('poses: ', poses)
 
     # set shapes, since we know what they are
-    #boxes3D.set_shape([max_detections, 16])
     scores.set_shape([max_detections])
     labels.set_shape([max_detections])
     poses.set_shape([max_detections, 12])

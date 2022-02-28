@@ -366,7 +366,7 @@ def inference_model(
         num_classes=None,
         name='pyrapose',
         score_threshold=0.25,
-        pose_hyps=7,
+        pose_hyps=3,
         iou_threshold=0.5,
         max_detections=100,
         **kwargs
@@ -414,4 +414,4 @@ def inference_model(
 
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
     return keras.models.Model(inputs=model.inputs,
-                              outputs=[boxes3D, detections[0], detections[1], detections[2], consistency, detections[3]], name=name)
+                              outputs=[detections[0], detections[1], detections[2], detections[3]], name=name)
