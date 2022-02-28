@@ -206,15 +206,15 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
-            if inv_cls not in gt_labels:
-                continue
+            #if inv_cls not in gt_labels:
+            #    continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
             eval_line = []
-            sc_id = int(scene_id)
+            sc_id = int(scene_id[0])
             eval_line.append(sc_id)
             im_id = int(image_id)
             eval_line.append(im_id)
@@ -398,7 +398,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
 
     wd_path = os.getcwd()
-    csv_target = os.path.join(wd_path, 'sthalham-cope-icbin-test.csv')
+    csv_target = os.path.join(wd_path, 'cope_icbin-test.csv')
 
     line_head = ['scene_id','im_id','obj_id','score','R','t','time']
     with open(csv_target, 'a') as outfile:

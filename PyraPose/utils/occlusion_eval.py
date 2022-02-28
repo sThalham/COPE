@@ -162,8 +162,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((16), dtype=np.uint32)
     trueDets = np.zeros((16), dtype=np.uint32)
     falseDets = np.zeros((16), dtype=np.uint32)
-    times = np.zeros((30), dtype=np.float32)
-    times_count = np.zeros((30), dtype=np.float32)
+    times = np.zeros((40), dtype=np.float32)
+    times_count = np.zeros((40), dtype=np.float32)
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -198,7 +198,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
 
-            '''
             t_rot = tf3d.quaternions.quat2mat(gt_poses[obj, 3:])
             R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
@@ -240,7 +239,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                 colGT,
                                 2)
-            '''
 
         # run network
         start_t = time.time()
@@ -256,6 +254,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         poses = poses[labels != -1]
         labels = labels[labels != -1]
 
+        print(labels)
+
         for odx, inv_cls in enumerate(labels):
 
             true_cls = inv_cls + 1
@@ -268,7 +268,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             t_est = np.array(pose[-3:]) * 0.001
 
             eval_line = []
-            sc_id = int(scene_id)
+            sc_id = int(scene_id[0])
             eval_line.append(sc_id)
             im_id = int(image_id)
             eval_line.append(im_id)
@@ -363,13 +363,13 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 gt_boxes[idx_add, :] = -1
             else:
                 falseDets[true_cls] += 1
-            '''
 
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
             est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
             eDbox = np.reshape(est3D, (16))
             pose = eDbox.astype(np.uint16)
+
             colEst = (50, 205, 50)
             if err_add > model_dia[true_cls] * 0.1:
                 colEst = (0, 39, 236)
@@ -386,20 +386,18 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            '''
 
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        '''
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         cv2.imwrite(name, image_raw)
-        '''
+
 
     #times
     print('Number of objects ----- t')
@@ -446,7 +444,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     print('mean pose precision: ', precision_all)
 
     wd_path = os.getcwd()
-    csv_target = os.path.join(wd_path, 'sthalham-cope-lmo-test.csv')
+    csv_target = os.path.join(wd_path, 'cope_lmo-test.csv')
 
     line_head = ['scene_id','im_id','obj_id','score','R','t','time']
     with open(csv_target, 'a') as outfile:

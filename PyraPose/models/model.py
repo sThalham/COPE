@@ -365,8 +365,8 @@ def inference_model(
         object_diameters=None,
         num_classes=None,
         name='pyrapose',
-        score_threshold=0.5,
-        pose_hyps=100,
+        score_threshold=0.25,
+        pose_hyps=7,
         iou_threshold=0.5,
         max_detections=100,
         **kwargs
@@ -389,24 +389,9 @@ def inference_model(
     #poses = model.outputs[2]
     translations = model.outputs[2]
     rotations = model.outputs[3]
-    consistency = model.outputs[4]
-    #cons1, cons2 = tf.split(consistency, num_or_size_splits=2, axis=3)
-    #consistency = tf.math.reduce_euclidean_norm(cons1 - cons2, axis=3)
-
-    #confidences = model.outputs[4]
-    #_, confidences = tf.split(confidences, num_or_size_splits=[-1, num_classes], axis=2)
-
-    #detections = layers.FilterDetections(
-    #    name='filtered_detections',
-    #    score_threshold=score_threshold,
-    #    max_detections=max_detections,
-    #    num_classes=num_classes,
-    #)([regression, classification, locations, translations, rotations, consistency])
+    consistency = model.outputs[4] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
-    #print('tf_diameter: ', tf_diameter)
-    #print('detections 3: ', detections[3])
-    #rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
     rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
     rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
@@ -416,6 +401,7 @@ def inference_model(
     poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
     consistency = tf.math.reduce_sum(consistency, axis=3)
+    #consistency = classification[:, :, :num_classes]
 
     detections = layers.FilterDetections(
         name='filtered_detections',

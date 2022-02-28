@@ -102,6 +102,7 @@ def filter_detections(
         # threshold based on score
         #indices = tf.where(tf.math.greater(scores, score_threshold))
         labels = tf.gather_nd(labels, indices)
+        #scores = tf.gather_nd(scores, indices)
         indices = tf.stack([indices[:, 0], labels], axis=1)
 
         boxes3D = tf.gather(boxes3D, indices[:, 0], axis=0)
@@ -117,20 +118,23 @@ def filter_detections(
 
         true_ovlaps = boxoverlap(boxes)
 
+        # including confidence
         broadcast_confidence = true_ovlaps * confidence
         broadcast_confidence = tf.where(broadcast_confidence == 0, 1000.0, broadcast_confidence)
         sort_args = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')
         sort_conf = tf.sort(broadcast_confidence, axis=1, direction='ASCENDING')
         conf_mask = tf.where(tf.math.equal(sort_conf, 1000.0), 0.0, 1.0)
-        repeats = tf.math.minimum(pose_hyps, tf.shape(poses)[0])
+        repeats = tf.math.minimum(pose_hyps + 1, tf.shape(poses)[0])
         n_hyps = tf.tile(repeats[tf.newaxis], [tf.shape(poses)[0]])
         n_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
-
         conf_mask = conf_mask * n_hyps
         conf_mask = tf.tile(conf_mask[:, :, tf.newaxis], [1, 1, 12])
-
         sorted_poses = tf.gather(poses, indices=sort_args)
         filt_poses = conf_mask * sorted_poses
+
+        #w/o confidence
+        #conf_mask = tf.tile(true_ovlaps[:, :, tf.newaxis], [1, 1, 12])
+        #filt_poses = conf_mask * poses
 
         denom = tf.math.reduce_sum(conf_mask, axis=1)
         mean_poses = tf.math.reduce_sum(filt_poses, axis=1)
@@ -138,7 +142,8 @@ def filter_detections(
 
         #zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
         #bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
-        zero_vector = tf.ones(shape=(tf.shape(poses)[0]), dtype=tf.float32) * 0.0
+        zero_vector = tf.ones(shape=(tf.shape(poses)[0]), dtype=tf.float32) * 1.0
+        tf.print('denom: ', tf.math.reduce_max(denom, axis=1))
         bool_mask = tf.math.greater(tf.math.reduce_max(denom, axis=1), zero_vector)
         poses = tf.boolean_mask(poses, bool_mask, axis=0)
         indices = tf.boolean_mask(indices, bool_mask, axis=0)

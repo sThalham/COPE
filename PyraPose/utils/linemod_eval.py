@@ -359,7 +359,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
 
-            '''
             t_rot = tf3d.quaternions.quat2mat(gt_poses[obj, 3:])
             R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
@@ -401,7 +400,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                 colGT,
                                 2)
-            '''
 
         # run network
         start_t = time.time()
@@ -410,8 +408,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         n_img = 0
         boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
-
-        print('time: ', t_img)
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
@@ -524,8 +520,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
 
-            '''
-
             idx_iou = np.argmax(np.array(iou_ovlaps))
             iou_ov = iou_ovlaps[idx_iou]
 
@@ -567,7 +561,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         cv2.imwrite(name, image_raw)
-        '''
 
     #times
     print('Number of objects ----- t')

@@ -12,6 +12,7 @@ from ..utils import ply_loader
 from .pose_error import reproj, add, adi, re, te, vsd
 import yaml
 import time
+import csv
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
@@ -154,8 +155,8 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((31), dtype=np.uint32)
     trueDets = np.zeros((31), dtype=np.uint32)
     falseDets = np.zeros((31), dtype=np.uint32)
-    times = np.zeros((30), dtype=np.float32)
-    times_count = np.zeros((30), dtype=np.float32)
+    times = np.zeros((100), dtype=np.float32)
+    times_count = np.zeros((100), dtype=np.float32)
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -248,8 +249,8 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
-            if inv_cls not in gt_labels:
-                continue
+            #if inv_cls not in gt_labels:
+            #    continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
@@ -263,7 +264,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
             # t_est[1] += ((320 - cxkin) * fxkin) / t_est[2]
 
             eval_line = []
-            sc_id = int(scene_id)
+            sc_id = int(scene_id[0])
             eval_line.append(sc_id)
             im_id = int(image_id)
             eval_line.append(im_id)
@@ -288,7 +289,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
             #gt_pose = gt_pose[0][0]
             #gt_box = gt_box[0][0]
 
-
+            '''
             # detection
             min_x = int(np.nanmin(pose[::2], axis=0))
             min_y = int(np.nanmin(pose[1::2], axis=0))
@@ -368,10 +369,10 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
                 t_gt = np.array(gt_poses[gtdx, :3], dtype=np.float32)
                 t_gt = t_gt * 0.001
 
-                if true_cls in [1, 2, 3, 4, 14, 15, 16, 17, 25]:
-                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-                else:
+                if true_cls in [18, 20, 21]:
                     err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                else:
+                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
                 add_errors.append(err_add)
 
                 iou = boxoverlap(est_box, gt_boxes[gtdx, :])
@@ -430,17 +431,18 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            '''
 
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_raw)
 
     #times
     print('Number of objects ----- t')
@@ -486,7 +488,7 @@ def evaluate_tless(generator, model, data_path, threshold=0.5):
     print('mean pose precision: ', precision_all)
 
     wd_path = os.getcwd()
-    csv_target = os.path.join(wd_path, 'sthalham-cope-lmo-test.csv')
+    csv_target = os.path.join(wd_path, 'cope_tless-test.csv')
 
     line_head = ['scene_id','im_id','obj_id','score','R','t','time']
     with open(csv_target, 'a') as outfile:
