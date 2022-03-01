@@ -335,7 +335,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         gt_boxes = sample[4].numpy()
         gt_poses = sample[5].numpy()
         gt_calib = sample[6].numpy()
-        print(gt_labels.size, gt_labels)
 
         if gt_labels.size == 0 or int(gt_labels[0]) in [2, 6]:
             continue
@@ -406,26 +405,67 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_error = 0
         t_img = 0
         n_img = 0
-        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        #scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        #t_img = time.time() - start_t
+
+        #scores = scores[labels != -1]
+        #poses = poses[labels != -1]
+        #labels = labels[labels != -1]
+
+        #scores = scores[labels != -1]
+        #poses = poses[labels != -1]
+        #labels = labels[labels != -1]
+
+        #for odx, inv_cls in enumerate(labels):
+
+            #true_cls = inv_cls + 1
+            # pose = poses[odx, :]
+            # if inv_cls not in gt_labels:
+            #    continue
+            #n_img += 1
+
+            #if inv_cls != int(gt_labels[0]) or true_cls in [3, 7]:
+            #    continue
+
+            #R_est = np.array(pose[:9]).reshape((3, 3)).T
+            #t_est = np.array(pose[-3:]) * 0.001
+
+        boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
-        scores = scores[labels != -1]
-        poses = poses[labels != -1]
-        labels = labels[labels != -1]
+        labels = np.argmax(labels[0, :, :], axis=1)
 
-        for odx, inv_cls in enumerate(labels):
+        for inv_cls in np.unique(labels):
+
+            cls_indices = np.where(labels == inv_cls)
 
             true_cls = inv_cls + 1
-            pose = poses[odx, :]
-            if inv_cls not in gt_labels:
-                continue
             n_img += 1
 
             if inv_cls != int(gt_labels[0]) or true_cls in [3, 7]:
                 continue
 
-            R_est = np.array(pose[:9]).reshape((3, 3)).T
-            t_est = np.array(pose[-3:]) * 0.001
+            pose_votes = boxes3D[0, cls_indices[0], inv_cls, :]
+            hyps = pose_votes.shape[0]
+
+            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
+            K = np.float32([float(fxkin), 0., float(cxkin), 0., float(fykin), float(cykin), 0., 0., 1.]).reshape(3, 3)
+
+            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((hyps * 8, 1, 2))
+
+            print(type(ori_points))
+            print(type(est_points))
+
+            print(K)
+
+            retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=ori_points,
+                                                               imagePoints=est_points, cameraMatrix=K,
+                                                               distCoeffs=None, rvec=None, tvec=None,
+                                                               useExtrinsicGuess=False, iterationsCount=300,
+                                                               reprojectionError=5.0, confidence=0.99,
+                                                               flags=cv2.SOLVEPNP_EPNP)
+            R_est, _ = cv2.Rodrigues(orvec)
+            t_est = otvec
 
             eval_line = []
             sc_id = int(scene_id)
@@ -460,9 +500,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             max_x = int(np.nanmax(pose[::2], axis=0))
             max_y = int(np.nanmax(pose[1::2], axis=0))
             est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
-
-            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
-            K = np.float32([fxkin, 0., cxkin, 0., fykin, cykin, 0., 0., 1.]).reshape(3, 3)
 
             if true_cls == 1:
                 model_vsd = mv1
@@ -550,9 +587,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
             '''
 
-        if index > 0:
-            times[n_img] += t_img
-            times_count[n_img] += 1
+        #if index > 0:
+        #    times[n_img] += t_img
+        #    times_count[n_img] += 1
 
         #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
