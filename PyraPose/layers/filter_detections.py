@@ -143,14 +143,13 @@ def filter_detections(
         #zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
         #bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
         zero_vector = tf.ones(shape=(tf.shape(poses)[0]), dtype=tf.float32) * 1.0
-        tf.print('denom: ', tf.math.reduce_max(denom, axis=1))
+
         bool_mask = tf.math.greater(tf.math.reduce_max(denom, axis=1), zero_vector)
         poses = tf.boolean_mask(poses, bool_mask, axis=0)
         indices = tf.boolean_mask(indices, bool_mask, axis=0)
         indices = tf.cast(indices, dtype=tf.int32)
-        boxes3D = tf.boolean_mask(boxes3D, bool_mask, axis=0)
 
-        return indices, poses, boxes3D
+        return indices, poses
 
     in_shape = tf.shape(boxes3D)
     classification = tf.reshape(classification, [in_shape[0] * in_shape[1], num_classes])

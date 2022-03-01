@@ -245,16 +245,12 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
-
-        print('time: ', t_img)
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
         labels = labels[labels != -1]
-
-        print(labels)
 
         for odx, inv_cls in enumerate(labels):
 

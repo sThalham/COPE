@@ -406,7 +406,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_error = 0
         t_img = 0
         n_img = 0
-        boxes3D, scores, labels, poses, consistency, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]
@@ -489,10 +489,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 t_gt = np.array(gt_poses[gtdx, :3], dtype=np.float32)
                 t_gt = t_gt * 0.001
 
-                print(t_est)
-                print(t_gt)
-                print(np.max(model_vsd["pts"]))
-                print(model_dia[true_cls] * 0.1)
 
                 if true_cls == 10 or true_cls == 11:
                     err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])

@@ -366,7 +366,7 @@ def inference_model(
         num_classes=None,
         name='pyrapose',
         score_threshold=0.25,
-        pose_hyps=3,
+        pose_hyps=9,
         iou_threshold=0.5,
         max_detections=100,
         **kwargs
