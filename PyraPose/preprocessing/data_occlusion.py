@@ -63,17 +63,22 @@ def load_classes(categories):
     elif type(categories) == int:
         categories = [categories[categories]]
     categories.sort(key=lambda x: x['id'])
-    classes = {}
-    labels = {}
-    labels_inverse = {}
-    for c in categories:
-        labels[len(classes)] = c['id']
-        labels_inverse[c['id']] = len(classes)
-        classes[c['name']] = len(classes)
-    # also load the reverse (label -> name)
-    labels_rev = {}
-    for key, value in classes.items():
-        labels_rev[value] = key
+    #classes = {}
+    #labels = {}
+    #labels_inverse = {}
+    #for c in categories:
+    #    labels[len(classes)] = c['id']
+    #    labels_inverse[c['id']] = len(classes)
+    #    classes[c['name']] = len(classes)
+    ## also load the reverse (label -> name)
+    #labels_rev = {}
+    #for key, value in classes.items():
+    #    labels_rev[value] = key
+
+    labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
+    labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
+    classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
+    labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
 
     return classes, labels, labels_inverse, labels_rev
 
@@ -268,28 +273,6 @@ class OcclusionDataset(tf.data.Dataset):
         def _isArrayLike(obj):
             return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
 
-        def load_classes(categories):
-            """ Loads the class to label mapping (and inverse) for COCO.
-            """
-            if _isArrayLike(categories):
-                categories = [categories[id] for id in categories]
-            elif type(categories) == int:
-                categories = [categories[categories]]
-            categories.sort(key=lambda x: x['id'])
-            classes = {}
-            labels = {}
-            labels_inverse = {}
-            for c in categories:
-                labels[len(classes)] = c['id']
-                labels_inverse[c['id']] = len(classes)
-                classes[c['name']] = len(classes)
-            # also load the reverse (label -> name)
-            labels_rev = {}
-            for key, value in classes.items():
-                labels_rev[value] = key
-
-            return classes, labels, labels_inverse, labels_rev
-
         # Parameters
         data_dir = data_dir.decode("utf-8")
         set_name = set_name.decode("utf-8")
@@ -333,7 +316,8 @@ class OcclusionDataset(tf.data.Dataset):
             catToImgs[ann['category_id']].append(ann['image_id'])
 
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
-        num_classes = len(classes)
+        #num_classes = len(classes)
+        num_classes = 15
 
         # load 3D boxes
         TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
@@ -364,7 +348,8 @@ class OcclusionDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
-            sphere_diameters[int(key)] = value['diameter']
+            #sphere_diameters[int(key)] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
 
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
@@ -415,6 +400,9 @@ class OcclusionDataset(tf.data.Dataset):
                 if set_name == 'train':
                     if a['feature_visibility'] < 0.5:
                         continue
+                if a['category_id'] not in [1, 5, 6, 8, 9, 10, 11, 12]:
+                    continue
+
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -607,11 +595,11 @@ class OcclusionDataset(tf.data.Dataset):
         elif set_name == 'train':
             return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
-                                                                (tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 17),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15 + 1),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 4),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15),dtype=tf.float32))),
+                                                                (tf.TensorSpec(shape=(batch_size, 6300, 8, 8, 17),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 8 + 1),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 8, 4),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 8, 8, 7),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 8),dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 
         else:

@@ -205,6 +205,62 @@ def create_generators(args, preprocess_image):
                 intrinsics[3] = img["cy"]
             break
 
+    elif args.dataset_type == 'occlusion':
+        from ..preprocessing.data_occlusion import OcclusionDataset
+        dataset = OcclusionDataset(args.occlusion_path, 'train', batch_size=args.batch_size)
+        num_classes = 8
+        train_samples = 50000
+        dataset = tf.data.Dataset.range(args.workers).interleave(
+            lambda _: dataset,
+            # num_parallel_calls=tf.data.experimental.AUTOTUNE
+            num_parallel_calls=args.workers
+        )
+        dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
+        mesh_info = os.path.join(args.occlusion_path, 'annotations', 'models_info' + '.json')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        inv_clss = {1: 0, 5: 1, 6: 2, 8: 3, 9: 4, 10: 5, 11: 6, 12: 7}
+        for key, value in json.load(open(mesh_info)).items():
+            if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
+                continue
+            inv_cls = inv_clss[int(key)]
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+            # x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            # y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            # z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            # x_minus = x_plus * -1.0
+            # y_minus = y_plus * -1.0
+            # z_minus = z_plus * -1.0
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[inv_cls, :, :] = three_box_solo
+            # sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[inv_cls] = norm_pts
+        path = os.path.join(args.occlusion_path, 'annotations', 'instances_train.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+            break
+
     elif args.dataset_type == 'ycbv':
         from ..preprocessing.data_ycbv import YcbvDataset
 
@@ -476,6 +532,9 @@ def parse_args(args):
 
     linemod_parser = subparsers.add_parser('linemod')
     linemod_parser.add_argument('linemod_path', help='Path to dataset directory (ie. /tmp/linemod).')
+
+    occlusion_parser = subparsers.add_parser('occlusion')
+    occlusion_parser.add_argument('occlusion_path', help='Path to dataset directory (ie. /tmp/linemod).')
 
     ycbv_parser = subparsers.add_parser('ycbv')
     ycbv_parser.add_argument('ycbv_path', help='Path to dataset directory (ie. /tmp/ycbv).')

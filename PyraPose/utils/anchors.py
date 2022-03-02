@@ -358,8 +358,10 @@ def anchor_targets_bbox(
                                                      2)
                                 raw_images[sdx + 1] = image_now
                     #print('hyps pose: ', hyps_pose)
+                '''
 
-                image_ns = raw_images[0]
+                '''
+                image_ns = image_raw
                 tDbox = box3D.astype(np.uint16)
                 colGT = (255, 0, 0)
                 colEst = (0, 204, 0)
@@ -399,8 +401,9 @@ def anchor_targets_bbox(
                 image_ns = cv2.line(image_ns, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                      colGT,
                                      2)
-                raw_images[0] = image_ns
+                #raw_images[0] = image_ns
                 '''
+
                 #if is_sym == True:
                     #print('cls: ', cls)
                     #print('sym: ', sym_disc.shape[0], symmetry_mask)
@@ -466,14 +469,14 @@ def anchor_targets_bbox(
                                      2)
                 '''
 
-        '''
-        rind = np.random.randint(0, 1000)
+
+        #rind = np.random.randint(0, 1000)
         #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
         #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
         #image_raw = np.concatenate([images_row1, images_row2], axis=0)
-        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
-        cv2.imwrite(name, image_raw)
-        '''
+        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
+        #cv2.imwrite(name, image_raw)
+
 
         #img_P3 = img_P3.astype(np.uint8)
         #img_P4 = img_P4.astype(np.uint8)
