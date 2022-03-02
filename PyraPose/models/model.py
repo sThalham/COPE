@@ -384,24 +384,20 @@ def inference_model(
     locations = __build_locations(features, strides)
 
     regression = model.outputs[0]
-    # residuals = model.outputs[1][:, :, 18:]
     classification = model.outputs[1]
-    #poses = model.outputs[2]
-    translations = model.outputs[2]
-    rotations = model.outputs[3]
-    consistency = model.outputs[4] # gone for just reprojection
+    #translations = model.outputs[2]
+    #rotations = model.outputs[3]
+    #consistency = model.outputs[4] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
     rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
     rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
-    #poses = tf.concat([detections[4], detections[5]], axis=3)
-    poses = tf.concat([translations, rotations], axis=3)
-    poses = layers.DenormPoses(name='poses_world')(poses)
+    #poses = tf.concat([translations, rotations], axis=3)
+    #poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
-    consistency = tf.math.reduce_sum(consistency, axis=3)
-    #consistency = classification[:, :, :num_classes]
+    #consistency = tf.math.reduce_sum(consistency, axis=3)
 
     #detections = layers.FilterDetections(
     #    name='filtered_detections',

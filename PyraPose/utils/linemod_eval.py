@@ -433,40 +433,52 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
-        labels = np.argmax(labels[0, :, :], axis=1)
+        labels_cls = np.argmax(labels[0, :, :], axis=1)
 
-        for inv_cls in np.unique(labels):
-
-            cls_indices = np.where(labels == inv_cls)
+        for inv_cls in np.unique(labels_cls):
 
             true_cls = inv_cls + 1
             n_img += 1
 
+            print('inv_cls: ', inv_cls)
+            print('gt: ', gt_labels)
+
             if inv_cls != int(gt_labels[0]) or true_cls in [3, 7]:
                 continue
 
+            cls_indices = np.where(labels_cls == inv_cls)
+            print(labels.shape)
+            print(cls_indices[0].shape)
+            labels_filt = labels[0, cls_indices[0], inv_cls]
             pose_votes = boxes3D[0, cls_indices[0], inv_cls, :]
+            above_thres = np.where(labels_filt > 0.5)
+
+            pose_votes = pose_votes[above_thres[0], :]
+
             hyps = pose_votes.shape[0]
+            print(pose_votes.shape)
+            if hyps < 1:
+                continue
 
-            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
-            K = np.float32([float(fxkin), 0., float(cxkin), 0., float(fykin), float(cykin), 0., 0., 1.]).reshape(3, 3)
+            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32) # .reshape((8, 1, 3))
+            obj_points = np.repeat(ori_points[np.newaxis, :, :], hyps, axis=0)
+            obj_points = obj_points.reshape((int(hyps * 8), 1, 3))
+            K = np.float64([float(fxkin), 0., float(cxkin), 0., float(fykin), float(cykin), 0., 0., 1.]).reshape(3, 3)
 
-            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((hyps * 8, 1, 2))
+            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((hyps * 8, 2))
+            #est_points = pose_votes.reshape((hyps * 8, 1, 2))
 
-            print(type(ori_points))
-            print(type(est_points))
-
-            print(K)
-
-            retval, orvec, otvec, inliers = cv2.solvePnPRansac(objectPoints=ori_points,
+            retval, orvec, otvec, _ = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                imagePoints=est_points, cameraMatrix=K,
                                                                distCoeffs=None, rvec=None, tvec=None,
                                                                useExtrinsicGuess=False, iterationsCount=300,
                                                                reprojectionError=5.0, confidence=0.99,
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
-            t_est = otvec
+            t_est = otvec[:, 0]
+            print('t_est', t_est)
 
+            '''
             eval_line = []
             sc_id = int(scene_id)
             eval_line.append(sc_id)
@@ -486,6 +498,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             time_bop = float(t_img)
             eval_line.append(time_bop)
             eval_img.append(eval_line)
+            '''
 
             #gt_idx = np.argwhere(gt_labels == inv_cls)
             #gt_pose = gt_poses[gt_idx, :]
@@ -495,11 +508,11 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
 
 
             # detection
-            min_x = int(np.nanmin(pose[::2], axis=0))
-            min_y = int(np.nanmin(pose[1::2], axis=0))
-            max_x = int(np.nanmax(pose[::2], axis=0))
-            max_y = int(np.nanmax(pose[1::2], axis=0))
-            est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
+            #min_x = int(np.nanmin(pose[::2], axis=0))
+            #min_y = int(np.nanmin(pose[1::2], axis=0))
+            #max_x = int(np.nanmax(pose[::2], axis=0))
+            #max_y = int(np.nanmax(pose[1::2], axis=0))
+            #est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
 
             if true_cls == 1:
                 model_vsd = mv1
@@ -526,6 +539,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 t_gt = np.array(gt_poses[gtdx, :3], dtype=np.float32)
                 t_gt = t_gt * 0.001
 
+                print('t_gt: ', t_gt)
 
                 if true_cls == 10 or true_cls == 11:
                     err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -533,8 +547,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                     err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
                 add_errors.append(err_add)
 
-                iou = boxoverlap(est_box, gt_boxes[gtdx, :])
-                iou_ovlaps.append(iou)
+                #iou = boxoverlap(est_box, gt_boxes[gtdx, :])
+                #iou_ovlaps.append(iou)
 
             idx_add = np.argmin(np.array(add_errors))
             err_add = add_errors[idx_add]
@@ -553,16 +567,14 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
 
-            idx_iou = np.argmax(np.array(iou_ovlaps))
-            iou_ov = iou_ovlaps[idx_iou]
+            #idx_iou = np.argmax(np.array(iou_ovlaps))
+            #iou_ov = iou_ovlaps[idx_iou]
 
-            if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
-                trueDets[true_cls] += 1
-                gt_boxes[idx_add, :] = -1
-            else:
-                falseDets[true_cls] += 1
-
-            '''
+            #if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
+            #    trueDets[true_cls] += 1
+            #    gt_boxes[idx_add, :] = -1
+            #else:
+            #    falseDets[true_cls] += 1
 
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
@@ -585,18 +597,17 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            '''
 
         #if index > 0:
         #    times[n_img] += t_img
         #    times_count[n_img] += 1
 
-        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        #cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_raw)
 
     #times
     print('Number of objects ----- t')

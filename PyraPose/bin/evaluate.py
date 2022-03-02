@@ -117,7 +117,7 @@ def create_generator(args):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key)-1] = norm_pts
         path = os.path.join(args.occlusion_path, 'annotations', 'instances_val.json')
         with open(path, 'r') as js:
             data = json.load(js)

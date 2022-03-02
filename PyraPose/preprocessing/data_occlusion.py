@@ -152,7 +152,7 @@ class OcclusionDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
-            sphere_diameters[int(key)] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
 
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
