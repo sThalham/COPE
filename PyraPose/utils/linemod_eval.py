@@ -158,12 +158,13 @@ def load_pcd(data_path, cat):
     pcd_model = open3d.io.read_point_cloud(ply_path)
     model_vsd = {}
     model_vsd['pts'] = np.asarray(pcd_model.points)
-    #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
-    #    radius=0.1, max_nn=30))
-    # open3d.draw_geometries([pcd_model])
     model_vsd['pts'] = model_vsd['pts'] * 0.001
 
-    return pcd_model, model_vsd
+    pcd_down = pcd_model.voxel_down_sample(voxel_size=3)
+    model_down = {}
+    model_down['pts'] = np.asarray(pcd_down.points) * 0.001
+
+    return pcd_model, model_vsd, model_down
 '''
 
 def load_pcd(data_path, cat):
@@ -302,19 +303,19 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1 = load_pcd(data_path,'000001')
-    pc2, mv2 = load_pcd(data_path,'000002')
-    pc4, mv4 = load_pcd(data_path,'000004')
-    pc5, mv5 = load_pcd(data_path,'000005')
-    pc6, mv6 = load_pcd(data_path,'000006')
-    pc8, mv8 = load_pcd(data_path,'000008')
-    pc9, mv9 = load_pcd(data_path,'000009')
-    pc10, mv10 = load_pcd(data_path,'000010')
-    pc11, mv11 = load_pcd(data_path,'000011')
-    pc12, mv12 = load_pcd(data_path,'000012')
-    pc13, mv13 = load_pcd(data_path,'000013')
-    pc14, mv14 = load_pcd(data_path,'000014')
-    pc15, mv15 = load_pcd(data_path,'000015')
+    pc1, mv1, md1 = load_pcd(data_path,'000001')
+    pc2, mv2, md2 = load_pcd(data_path,'000002')
+    pc4, mv4, md4 = load_pcd(data_path,'000004')
+    pc5, mv5, md5 = load_pcd(data_path,'000005')
+    pc6, mv6, md6 = load_pcd(data_path,'000006')
+    pc8, mv8, md8 = load_pcd(data_path,'000008')
+    pc9, mv9, md9 = load_pcd(data_path,'000009')
+    pc10, mv10, md10 = load_pcd(data_path,'000010')
+    pc11, mv11, md11 = load_pcd(data_path,'000011')
+    pc12, mv12, md12 = load_pcd(data_path,'000012')
+    pc13, mv13, md13 = load_pcd(data_path,'000013')
+    pc14, mv14, md14 = load_pcd(data_path,'000014')
+    pc15, mv15, md15 = load_pcd(data_path,'000015')
 
 
     allPoses = np.zeros((16), dtype=np.uint32)
@@ -324,6 +325,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
     falseDets = np.zeros((16), dtype=np.uint32)
     times = np.zeros((30), dtype=np.float32)
     times_count = np.zeros((30), dtype=np.float32)
+
+    colors_viz = np.random.randint(255, size=(15, 3))
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -363,72 +366,222 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
             t_gt = t_gt * 0.001
 
-            ori_points = np.ascontiguousarray(threeD_boxes[int(gt_labels[obj])+1, :, :], dtype=np.float32)
-
+            ori_points = np.ascontiguousarray(threeD_boxes[int(gt_labels[obj]) + 1, :, :], dtype=np.float32)
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T  # * 0.001
             box3D = toPix_array(tDbox, fxkin, fykin, cxkin, cykin)
             tDbox = np.reshape(box3D, (16))
             tDbox = tDbox.astype(np.uint16)
+            tDbox = np.where(tDbox < 3, 3, tDbox)
 
             colGT = (245, 102, 65)
 
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
-                                2)
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                                colGT,
-                                2)
+                                 colGT,
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
-                                colGT,
-                                2)
+                                 colGT,
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
-                                colGT,
-                                2)
+                                 colGT,
+                                 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                                colGT,
-                                2)
+                                 colGT,
+                                 2)
 
         # run network
         start_t = time.time()
         t_error = 0
         t_img = 0
         n_img = 0
-        #scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
-        #t_img = time.time() - start_t
+        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        t_img = time.time() - start_t
 
-        #scores = scores[labels != -1]
-        #poses = poses[labels != -1]
-        #labels = labels[labels != -1]
+        scores = scores[labels != -1]
+        poses = poses[labels != -1]
+        labels = labels[labels != -1]
 
-        #scores = scores[labels != -1]
-        #poses = poses[labels != -1]
-        #labels = labels[labels != -1]
+        for odx, inv_cls in enumerate(labels):
 
-        #for odx, inv_cls in enumerate(labels):
+            true_cls = inv_cls + 1
+            pose = poses[odx, :]
+            if inv_cls not in gt_labels:
+                continue
+            n_img += 1
 
-            #true_cls = inv_cls + 1
-            # pose = poses[odx, :]
-            # if inv_cls not in gt_labels:
+            R_est = np.array(pose[:9]).reshape((3, 3)).T
+            t_est = np.array(pose[-3:]) * 0.001
+
+            eval_line = []
+            sc_id = int(scene_id[0])
+            eval_line.append(sc_id)
+            im_id = int(image_id)
+            eval_line.append(im_id)
+            obj_id = int(true_cls)
+            eval_line.append(obj_id)
+            score = float(scores[odx])
+            eval_line.append(score)
+            R_bop = [str(i) for i in R_est.flatten().tolist()]
+            R_bop = ' '.join(R_bop)
+            eval_line.append(R_bop)
+            t_bop = t_est * 1000.0
+            t_bop = [str(i) for i in t_bop.flatten().tolist()]
+            t_bop = ' '.join(t_bop)
+            eval_line.append(t_bop)
+            time_bop = float(t_img)
+            eval_line.append(time_bop)
+            eval_img.append(eval_line)
+
+            gt_idx = np.argwhere(gt_labels == inv_cls)
+            gt_pose = gt_poses[gt_idx, :]
+            gt_box = gt_boxes[gt_idx, :]
+            gt_pose = gt_pose[0][0]
+            gt_box = gt_box[0][0]
+
+            # detection
+            min_x = int(np.nanmin(pose[::2], axis=0))
+            min_y = int(np.nanmin(pose[1::2], axis=0))
+            max_x = int(np.nanmax(pose[::2], axis=0))
+            max_y = int(np.nanmax(pose[1::2], axis=0))
+            est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
+
+            t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+            t_gt = np.array(gt_pose[:3], dtype=np.float32)
+            t_gt = t_gt * 0.001
+
+            if true_cls == 1:
+                model_vsd = mv1
+            elif true_cls == 5:
+                model_vsd = mv5
+            elif true_cls == 6:
+                model_vsd = mv6
+            elif true_cls == 8:
+                model_vsd = mv8
+            elif true_cls == 9:
+                model_vsd = mv9
+            elif true_cls == 10:
+                model_vsd = mv10
+            elif true_cls == 11:
+                model_vsd = mv11
+            elif true_cls == 12:
+                model_vsd = mv12
+
+            add_errors = []
+            iou_ovlaps = []
+
+            if true_cls == 10 or true_cls == 11:
+                err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+            else:
+                err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+
+            if err_add < model_dia[true_cls] * 0.1:
+                if np.max(gt_poses[gt_idx, :]) != -1:
+                    truePoses[true_cls] += 1
+                    gt_poses[gt_idx, :] = -1
+            else:
+                falsePoses[true_cls] += 1
+
+            print(' ')
+            print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+
+            # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
-            #n_img += 1
 
-            #if inv_cls != int(gt_labels[0]) or true_cls in [3, 7]:
-            #    continue
+            # idx_iou = np.argmax(np.array(iou_ovlaps))
+            # iou_ov = iou_ovlaps[idx_iou]
 
-            #R_est = np.array(pose[:9]).reshape((3, 3)).T
-            #t_est = np.array(pose[-3:]) * 0.001
+            # if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
+            #    trueDets[true_cls] += 1
+            #    gt_boxes[idx_add, :] = -1
+            # else:
+            #    falseDets[true_cls] += 1
+
+            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
+            eDbox = R_est.dot(ori_points.T).T
+            eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
+            est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+            eDbox = np.reshape(est3D, (16))
+            pose = eDbox.astype(np.uint16)
+            pose = np.where(pose < 3, 3, pose)
+
+            colEst = (50, 205, 50)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (0, 39, 236)
+
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+
+            if true_cls == 1:
+                model_vsd = md1
+            elif true_cls == 2:
+                model_vsd = md2
+            elif true_cls == 4:
+                model_vsd = md4
+            elif true_cls == 5:
+                model_vsd = md5
+            elif true_cls == 6:
+                model_vsd = md6
+            elif true_cls == 8:
+                model_vsd = md8
+            elif true_cls == 9:
+                model_vsd = md9
+            elif true_cls == 10:
+                model_vsd = md10
+            elif true_cls == 11:
+                model_vsd = md11
+            elif true_cls == 12:
+                model_vsd = md12
+            elif true_cls == 13:
+                model_vsd = md13
+            elif true_cls == 14:
+                model_vsd = md14
+            elif true_cls == 15:
+                model_vsd = md15
+
+            colEst = (50, 205, 50)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (25, 119, 242)
+
+            colEst = colors_viz[true_cls - 1, :]
+
+            pts = model_vsd["pts"]
+            print(pts.shape)
+            proj_pts = R_est.dot(pts.T).T
+            proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
+            proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
+            proj_pts = proj_pts.astype(np.uint16)
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
+            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+
+        '''
 
         boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
@@ -473,28 +626,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec[:, 0]
-
-            '''
-            eval_line = []
-            sc_id = int(scene_id)
-            eval_line.append(sc_id)
-            im_id = int(image_id)
-            eval_line.append(im_id)
-            obj_id = int(true_cls)
-            eval_line.append(obj_id)
-            score = float(scores[odx])
-            eval_line.append(score)
-            R_bop = [str(i) for i in R_est.flatten().tolist()]
-            R_bop = ' '.join(R_bop)
-            eval_line.append(R_bop)
-            t_bop = t_est * 1000.0
-            t_bop = [str(i) for i in t_bop.flatten().tolist()]
-            t_bop = ' '.join(t_bop)
-            eval_line.append(t_bop)
-            time_bop = float(t_img)
-            eval_line.append(time_bop)
-            eval_img.append(eval_line)
-            '''
 
             #gt_idx = np.argwhere(gt_labels == inv_cls)
             #gt_pose = gt_poses[gt_idx, :]
@@ -593,6 +724,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+        '''
 
         #if index > 0:
         #    times[n_img] += t_img
@@ -604,6 +736,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         cv2.imwrite(name, image_raw)
+
+        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
+        cv2.imwrite(name, image_ori)
 
     #times
     print('Number of objects ----- t')

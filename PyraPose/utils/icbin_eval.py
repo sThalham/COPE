@@ -33,12 +33,13 @@ def load_pcd(data_path, cat):
     pcd_model = open3d.io.read_point_cloud(ply_path)
     model_vsd = {}
     model_vsd['pts'] = np.asarray(pcd_model.points)
-    #open3d.estimate_normals(pcd_model, search_param=open3d.KDTreeSearchParamHybrid(
-    #    radius=0.1, max_nn=30))
-    # open3d.draw_geometries([pcd_model])
     model_vsd['pts'] = model_vsd['pts'] * 0.001
 
-    return pcd_model, model_vsd
+    pcd_down = pcd_model.voxel_down_sample(voxel_size=3)
+    model_down = {}
+    model_down['pts'] = np.asarray(pcd_down.points) * 0.001
+
+    return pcd_model, model_vsd, model_down
 
 
 def create_point_cloud(depth, ds):
@@ -119,8 +120,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         model_dia[int(key)] = value['diameter'] * fac
 
     # target annotation
-    pc1, mv1 = load_pcd(data_path, '000001')
-    pc2, mv2 = load_pcd(data_path, '000002')
+    pc1, mv1, md1 = load_pcd(data_path, '000001')
+    pc2, mv2, md2 = load_pcd(data_path, '000002')
 
     allPoses = np.zeros((3), dtype=np.uint32)
     truePoses = np.zeros((3), dtype=np.uint32)
@@ -129,6 +130,9 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
     falseDets = np.zeros((3), dtype=np.uint32)
     times = np.zeros((30), dtype=np.float32)
     times_count = np.zeros((30), dtype=np.float32)
+
+    colors_viz = np.random.randint(255, size=(2, 3))
+    colors_viz = np.array([[205, 250, 255], [0, 215, 255]])
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -226,8 +230,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
-            #if inv_cls not in gt_labels:
-            #    continue
+            if inv_cls not in gt_labels:
+                continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
@@ -330,6 +334,10 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             if err_add > model_dia[true_cls] * 0.1:
                 colEst = (0, 0, 255)
 
+            colEst = (50, 205, 50)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (0, 39, 236)
+
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
@@ -343,16 +351,38 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
+            if true_cls == 1:
+                model_vsd = md1
+            elif true_cls == 2:
+                model_vsd = md2
+
+            colEst = colors_viz[true_cls - 1, :]
+
+            pts = model_vsd["pts"]
+            print(pts.shape)
+            proj_pts = R_est.dot(pts.T).T
+            proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
+            proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
+            proj_pts = proj_pts.astype(np.uint16)
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
+            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + '_' + str(index) + '.png'
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         cv2.imwrite(name, image_raw)
+
+        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
+        cv2.imwrite(name, image_ori)
 
     #times
     print('Number of objects ----- t')
