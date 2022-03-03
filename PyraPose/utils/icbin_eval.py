@@ -172,6 +172,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
             t_gt = t_gt * 0.001
 
+            '''
             ori_points = np.ascontiguousarray(threeD_boxes[int(gt_labels[obj]) + 1, :, :], dtype=np.float32)
 
             tDbox = R_gt.dot(ori_points.T).T
@@ -208,6 +209,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                 colGT,
                                 2)
+            '''
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -219,8 +221,173 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes_raw, labels_raw, poses_raw, scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
+
+        labels_cls = np.argmax(labels_raw[0, :, :], axis=1)
+
+        for inv_cls in np.unique(labels_cls):
+
+            true_cls = inv_cls + 1
+            n_img += 1
+
+            if inv_cls not in gt_labels or true_cls in [3, 7]:
+                continue
+
+            cls_indices = np.where(labels_cls == inv_cls)
+            labels_filt = labels_raw[0, cls_indices[0], inv_cls]
+            point_votes = boxes_raw[0, cls_indices[0], inv_cls, :]
+            direct_votes = poses_raw[0, cls_indices[0], inv_cls, :]
+            above_thres = np.where(labels_filt > 0.25)
+
+            mask_votes = cls_indices[0][above_thres]
+
+            point_votes = point_votes[above_thres[0], :]
+            direct_votes = direct_votes[above_thres[0], :]
+            labels_votes = labels_cls[cls_indices[0][above_thres[0]]]
+
+            hyps = point_votes.shape[0]
+
+            if hyps < 1:
+                continue
+
+            min_box_x = np.nanmin(point_votes[:, ::2], axis=1)
+            min_box_y = np.nanmin(point_votes[:, 1::2], axis=1)
+            max_box_x = np.nanmax(point_votes[:, ::2], axis=1)
+            max_box_y = np.nanmax(point_votes[:, 1::2], axis=1)
+
+            pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
+
+            # pos_anchors = anchor_params[cls_indices, :]
+
+            ind_anchors = np.where(labels_votes == inv_cls)[0]
+            # pos_anchors = pos_anchors[0]
+            # ind_anchors = above_thres
+
+            per_obj_hyps = []
+            per_obj_cls = []
+            per_obj_poses = []
+            per_mask_hyps = []
+
+            while pos_anchors.shape[0] > 0:
+                # make sure to separate objects
+                start_i = np.random.randint(pos_anchors.shape[0])
+                obj_ancs = [pos_anchors[start_i]]
+                obj_inds = [ind_anchors[start_i]]
+                pos_anchors = np.delete(pos_anchors, start_i, axis=0)
+                ind_anchors = np.delete(ind_anchors, start_i, axis=0)
+                # print('ind_anchors: ', ind_anchors)
+                same_obj = True
+                while same_obj == True:
+                    # update matrices based on iou
+                    same_obj = False
+                    indcs2rm = []
+                    for adx in range(pos_anchors.shape[0]):
+                        # loop through anchors
+                        box_b = pos_anchors[adx, :]
+                        if not np.all((box_b > 0)):  # need x_max or y_max here? maybe irrelevant due to positivity
+                            indcs2rm.append(adx)
+                            continue
+                        for qdx in range(len(obj_ancs)):
+                            # loop through anchors belonging to instance
+                            iou = boxoverlap(obj_ancs[qdx], box_b)
+                            if iou > 0.5:
+                                # print('anc_anchors: ', pos_anchors)
+                                # print('ind_anchors: ', ind_anchors)
+                                # print('adx: ', adx)
+                                obj_ancs.append(box_b)
+                                obj_inds.append(ind_anchors[adx])
+                                indcs2rm.append(adx)
+                                same_obj = True
+                                break
+                        if same_obj == True:
+                            break
+
+                    # print('pos_anchors: ', pos_anchors.shape)
+                    # print('ind_anchors: ', len(ind_anchors))
+                    # print('indcs2rm: ', indcs2rm)
+                    pos_anchors = np.delete(pos_anchors, indcs2rm, axis=0)
+                    ind_anchors = np.delete(ind_anchors, indcs2rm, axis=0)
+
+                per_obj_hyps.append(obj_inds)
+                per_obj_cls.append(inv_cls)
+
+            for inst, hyps in enumerate(per_obj_hyps):
+                inv_cls = per_obj_cls[inst]
+                true_cls = inv_cls + 1
+                box_votes = point_votes[hyps, :]
+                dp_votes = direct_votes[hyps, :]
+                mask_now = mask_votes[hyps]
+                hyps = box_votes.shape[0]
+
+                col_box = (
+                    int(np.random.uniform() * 255.0), int(np.random.uniform() * 255.0),
+                    int(np.random.uniform() * 255.0))
+                pyramids = np.zeros((6300, 3))
+                pyramids[mask_now, :] = col_box
+                P3_mask = np.reshape(pyramids[:4800, :], (60, 80, 3))
+                P4_mask = np.reshape(pyramids[4800:6000, :], (30, 40, 3))
+                P5_mask = np.reshape(pyramids[6000:, :], (15, 20, 3))
+                P3_mask = cv2.resize(P3_mask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                P4_mask = cv2.resize(P4_mask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                P5_mask = cv2.resize(P5_mask, (640, 480), interpolation=cv2.INTER_NEAREST)
+                image_mask = np.where(P3_mask > 0, P3_mask, image_mask)
+                image_mask = np.where(P4_mask > 0, P4_mask, image_mask)
+                image_mask = np.where(P5_mask > 0, P5_mask, image_mask)
+
+
+
+                ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
+
+                for pdx in range(dp_votes.shape[0]):
+                    R_est = np.array(dp_votes[pdx, :9]).reshape((3, 3)).T
+                    t_est = np.array(dp_votes[pdx, -3:]) * 0.001
+
+                    eDbox = R_est.dot(ori_points.T).T
+                    eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
+                    est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
+                    eDbox = np.reshape(est3D, (16))
+                    pose = eDbox.astype(np.uint16)
+                    colEst = col_box
+
+                    image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                    image_poses = cv2.line(image_poses, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+
+                print(box_votes.shape)
+                for bdx in range(box_votes.shape[0]):
+                    box = box_votes[bdx, :]
+                    print(box.shape)
+                    p_idx = 0
+                    for jdx in range(box.shape[0]):
+                        if p_idx > 14:
+                            continue
+                        cv2.circle(image_box, (int(box[p_idx]), int(box[p_idx+1])), 3, col_box, 3)
+                        p_idx += 2
+
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        cv2.imwrite(name, image_raw)
+
+        name = '/home/stefan/PyraPose_viz/' + 'box_' + str(index) + '.png'
+        # image_row1 = np.concatenate([image, image_mask], axis=0)
+        cv2.imwrite(name, image_box)
+
+        name = '/home/stefan/PyraPose_viz/' + 'pose_' + str(index) + '.png'
+        # image_row1 = np.concatenate([image, image_mask], axis=0)
+        cv2.imwrite(name, image_poses)
+
+        name = '/home/stefan/PyraPose_viz/' + 'mask_' + str(index) + '.png'
+        # image_row1 = np.concatenate([image, image_mask], axis=0)
+        cv2.imwrite(name, image_mask)
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
@@ -374,12 +541,12 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_raw)
 
         name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         cv2.imwrite(name, image_ori)
