@@ -63,22 +63,22 @@ def load_classes(categories):
     elif type(categories) == int:
         categories = [categories[categories]]
     categories.sort(key=lambda x: x['id'])
-    #classes = {}
-    #labels = {}
-    #labels_inverse = {}
-    #for c in categories:
-    #    labels[len(classes)] = c['id']
-    #    labels_inverse[c['id']] = len(classes)
-    #    classes[c['name']] = len(classes)
-    ## also load the reverse (label -> name)
-    #labels_rev = {}
-    #for key, value in classes.items():
-    #    labels_rev[value] = key
+    classes = {}
+    labels = {}
+    labels_inverse = {}
+    for c in categories:
+        labels[len(classes)] = c['id']
+        labels_inverse[c['id']] = len(classes)
+        classes[c['name']] = len(classes)
+    # also load the reverse (label -> name)
+    labels_rev = {}
+    for key, value in classes.items():
+        labels_rev[value] = key
 
-    labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
-    labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
-    classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
-    labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
+    #labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
+    #labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
+    #classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
+    #labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
 
     return classes, labels, labels_inverse, labels_rev
 

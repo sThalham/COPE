@@ -408,8 +408,6 @@ def inference_model(
     #    iou_threshold=iou_threshold,
     #)([boxes3D, classification, poses, consistency])
 
-    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, detections[2], detections[3], poses, detections[6], detections[7]], name=name)
-    #return keras.models.Model(inputs=model.inputs,
-    #                          outputs=[detections[0], detections[1], detections[2], detections[3]], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[detections[0], detections[1], detections[2], detections[3]], name=name)
 
     return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)

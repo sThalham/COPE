@@ -447,16 +447,13 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                 continue
 
             cls_indices = np.where(labels_cls == inv_cls)
-            print(labels.shape)
-            print(cls_indices[0].shape)
             labels_filt = labels[0, cls_indices[0], inv_cls]
             pose_votes = boxes3D[0, cls_indices[0], inv_cls, :]
-            above_thres = np.where(labels_filt > 0.5)
+            above_thres = np.where(labels_filt > 0.25)
 
             pose_votes = pose_votes[above_thres[0], :]
 
             hyps = pose_votes.shape[0]
-            print(pose_votes.shape)
             if hyps < 1:
                 continue
 
@@ -476,7 +473,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec[:, 0]
-            print('t_est', t_est)
 
             '''
             eval_line = []
