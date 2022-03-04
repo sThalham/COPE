@@ -221,9 +221,10 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        boxes_raw, labels_raw, poses_raw, scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
+        '''
         labels_cls = np.argmax(labels_raw[0, :, :], axis=1)
 
         for inv_cls in np.unique(labels_cls):
@@ -291,7 +292,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                         for qdx in range(len(obj_ancs)):
                             # loop through anchors belonging to instance
                             iou = boxoverlap(obj_ancs[qdx], box_b)
-                            if iou > 0.5:
+                            if iou > 0.8:
                                 # print('anc_anchors: ', pos_anchors)
                                 # print('ind_anchors: ', ind_anchors)
                                 # print('adx: ', adx)
@@ -388,6 +389,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         name = '/home/stefan/PyraPose_viz/' + 'mask_' + str(index) + '.png'
         # image_row1 = np.concatenate([image, image_mask], axis=0)
         cv2.imwrite(name, image_mask)
+
+        '''
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
@@ -526,7 +529,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             colEst = colors_viz[true_cls - 1, :]
 
             pts = model_vsd["pts"]
-            print(pts.shape)
             proj_pts = R_est.dot(pts.T).T
             proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
             proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
@@ -548,8 +550,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         #cv2.imwrite(name, image_rows)
         #cv2.imwrite(name, image_raw)
 
-        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
-        cv2.imwrite(name, image_ori)
+        #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
+        #cv2.imwrite(name, image_ori)
 
     #times
     print('Number of objects ----- t')

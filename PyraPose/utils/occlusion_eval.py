@@ -694,15 +694,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_raw)
-        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
+        #cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         # cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_ori)
+        #cv2.imwrite(name, image_ori)
 
     #times
     print('Number of objects ----- t')
