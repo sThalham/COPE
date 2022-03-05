@@ -120,6 +120,7 @@ def filter_detections(
 
         # including confidence
         broadcast_confidence = true_ovlaps * confidence
+        #broadcast_confidence = true_ovlaps
         broadcast_confidence = tf.where(broadcast_confidence == 0, 1000.0, broadcast_confidence)
         sort_args = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')
         sort_conf = tf.sort(broadcast_confidence, axis=1, direction='ASCENDING')
@@ -170,7 +171,6 @@ def filter_detections(
         labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
         indices = tf.where(tf.math.greater(scores, score_threshold))
         indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
-        #indices, filt_poses = _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c])
         all_indices.append(indices)
         all_poses.append(filt_poses)
     # concatenate indices to single tensor
@@ -179,29 +179,27 @@ def filter_detections(
     ################################################
     # --------------------------------------------
     # vectorized_map over classes
-    #def no_detect_filter(inputs):
-    #    label_cls, scores_cls, boxes3D_cls, poses_cls, confidence_cls = inputs
+    #def cond(i, filt1, filt2, d1, d2, d3, d4):
+    #    return i < num_classes
 
-    #    labels_cls = tf.cast(label_cls, dtype=tf.int64) * tf.ones((keras.backend.shape(scores_cls)[0],), dtype='int64')
-    #    indices = tf.where(tf.math.greater(scores_cls, score_threshold))
-    #    indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels_cls, boxes3D_cls, poses_cls, confidence_cls), lambda: dummy_fn())
-
-    #    return indices, filt_poses
-
-    #class_perm = tf.transpose(classification, perm=[1, 0])
-    #boxes_perm = tf.transpose(boxes3D, perm=[1, 0, 2])
-    #poses_perm = tf.transpose(poses, perm=[1, 0, 2])
-    #conf_perm = tf.transpose(confidence, perm=[1, 0])
-    #single_label = tf.range(0, tf.shape(class_perm)[0])
-
-    # fn_output_signature=tf.int32
-    # elems = tf.constant(["hello", "moon"]),
-    #vec_out = tf.map_fn(no_detect_filter, (single_label, class_perm, boxes_perm, poses_perm, conf_perm), dtype=(tf.int32, tf.float32))
-    #indices = vec_out[0]
-    #poses = vec_out[1]
-    #indices = tf.reshape(indices, (tf.shape(indices)[0] * tf.shape(indices)[1], 2))
-    #poses = tf.reshape(poses, (tf.shape(poses)[0] * tf.shape(poses)[1], 12))
-    ###################################################
+    #def loop_body(c, indices_filt, poses_filt, classification, boxes3D, poses, confidence):
+    #    scores = classification[:, c]
+    #    labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
+    #    indices = tf.where(tf.math.greater(scores, score_threshold))
+    #    indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0),
+    #                                  lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :],
+    #                                                             confidence[:, c]), lambda: dummy_fn())
+    #    indices_filt = tf.concat([indices_filt, [indices]], axis=0)
+    #    poses_filt = tf.concat([poses_filt, [filt_poses]], axis=0)
+    #    return c+1, indices_filt, poses_filt, classification, boxes3D, poses, confidence
+    #iter = tf.constant(0, dtype=tf.int64)
+    #indices_filt = tf.Variable([[[]]], validate_shape=False)
+    #poses_filt = tf.Variable([[[]]], validate_shape=False)
+    #iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence = tf.while_loop(cond, loop_body, [iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence], shape_invariants=[iter.get_shape(),
+    #                                               tf.TensorShape([None]), tf.TensorShape([None]), classification.get_shape(), boxes3D.get_shape(), poses.get_shape(), confidence.get_shape()])
+    #indices = indices_filt
+    #poses = poses_filt
+    ################################################################################
 
     # select top k
     #scores              = backend.gather_nd(classification, indices)

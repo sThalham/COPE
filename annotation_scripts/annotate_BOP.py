@@ -173,18 +173,18 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'icbin'
+    dataset = 'occlusion'
     traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/bop_datasets/icbin/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/icbin_PBR_BOP/'
+    root = "/home/stefan/data/bop_datasets/lmo/test"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/occlusion_BOP_test/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
         num_objects = 15
     elif dataset == 'occlusion':
-        mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+        mesh_info = '/home/stefan/data/bop_datasets/lmo/models_eval/models_info.json'
         num_objects = 15
     elif dataset == 'ycbv':
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
