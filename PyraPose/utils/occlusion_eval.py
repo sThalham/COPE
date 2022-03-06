@@ -283,7 +283,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         t_img = 0
         n_img = 0
 
-        '''
         scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
@@ -689,6 +688,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
                 image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
+        '''
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1

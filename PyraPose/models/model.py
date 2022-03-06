@@ -366,7 +366,7 @@ def inference_model(
         num_classes=None,
         name='pyrapose',
         score_threshold=0.25,
-        pose_hyps=100,
+        pose_hyps=9,
         iou_threshold=0.5,
         max_detections=100,
         **kwargs
@@ -387,7 +387,7 @@ def inference_model(
     classification = model.outputs[1]
     translations = model.outputs[2]
     rotations = model.outputs[3]
-    #consistency = model.outputs[4] # gone for just reprojection
+    consistency = model.outputs[4] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
