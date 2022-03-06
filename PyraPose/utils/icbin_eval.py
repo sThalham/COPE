@@ -128,11 +128,12 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((3), dtype=np.uint32)
     trueDets = np.zeros((3), dtype=np.uint32)
     falseDets = np.zeros((3), dtype=np.uint32)
-    times = np.zeros((30), dtype=np.float32)
-    times_count = np.zeros((30), dtype=np.float32)
+    times = np.zeros((100), dtype=np.float32)
+    times_count = np.zeros((100), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(2, 3))
     colors_viz = np.array([[205, 250, 255], [0, 215, 255]])
+    max_gt = 0
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -163,6 +164,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         image_mask = copy.deepcopy(image_raw)
         image_box = copy.deepcopy(image_raw)
         image_poses = copy.deepcopy(image_raw)
+        if gt_labels.shape[0] > max_gt:
+            max_gt = gt_labels.shape[0]
 
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
@@ -552,6 +555,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
+
+    print('max_gt: ', max_gt)
 
     #times
     print('Number of objects ----- t')
