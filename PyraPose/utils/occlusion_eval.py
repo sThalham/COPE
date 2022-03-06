@@ -177,6 +177,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         gt_boxes = sample[4].numpy()
         gt_poses = sample[5].numpy()
         gt_calib = sample[6].numpy()
+        allLabels = copy.deepcopy(gt_labels)
 
         if gt_labels.size == 0:
             continue
@@ -371,6 +372,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                     gt_poses[gt_idx, :] = -1
             else:
                 falsePoses[true_cls] += 1
+                
+            if inv_cls in allLabels:
+                trueDets[true_cls] +=1
+                allLabels[gt_idx] = -1
 
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
@@ -687,8 +692,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
                 proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
                 image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+                '''
 
-        '''
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1

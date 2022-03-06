@@ -338,6 +338,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         gt_boxes = sample[4].numpy()
         gt_poses = sample[5].numpy()
         gt_calib = sample[6].numpy()
+        allLabels = copy.deepcopy(gt_labels)
 
         if gt_labels.size == 0 or int(gt_labels[0]) in [2, 6]:
             continue
@@ -408,7 +409,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_error = 0
         t_img = 0
         n_img = 0
-        '''
+
         scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
@@ -497,6 +498,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             else:
                 falsePoses[true_cls] += 1
 
+            if inv_cls in allLabels:
+                trueDets[true_cls] +=1
+                allLabels[gt_idx] = -1
+
             print(' ')
             print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
@@ -581,8 +586,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
             image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
-            '''
-
+        '''
 
 
         boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
@@ -726,7 +730,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-
+            '''
 
         #if index > 0:
         #    times[n_img] += t_img

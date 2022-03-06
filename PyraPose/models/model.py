@@ -384,10 +384,19 @@ def inference_model(
     locations = __build_locations(features, strides)
 
     regression = model.outputs[0]
+    #center = model.outputs[1]
     classification = model.outputs[1]
     translations = model.outputs[2]
     rotations = model.outputs[3]
     consistency = model.outputs[4] # gone for just reprojection
+
+    #tf_diameter = tf.convert_to_tensor(187.8992)
+    # print('detections 3: ', detections[3])
+    # rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
+    #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, tf.newaxis],
+    #                               [tf.shape(regression)[0], tf.shape(regression)[1], 15])
+    #rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    #rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
