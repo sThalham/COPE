@@ -164,43 +164,49 @@ def filter_detections(
     ##############################################
     # inefficient loop over classes
     # replace with vectorized_map
-    all_indices = []
-    all_poses = []
-    for c in range(int(classification.shape[1])):
-        scores = classification[:, c]
-        labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
-        indices = tf.where(tf.math.greater(scores, score_threshold))
-        indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
-        all_indices.append(indices)
-        all_poses.append(filt_poses)
-    # concatenate indices to single tensor
-    indices = tf.concat(all_indices, axis=0)
-    poses = tf.concat(all_poses, axis=0)
-    ################################################
-    # --------------------------------------------
-    # vectorized_map over classes
-    #def cond(i, filt1, filt2, d1, d2, d3, d4):
-    #    return i < num_classes
-
-    #def loop_body(c, indices_filt, poses_filt, classification, boxes3D, poses, confidence):
+    #all_indices = []
+    #all_poses = []
+    #for c in range(int(classification.shape[1])):
     #    scores = classification[:, c]
     #    labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
     #    indices = tf.where(tf.math.greater(scores, score_threshold))
-    #    indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0),
-    #                                  lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :],
-    #                                                             confidence[:, c]), lambda: dummy_fn())
-    #    indices_filt = tf.concat([indices_filt, [indices]], axis=0)
-    #    poses_filt = tf.concat([poses_filt, [filt_poses]], axis=0)
-    #    return c+1, indices_filt, poses_filt, classification, boxes3D, poses, confidence
-    #iter = tf.constant(0, dtype=tf.int64)
+    #    indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
+    #    all_indices.append(indices)
+    #    all_poses.append(filt_poses)
+    # concatenate indices to single tensor
+    #indices = tf.concat(all_indices, axis=0)
+    #poses = tf.concat(all_poses, axis=0)
+    ################################################
+    # --------------------------------------------
+    # vectorized_map over classes
+    def cond(i, filt1, filt2, d1, d2, d3, d4):
+        return i < num_classes
+
+    def loop_body(c, indices_filt, poses_filt, classification, boxes3D, poses, confidence):
+        scores = classification[:, c]
+        labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
+        indices = tf.where(tf.math.greater(scores, score_threshold))
+        indices, filt_poses = tf.cond(tf.math.greater(tf.shape(indices)[0], 0),
+                                      lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :],
+                                                                 confidence[:, c]), lambda: dummy_fn())
+        print('indices: ', indices)
+        print('poses: ', filt_poses)
+        indices_filt = tf.concat([indices_filt, indices], axis=0)
+        poses_filt = tf.concat([poses_filt, filt_poses], axis=0)
+        print('indices_filt: ', indices_filt)
+        print('poses_filt: ', poses_filt)
+        return c+1, indices_filt, poses_filt, classification, boxes3D, poses, confidence
+    iter = tf.constant(0, dtype=tf.int64)
     #indices_filt = tf.Variable([[[]]], validate_shape=False)
     #poses_filt = tf.Variable([[[]]], validate_shape=False)
-    #iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence = tf.while_loop(cond, loop_body, [iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence], shape_invariants=[iter.get_shape(),
-    #                                               tf.TensorShape([None]), tf.TensorShape([None]), classification.get_shape(), boxes3D.get_shape(), poses.get_shape(), confidence.get_shape()])
-    #indices = indices_filt
-    #poses = poses_filt
+    indices_filt = tf.zeros([0, 2], dtype=tf.int32)
+    poses_filt = tf.zeros([0, 12])
+    iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence = tf.while_loop(cond, loop_body, [iter, indices_filt, poses_filt, classification, boxes3D, poses, confidence], shape_invariants=[iter.get_shape(),
+                                                   tf.TensorShape([None, None]), tf.TensorShape([None, None]), classification.get_shape(), boxes3D.get_shape(), poses.get_shape(), confidence.get_shape()])
+    #f_shape = tf.shape(indices_filt)
+    indices = indices_filt
+    poses = poses_filt
     ################################################################################
-
     # select top k
     #scores              = backend.gather_nd(classification, indices)
     scores              = tf.gather_nd(classification, indices)

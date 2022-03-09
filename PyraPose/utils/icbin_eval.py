@@ -128,8 +128,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((3), dtype=np.uint32)
     trueDets = np.zeros((3), dtype=np.uint32)
     falseDets = np.zeros((3), dtype=np.uint32)
-    times = np.zeros((30), dtype=np.float32)
-    times_count = np.zeros((30), dtype=np.float32)
+    times = np.zeros((100), dtype=np.float32)
+    times_count = np.zeros((100), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(2, 3))
     colors_viz = np.array([[205, 250, 255], [0, 215, 255]])
@@ -508,18 +508,18 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             if err_add > model_dia[true_cls] * 0.1:
                 colEst = (0, 39, 236)
 
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
             if true_cls == 1:
                 model_vsd = md1
@@ -543,15 +543,15 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        #cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_raw)
 
-        #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
-        #cv2.imwrite(name, image_ori)
+        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
+        cv2.imwrite(name, image_ori)
 
     #times
     print('Number of objects ----- t')

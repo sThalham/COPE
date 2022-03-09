@@ -103,29 +103,38 @@ def anchor_targets_bbox(
             # reason:
             # long-shaped object fall into lower levels than diameter
             # while boxy objects
-            if reso_van < -2:
-                reso_van = -2
-            reso_idx = int(2 + reso_van)
-            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            #if reso_van < -2:
+            #    reso_van = -2
+            #reso_idx = int(2 + reso_van)
+            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+
+            locations_positive_obj = []
+            for reso_idx in range(len(masks_level)):
+                locations_positive_obj.append(
+                    np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
+            locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
 
             #if reso_idx==0:
-            #    vizmask = np.zeros((4800, 3))
-            #    vizmask[locations_positive_obj, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
-            #    vizmask = np.reshape(vizmask, (60, 80, 3))
-            #    vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
-            #    img_P3 = np.where(vizmask > 0, vizmask, img_P3)
-            #elif reso_idx==1:
-            #    vizmask = np.zeros((1200, 3))
-            #    vizmask[locations_positive_obj-4800, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
-            #    vizmask = np.reshape(vizmask, (30, 40, 3))
-            #    vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
-            #    img_P4 = np.where(vizmask > 0, vizmask, img_P4)
-            #elif reso_idx==2:
-            #    vizmask = np.zeros((300, 3))
-            #    vizmask[locations_positive_obj-6000, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
-            #    vizmask = np.reshape(vizmask, (15, 20, 3))
-            #    vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
-            #    img_P5 = np.where(vizmask > 0, vizmask, img_P5)
+            #vizmask = np.zeros((4800, 3))
+            #locations_positive_obj_3 = np.where(masks_level[0] == int(mask_id))[0]
+            #vizmask[locations_positive_obj_3, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+            #vizmask = np.reshape(vizmask, (60, 80, 3))
+            #vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+            #img_P3 = np.where(vizmask > 0, vizmask, img_P3)
+            ##elif reso_idx==1:
+            #vizmask = np.zeros((1200, 3))
+            #locations_positive_obj_4 = np.where(masks_level[1] == int(mask_id))[0]
+            #vizmask[locations_positive_obj_4, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+            #vizmask = np.reshape(vizmask, (30, 40, 3))
+            #vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+            #img_P4 = np.where(vizmask > 0, vizmask, img_P4)
+            ##elif reso_idx==2:
+            #vizmask = np.zeros((300, 3))
+            #locations_positive_obj_5 = np.where(masks_level[2] == int(mask_id))[0]
+            #vizmask[locations_positive_obj_5, :] = (np.random.randint(255), np.random.randint(255), np.random.randint(255))
+            #vizmask = np.reshape(vizmask, (15, 20, 3))
+            #vizmask = cv2.resize(vizmask, (640, 480), interpolation=cv2.INTER_NEAREST)
+            #img_P5 = np.where(vizmask > 0, vizmask, img_P5)
 
 
             #ego_pose = np.eye(4)

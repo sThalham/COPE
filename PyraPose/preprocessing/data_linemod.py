@@ -342,7 +342,7 @@ class LinemodDataset(tf.data.Dataset):
         sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
