@@ -692,6 +692,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
                 proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
                 image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+                '''
 
         if index > 0:
             times[n_img] += t_img
