@@ -368,7 +368,7 @@ def inference_model(
         score_threshold=0.25,
         pose_hyps=9,
         iou_threshold=0.5,
-        max_detections=200,
+        max_detections=100,
         **kwargs
 ):
     # create RetinaNet model
@@ -423,6 +423,6 @@ def inference_model(
         iou_threshold=iou_threshold,
     )([boxes3D, classification, poses, consistency])
 
-    return keras.models.Model(inputs=model.inputs, outputs=[detections[0], detections[1], detections[2], detections[3]], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, poses, detections[0], detections[1], detections[2], detections[3]], name=name)
 
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
