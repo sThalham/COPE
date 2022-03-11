@@ -17,20 +17,13 @@ from pathlib import Path
 
 # Import bop_renderer and bop_toolkit.
 # ------------------------------------------------------------------------------
-bop_renderer_path = '/home/stefan/bop_renderer/build'
+bop_renderer_path = '/path/to/bop_renderer/build'
 sys.path.append(bop_renderer_path)
 
 import bop_renderer
 
-depSca = 1.0
 resX = 640
 resY = 480
-fxkin = 572.41140
-fykin = 573.57043
-cxkin = 325.26110
-cykin = 242.04899
-depthCut = 2000.0
-
 
 def matang(A, B):
 
@@ -47,51 +40,6 @@ def matang(A, B):
         while thetrace > 1:
             thetrace -= 1
     return np.rad2deg(np.arccos(thetrace))
-
-
-def get_cont_sympose(rota, sym):
-
-    rot_pose = np.eye((4), dtype=np.float32)
-    rot_pose[:3, :3] = tf3d.quaternions.quat2mat(rota[3:])
-    rot_pose[:3, 3] = rota[:3]
-
-    cam_in_obj = np.dot(np.linalg.inv(rot_pose), (0, 0, 0, 1))
-    if sym[0] == 1:
-        alpha = math.atan2(cam_in_obj[2], cam_in_obj[1])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
-    elif sym[1] == 1:
-        alpha = math.atan2(cam_in_obj[0], cam_in_obj[2])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
-    elif sym[2] == 1:
-        alpha = math.atan2(cam_in_obj[1], cam_in_obj[0])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, 0.0, alpha, 'sxyz'))
-
-    rota[3:] = tf3d.quaternions.mat2quat(rot_pose[:3, :3])
-    rota[:3] = rot_pose[:3, 3]
-
-    return rota
-
-
-def get_disc_sympose(rota, sym):
-
-    rot_pose = np.eye((4), dtype=np.float32)
-    rot_pose[:3, :3] = tf3d.quaternions.quat2mat(rota[3:])
-    rot_pose[:3, 3] = rota[:3]
-    #print('rot_pose: ', rot_pose)
-
-    rot_sym = np.dot(rot_pose, sym)
-    base_dir = np.dot(sym[:3, :3], (0, 0, 1))
-    pose_dir = np.dot(rot_sym[:3, :3], (0, 0, 1))
-
-    ang2z = np.arccos(np.dot(pose_dir, base_dir))
-
-    if ang2z > math.pi * 0.5:
-        rot_pose = rot_sym
-
-    rota[3:] = tf3d.quaternions.mat2quat(rot_pose[:3, :3])
-    rota[:3] = rot_pose[:3, 3]
-
-    return rota
 
 
 def draw_axis(img, cam_R, cam_T, K):
@@ -180,40 +128,44 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'icbin'
-    traintestval = 'val'
+    traintestval = sys.argv[1]
+    source = sys.argv[2]
+    target = sys.argv[3]
+
+    dataset = os.path.basename(os.path.normpath(source))
+    root = os.path.join(source, dataset)
     visu = False
+    mesh_info = os.path.join(source, 'models_eval')
 
-    root = "/home/stefan/data/bop_datasets/icbin/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/icbin_syn/'
+    # make directories containing annotation
+    os.mkdir(os.path.join(target, 'annotations'))
+    os.mkdir(os.path.join(target, 'images', traintestval))
 
-    if dataset == 'linemod':
-        mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+    cp_str = os.path.join(source, 'models_eval', 'models_info.json') + ' ' + os.path.join(target, 'annotations', 'models_info.json')
+    os.popen(cp_str)
+
+    mesh_path = os.path.join(source, 'models')
+    if dataset == 'lm_base':
         num_objects = 15
-    elif dataset == 'occlusion':
-        mesh_info = '/home/stefan/data/bop_datasets/lmo/models_eval/models_info.json'
+    elif dataset == 'lmo_base':
         num_objects = 15
     elif dataset == 'ycbv':
-        mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
-    elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/bop_datasets/tless/models/models_eval/models_info.json'
+    elif dataset == 'tless_base':
         num_objects = 30
-    elif dataset == 'homebrewed':
-        mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
+        mesh_path = os.path.join(source, 'models_cad')
+    elif dataset == 'hb_base':
         num_objects = 33
-    elif dataset == 'icbin':
-        mesh_info = '/home/stefan/data/bop_datasets/icbin/models_eval/models_info.json'
+    elif dataset == 'icbin_base':
         num_objects = 2
     else:
-        print('unknown dataset')
+        print('unknown dataset; cannot assign number of objects')
 
     ren = bop_renderer.Renderer()
     ren.init(640, 480)
     mesh_id = 1
     categories = []
 
-    mesh_path = '/home/stefan/data/bop_datasets/icbin/models'
     for mesh_now in os.listdir(mesh_path):
         mesh_path_now = os.path.join(mesh_path, mesh_now)
         if mesh_now[-4:] != '.ply':

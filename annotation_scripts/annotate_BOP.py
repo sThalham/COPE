@@ -42,51 +42,6 @@ def matang(A, B):
     return np.rad2deg(np.arccos(thetrace))
 
 
-def get_cont_sympose(rota, sym):
-
-    rot_pose = np.eye((4), dtype=np.float32)
-    rot_pose[:3, :3] = tf3d.quaternions.quat2mat(rota[3:])
-    rot_pose[:3, 3] = rota[:3]
-
-    cam_in_obj = np.dot(np.linalg.inv(rot_pose), (0, 0, 0, 1))
-    if sym[0] == 1:
-        alpha = math.atan2(cam_in_obj[2], cam_in_obj[1])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(alpha, 0.0, 0.0, 'sxyz'))
-    elif sym[1] == 1:
-        alpha = math.atan2(cam_in_obj[0], cam_in_obj[2])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, alpha, 0.0, 'sxyz'))
-    elif sym[2] == 1:
-        alpha = math.atan2(cam_in_obj[1], cam_in_obj[0])
-        rot_pose[:3, :3] = np.dot(rot_pose[:3, :3], tf3d.euler.euler2mat(0.0, 0.0, alpha, 'sxyz'))
-
-    rota[3:] = tf3d.quaternions.mat2quat(rot_pose[:3, :3])
-    rota[:3] = rot_pose[:3, 3]
-
-    return rota
-
-
-def get_disc_sympose(rota, sym):
-
-    rot_pose = np.eye((4), dtype=np.float32)
-    rot_pose[:3, :3] = tf3d.quaternions.quat2mat(rota[3:])
-    rot_pose[:3, 3] = rota[:3]
-    #print('rot_pose: ', rot_pose)
-
-    rot_sym = np.dot(rot_pose, sym)
-    base_dir = np.dot(sym[:3, :3], (0, 0, 1))
-    pose_dir = np.dot(rot_sym[:3, :3], (0, 0, 1))
-
-    ang2z = np.arccos(np.dot(pose_dir, base_dir))
-
-    if ang2z > math.pi * 0.5:
-        rot_pose = rot_sym
-
-    rota[3:] = tf3d.quaternions.mat2quat(rot_pose[:3, :3])
-    rota[:3] = rot_pose[:3, 3]
-
-    return rota
-
-
 def draw_axis(img, cam_R, cam_T, K):
     # unit is mm
     points = np.float32([[100, 0, 0], [0, 100, 0], [0, 0, 100], [0, 0, 0]]).reshape(-1, 3)
@@ -173,33 +128,36 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'occlusion'
-    traintestval = 'val'
+    traintestval = sys.argv[1]
+    source = sys.argv[2]
+    target = sys.argv[3]
+
+    dataset = os.path.basename(os.path.normpath(source))
+    root = os.path.join(source, dataset)
     visu = False
+    mesh_info = os.path.join(source, 'models_eval')
 
-    root = "/home/stefan/data/bop_datasets/lmo/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/occlusion_BOP_test/'
+    # make directories containing annotation
+    os.mkdir(os.path.join(target, 'annotations'))
+    os.mkdir(os.path.join(target, 'images', traintestval))
 
-    if dataset == 'linemod':
-        mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+    cp_str = os.path.join(source, 'models_eval', 'models_info.json') + ' ' + os.path.join(target, 'annotations', 'models_info.json')
+    os.popen(cp_str)
+
+    if dataset == 'lm_base':
         num_objects = 15
-    elif dataset == 'occlusion':
-        mesh_info = '/home/stefan/data/bop_datasets/lmo/models_eval/models_info.json'
+    elif dataset == 'lmo_base':
         num_objects = 15
     elif dataset == 'ycbv':
-        mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
-    elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/bop_datasets/tless/models/models_eval/models_info.json'
+    elif dataset == 'tless_base':
         num_objects = 30
-    elif dataset == 'homebrewed':
-        mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
+    elif dataset == 'hb_base':
         num_objects = 33
-    elif dataset == 'icbin':
-        mesh_info = '/home/stefan/data/bop_datasets/icbin/models_eval/models_info.json'
+    elif dataset == 'icbin_base':
         num_objects = 2
     else:
-        print('unknown dataset')
+        print('unknown dataset; cannot assign number of objects')
 
     threeD_boxes = np.ndarray((num_objects + 1, 8, 3), dtype=np.float32)
     sym_cont = np.ndarray((num_objects + 1, 3), dtype=np.float32)
