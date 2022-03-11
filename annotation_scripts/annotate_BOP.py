@@ -131,33 +131,50 @@ if __name__ == "__main__":
     traintestval = sys.argv[1]
     source = sys.argv[2]
     target = sys.argv[3]
+    visu = False
 
     dataset = os.path.basename(os.path.normpath(source))
-    root = os.path.join(source, dataset)
-    visu = False
-    mesh_info = os.path.join(source, 'models_eval')
+    root = os.path.join(source, traintestval)
+    models_repo = os.path.join(source, 'models_eval')
+    mesh_info = os.path.join(source, 'models_eval', 'models_info.json')
+
+    if traintestval == 'train_pbr':
+        traintestval = 'train'
+    else:
+        traintestval = 'val'
 
     # make directories containing annotation
-    os.mkdir(os.path.join(target, 'annotations'))
-    os.mkdir(os.path.join(target, 'images', traintestval))
+    if not os.path.exists(target):
+        os.mkdir(os.path.join(target))
+    if not os.path.exists(os.path.join(target, 'annotations')):
+        os.mkdir(os.path.join(target, 'annotations'))
+    if not os.path.exists(os.path.join(target, 'images')):
+        os.mkdir(os.path.join(target, 'images'))
+    if not os.path.exists(os.path.join(target, 'images', traintestval)):
+        os.mkdir(os.path.join(target, 'images', traintestval))
 
-    cp_str = os.path.join(source, 'models_eval', 'models_info.json') + ' ' + os.path.join(target, 'annotations', 'models_info.json')
-    os.popen(cp_str)
-
-    if dataset == 'lm_base':
+    if dataset == 'lm':
         num_objects = 15
-    elif dataset == 'lmo_base':
+    elif dataset == 'lmo':
         num_objects = 15
     elif dataset == 'ycbv':
         num_objects = 21
-    elif dataset == 'tless_base':
+    elif dataset == 'tless':
         num_objects = 30
-    elif dataset == 'hb_base':
+        mesh_info = os.path.join(source, 'models_cad', 'models_info.json')
+        models_repo = os.path.join(source, 'models_eval')
+    elif dataset == 'hb':
         num_objects = 33
-    elif dataset == 'icbin_base':
+    elif dataset == 'icbin':
         num_objects = 2
     else:
         print('unknown dataset; cannot assign number of objects')
+
+    cp_str = 'cp ' + mesh_info + ' ' + os.path.join(target, 'annotations', 'models_info.json')
+    os.popen(cp_str)
+
+    cp_mesh = 'cp -r ' + models_repo + ' ' + os.path.join(target, 'meshes')
+    os.popen(cp_mesh)
 
     threeD_boxes = np.ndarray((num_objects + 1, 8, 3), dtype=np.float32)
     sym_cont = np.ndarray((num_objects + 1, 3), dtype=np.float32)
@@ -181,24 +198,6 @@ if __name__ == "__main__":
                                    [x_minus, y_minus, z_minus],
                                    [x_minus, y_minus, z_plus]])
         threeD_boxes[int(key), :, :] = three_box_solo
-
-        if "symmetries_continuous" in value:
-            sym_cont[int(key), :] = np.asarray(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
-        elif "symmetries_discrete" in value:
-            syms = value['symmetries_discrete']
-            # Obj 27 has 3 planes of symmetry
-            if len(syms) > 1:
-                if dataset == 'ycbv' and int(key) == 16:
-                    pass
-                elif dataset == 'tless' and int(key) == 27:
-                    #sym_disc[int(key), :, :] = np.asarray(syms[0], dtype=np.float32).reshape((4, 4))
-                    #sym_disc[31, :, :] = np.asarray(syms[1], dtype=np.float32).reshape((4, 4))
-                    #sym_disc[32, :, :] = np.asarray(syms[2], dtype=np.float32).reshape((4, 4))
-                    pass
-            else:
-                sym_disc[int(key), :, :] = np.asarray(syms[0], dtype=np.float32).reshape((4, 4))
-        else:
-            pass
 
     sub = os.listdir(root)
 
@@ -304,7 +303,7 @@ if __name__ == "__main__":
             calib_K = []
             # if rnd == 1:
 
-            fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
+            fileName = os.path.join(target, 'images', traintestval, imgNam[:-4] + '_rgb.png')
             myFile = Path(fileName)
             if myFile.exists():
                 print('File exists, skip encoding, ', fileName)
@@ -317,7 +316,7 @@ if __name__ == "__main__":
                 print("storing image in : ", fileName)
 
             mask_ind = 0
-            if dataset=='tless':
+            if dataset=='tless_base':
                 mask_img = np.zeros((540, 720), dtype=np.uint8)
             else:
                 mask_img = np.zeros((480, 640), dtype=np.uint8)
@@ -461,11 +460,10 @@ if __name__ == "__main__":
                         img = cv2.line(img, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()),
                                        (colR, colG, colB), 2)
 
-                #print(camR_vis[i], camT_vis[i])
-                #draw_axis(img, camR_vis[i], camT_vis[i], K)
-                cv2.imwrite(rgb_name, img)
-
-                print('STOP')
+                if myFile.exists():
+                    pass
+                else:
+                    cv2.imwrite(rgb_name, img)
 
     for s in range(1, num_objects + 1):
         objName = str(s)
@@ -476,7 +474,7 @@ if __name__ == "__main__":
         }
         dict["categories"].append(tempC)
 
-    valAnno = target + 'annotations/instances_' + traintestval + '.json'
+    valAnno = os.path.join(target, 'annotations', 'instances_' + traintestval + '.json')
 
     with open(valAnno, 'w') as fpT:
         json.dump(dict, fpT)
