@@ -95,7 +95,7 @@ def create_generator(args):
         correspondences = np.ndarray((8, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((8), dtype=np.float32)
         
-        inv_key = 0
+        inv_key = 1
         for key, value in json.load(open(mesh_info)).items():
             if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
                 continue
