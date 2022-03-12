@@ -75,10 +75,10 @@ def load_classes(categories):
     for key, value in classes.items():
         labels_rev[value] = key
 
-    #labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
-    #labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
-    #classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
-    #labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
+    labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
+    labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
+    classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
+    labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
 
     return classes, labels, labels_inverse, labels_rev
 
@@ -134,7 +134,10 @@ class OcclusionDataset(tf.data.Dataset):
         sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
+        inv_key = 1
         for key, value in json.load(open(mesh_info)).items():
+            if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
+                continue
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -156,21 +159,22 @@ class OcclusionDataset(tf.data.Dataset):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
-            TDboxes[int(key), :, :] = three_box_solo
-            sphere_diameters[int(key)] = norm_pts
+            TDboxes[int(inv_key), :, :] = three_box_solo
+            sphere_diameters[int(inv_key)] = norm_pts
 
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
-                    sym_disc[int(key), sdx, :] = np.array(sym)
-                    sym_disc[int(key), sdx, [3, 7, 11]] *= 0.001
+                    sym_disc[int(inv_key), sdx, :] = np.array(sym)
+                    sym_disc[int(inv_key), sdx, [3, 7, 11]] *= 0.001
             #else:
                 #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
 
             if "symmetries_continuous" in value:
-                sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
-                sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
+                sym_cont[int(inv_key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
+                sym_cont[int(inv_key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
             #else:
             #    sym_cont[int(key), :, :] = np.zeros((2, 3))
+            inv_key += 1
 
         def load_image(image_index):
             """ Load an image at the image_index.

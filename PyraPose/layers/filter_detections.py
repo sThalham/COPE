@@ -231,7 +231,7 @@ def filter_detections(
     ################################################################################
     # --------------------------------------------
     # vectorized_map over classes
-    classification = tf.transpose(classification, perm=[1, 0])
+    #classification = tf.transpose(classification, perm=[1, 0])
     #boxes3D = tf.transpose(boxes3D, perm=[1, 0, 2])
     #poses = tf.transpose(poses, perm=[1, 0, 2])
     #confidence = tf.transpose(confidence, perm=[1, 0])

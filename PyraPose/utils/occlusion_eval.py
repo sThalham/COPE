@@ -166,6 +166,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     times_count = np.zeros((40), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(15, 3))
+    inv_keys = [1, 5, 6, 8, 9, 10, 11, 12]
 
     eval_img = []
     for index, sample in enumerate(generator):
@@ -287,6 +288,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         boxes_raw, labels_raw, poses_raw, scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
+        '''
         #################################
         # viz error cases
         labels_cls = np.argmax(labels_raw[0, :, :], axis=1)
@@ -458,6 +460,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
         # end of error case viz
         ########################################
+        '''
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
@@ -515,19 +518,19 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             
             if true_cls == 1:
                 model_vsd = mv1
-            elif true_cls == 5:
+            elif true_cls == 2: #5:
                 model_vsd = mv5
-            elif true_cls == 6:
+            elif true_cls == 3: #6:
                 model_vsd = mv6
-            elif true_cls == 8:
+            elif true_cls == 4: #8:
                 model_vsd = mv8
-            elif true_cls == 9:
+            elif true_cls == 5: #9:
                 model_vsd = mv9
-            elif true_cls == 10:
+            elif true_cls == 6: #10:
                 model_vsd = mv10
-            elif true_cls == 11:
+            elif true_cls == 7: #11:
                 model_vsd = mv11
-            elif true_cls == 12:
+            elif true_cls == 8: #12:
                 model_vsd = mv12
 
             add_errors = []
