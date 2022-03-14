@@ -90,15 +90,15 @@ def create_generator(args):
         from ..preprocessing.data_occlusion import OcclusionDataset
 
         dataset = OcclusionDataset(args.occlusion_path, 'val', batch_size=1)
-        num_classes = 8
+        num_classes = 15
         mesh_info = os.path.join(args.occlusion_path, 'annotations', 'models_info' + '.json')
-        correspondences = np.ndarray((8, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((8), dtype=np.float32)
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         
         inv_key = 1
         for key, value in json.load(open(mesh_info)).items():
-            if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
-                continue
+            #if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
+            #    continue
 
             x_minus = value['min_x']
             y_minus = value['min_y']
@@ -121,8 +121,8 @@ def create_generator(args):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
-            correspondences[int(inv_key)-1, :, :] = three_box_solo
-            sphere_diameters[int(inv_key)-1] = norm_pts
+            correspondences[int(key)-1, :, :] = three_box_solo
+            sphere_diameters[int(key)-1] = norm_pts
             inv_key += 1
         path = os.path.join(args.occlusion_path, 'annotations', 'instances_val.json')
         with open(path, 'r') as js:

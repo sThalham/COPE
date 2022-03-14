@@ -122,8 +122,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
     inv_key = 1
     for key, value in json.load(open(mesh_info)).items():
-        if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
-            continue
+        #if int(key) not in [1, 5, 6, 8, 9, 10, 11, 12]:
+        #    continue
         fac = 0.001
         x_minus = value['min_x'] * fac
         y_minus = value['min_y'] * fac
@@ -148,8 +148,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                                   [x_minus, y_plus, z_minus],
                                   [x_minus, y_minus, z_minus],
                                   [x_minus, y_minus, z_plus]])
-        threeD_boxes[int(inv_key), :, :] = three_box_solo
-        model_dia[int(inv_key)] = value['diameter'] * fac
+        threeD_boxes[int(key), :, :] = three_box_solo
+        model_dia[int(key)] = value['diameter'] * fac
         inv_key += 1
 
     pc1, mv1, md1 = load_pcd(data_path, '000001')
@@ -289,7 +289,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         t_img = 0
         n_img = 0
 
-        boxes_raw, labels_raw, poses_raw, scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         '''
@@ -470,6 +470,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         poses = poses[labels != -1]
         labels = labels[labels != -1]
 
+        print('gt_labels: ', gt_labels)
+        print('labels: ', labels)
+
         for odx, inv_cls in enumerate(labels):
 
             true_cls = inv_cls + 1
@@ -522,26 +525,25 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             
             if true_cls == 1:
                 model_vsd = mv1
-            elif true_cls == 2: #5:
+            elif true_cls == 5:
                 model_vsd = mv5
-            elif true_cls == 3: #6:
+            elif true_cls == 6:
                 model_vsd = mv6
-            elif true_cls == 4: #8:
+            elif true_cls == 8:
                 model_vsd = mv8
-            elif true_cls == 5: #9:
+            elif true_cls == 9:
                 model_vsd = mv9
-            elif true_cls == 6: #10:
+            elif true_cls == 10:
                 model_vsd = mv10
-            elif true_cls == 7: #11:
+            elif true_cls == 11:
                 model_vsd = mv11
-            elif true_cls == 8: #12:
+            elif true_cls == 12:
                 model_vsd = mv12
 
             add_errors = []
             iou_ovlaps = []
 
-            #if true_cls == 10 or true_cls == 11:
-            if true_cls == 6 or true_cls == 7:
+            if true_cls == 10 or true_cls == 11:
                 err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
             else:
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -612,7 +614,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
         if index > 0:
             times[n_img] += t_img
@@ -662,7 +664,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         print('-------------------------------------')
 
     filter_indices = [1, 5, 6, 8, 9, 10, 11, 12]
-    filter_indices = [1, 2, 3, 4, 5, 6, 7, 8]
+    #filter_indices = [1, 2, 3, 4, 5, 6, 7, 8]
     recall_all = np.sum(np.take(recall, filter_indices, axis=0)) / 8.0
     precision_all = np.sum(np.take(precision, filter_indices, axis=0)) / 8.0
     detections_all = np.sum(np.take(detections, filter_indices, axis=0)) / 8.0
