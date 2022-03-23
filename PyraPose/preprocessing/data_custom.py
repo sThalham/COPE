@@ -55,7 +55,215 @@ def _isArrayLike(obj):
     return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
 
 
+def load_classes(categories):
+    """ Loads the class to label mapping (and inverse) for COCO.
+    """
+    if _isArrayLike(categories):
+        categories = [categories[id] for id in categories]
+    elif type(categories) == int:
+        categories = [categories[categories]]
+    categories.sort(key=lambda x: x['id'])
+    classes = {}
+    labels = {}
+    labels_inverse = {}
+    for c in categories:
+        labels[len(classes)] = c['id']
+        labels_inverse[c['id']] = len(classes)
+        classes[c['name']] = len(classes)
+    # also load the reverse (label -> name)
+    labels_rev = {}
+    for key, value in classes.items():
+        labels_rev[value] = key
+
+    return classes, labels, labels_inverse, labels_rev
+
+
 class CustomDataset(tf.data.Dataset):
+
+    def _sample(data_dir, set_name, batch_size, image_min_side=480, image_max_side=640):
+
+        def _isArrayLike(obj):
+            return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
+
+        # Parameters
+        data_dir = data_dir.decode("utf-8")
+        set_name = set_name.decode("utf-8")
+        batch_size = batch_size
+        path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
+        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
+
+        with open(path, 'r') as js:
+            data = json.load(js)
+
+        # load source w/ annotations
+        image_ann = data["images"]
+        anno_ann = data["annotations"]
+        cat_ann = data["categories"]
+        cats = {}
+        image_ids = []
+        image_paths = []
+        imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
+
+        for img in image_ann:
+            if "fx" in img:
+                fx = img["fx"]
+                fy = img["fy"]
+                cx = img["cx"]
+                cy = img["cy"]
+            image_ids.append(img['id'])  # to correlate indexing to self.image_ann
+            image_paths.append(os.path.join(data_dir, 'images', set_name, img['file_name']))
+
+        for cat in cat_ann:
+            cats[cat['id']] = cat
+
+        for ann in anno_ann:
+            imgToAnns[ann['image_id']].append(ann)
+            catToImgs[ann['category_id']].append(ann['image_id'])
+
+        classes, labels, labels_inverse, labels_rev = load_classes(cats)
+        num_classes = len(classes)
+
+        # load 3D boxes
+        TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes + 1), dtype=np.float32)
+        sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
+
+        for key, value in json.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            TDboxes[int(key), :, :] = three_box_solo
+            #sphere_diameters[int(key)] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
+
+            if 'symmetries_discrete' in value:
+                for sdx, sym in enumerate(value['symmetries_discrete']):
+                    sym_disc[int(key), sdx, :] = np.array(sym)
+                    sym_disc[int(key), sdx, [3, 7, 11]] *= 0.001
+            #else:
+                #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
+
+            if "symmetries_continuous" in value:
+                sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
+                sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
+            #else:
+            #    sym_cont[int(key), :, :] = np.zeros((2, 3))
+
+        def load_image(image_index):
+            """ Load an image at the image_index.
+            """
+            path = image_paths[image_index]
+            path = path[:-4] + '_rgb' + path[-4:]
+
+            return read_image_bgr(path)
+
+        def load_annotations(image_index):
+            """ Load annotations for an image_index.
+                CHECK DONE HERE: Annotations + images correct
+            """
+            ids = image_ids[image_index]
+
+            image_num = int(str(ids))#[1:])
+
+            # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
+            # anns = list(itertools.chain.from_iterable(lists))
+            anns = imgToAnns[image_ids[image_index]]
+
+            path = image_paths[image_index]
+            mask_path = path[:-4] + '_mask.png'  # + path[-4:]
+            mask = cv2.imread(mask_path, -1)
+
+            #annotations = {'mask': mask, 'labels': np.empty((0,)),
+            #               'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
+            #               'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
+            annotations = {'image_num': np.array([image_num]),
+                            'labels': np.empty((0,)),
+                           'bboxes': np.empty((0, 4)),
+                           'poses': np.empty((0, 7)),
+                           'cam_params': np.empty((0, 4))}
+
+            for idx, a in enumerate(anns):
+                annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
+                                                       axis=0)
+                annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
+                    a['bbox'][0],
+                    a['bbox'][1],
+                    a['bbox'][0] + a['bbox'][2],
+                    a['bbox'][1] + a['bbox'][3],
+                ]]], axis=0)
+                if a['pose'][2] < 10.0:  # needed for adjusting pose annotations
+                    a['pose'][0] = a['pose'][0] * 1000.0
+                    a['pose'][1] = a['pose'][1] * 1000.0
+                    a['pose'][2] = a['pose'][2] * 1000.0
+                annotations['poses'] = np.concatenate([annotations['poses'], [[
+                    a['pose'][0],
+                    a['pose'][1],
+                    a['pose'][2],
+                    a['pose'][3],
+                    a['pose'][4],
+                    a['pose'][5],
+                    a['pose'][6],
+                ]]], axis=0)
+                #annotations['mask_ids'] = np.concatenate([annotations['mask_ids'], [
+                #    a['mask_id'],
+                #]], axis=0)
+                #objID = a['category_id']
+                #threeDbox = TDboxes[objID, :, :]
+                #annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
+                #annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
+                #                                          axis=0)
+                annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                ]]], axis=0)
+                #annotations['sym_dis'] = np.concatenate(
+                #    [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)
+                #annotations['sym_con'] = np.concatenate(
+                #    [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
+
+            return annotations
+
+        for image_index, image_path in enumerate(image_paths):
+            x_t = load_image(image_index)
+            y_t = load_annotations(image_index)
+
+            x_t, scale = resize_image(x_t, min_side=image_min_side, max_side=image_max_side)
+
+            y_t['bboxes'] *= scale
+            y_t['cam_params'] *= scale
+
+            x_t = preprocess_image(x_t)
+            x_t = keras.backend.cast_to_floatx(x_t)
+
+            anno = []
+            for adx, item in enumerate(y_t.items()):
+                anno.append(item[1])
+
+            img_path = image_paths[image_index]
+            scene_id = np.array([int(img_path[-15:-9])])
+
+            yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
@@ -371,6 +579,22 @@ class CustomDataset(tf.data.Dataset):
                 yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
 
     def __new__(self, data_dir, set_name, batch_size):
+
+        if set_name=='val':
+            return tf.data.Dataset.from_generator(self._sample,
+                                              output_signature=(
+                                                  tf.TensorSpec(shape=(1), dtype=tf.int64),
+                                                  tf.TensorSpec(shape=(1), dtype=tf.int64),
+                                                  tf.TensorSpec(shape=(480, 640, 3), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, ), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 7), dtype=tf.float32),
+                                                  tf.TensorSpec(shape=(None, 4), dtype=tf.float32)),
+                                                  #{"labels": tf.TensorSpec(shape=(None,), dtype=tf.float64, name="labels")}),
+                                                  # "bboxes": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="bboxes"),
+                                                  # "poses": tf.TensorSpec(shape=(None, 7), dtype=tf.float64, name="poses"),
+                                                  # "cam_params": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="cam_params")}),
+                                              args=(data_dir, set_name, batch_size))
 
         return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(

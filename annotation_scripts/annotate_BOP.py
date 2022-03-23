@@ -174,7 +174,7 @@ def create_BB(rgb):
 if __name__ == "__main__":
 
     dataset = 'canister'
-    traintestval = 'train'
+    traintestval = 'val'
     visu = False
 
     root = "/home/stefan/data/datasets/canister/train"  # path to train samples, depth + rgb

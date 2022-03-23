@@ -394,16 +394,16 @@ def inference_model(
     #tf_diameter = tf.convert_to_tensor(220.0)
     # print('detections 3: ', detections[3])
     # rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
-    tf_diameter = tf.convert_to_tensor(300.0)
-    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, tf.newaxis],
-                                   [tf.shape(regression)[0], tf.shape(regression)[1], 15])
-    rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-    rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-
-    #tf_diameter = tf.convert_to_tensor(object_diameters)
-    #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
+    #tf_diameter = tf.convert_to_tensor(300.0)
+    #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, tf.newaxis],
+    #                               [tf.shape(regression)[0], tf.shape(regression)[1], 15])
     #rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
     #rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+
+    tf_diameter = tf.convert_to_tensor(object_diameters)
+    rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
+    rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
     poses = tf.concat([translations, rotations], axis=3)
     poses = layers.DenormPoses(name='poses_world')(poses)
