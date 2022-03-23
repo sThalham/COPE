@@ -477,23 +477,25 @@ def create_generators(args, preprocess_image):
         from ..preprocessing.data_custom import CustomDataset
 
         dataset = CustomDataset(args.custom_path, 'train', batch_size=args.batch_size)
-        num_classes = 20
-        train_samples = 10300
+        num_classes = 1
+        #train_samples = 624
+        train_samples = 8000
         dataset = tf.data.Dataset.range(args.workers).interleave(
             lambda _: dataset,
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
             num_parallel_calls=args.workers
         )
-        mesh_info = os.path.join(args.custom_path, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(args.custom_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
             x_plus = value['size_x'] + x_minus
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
+            norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -503,7 +505,8 @@ def create_generators(args, preprocess_image):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             correspondences[int(key)-1, :, :] = three_box_solo
-            sphere_diameters[int(key)-1] = value['diameter']
+            #sphere_diameters[int(key)-1] = value['diameter']
+            sphere_diameters[int(key) - 1] = norm_pts
         path = os.path.join(args.custom_path, 'annotations', 'instances_train.json')
         with open(path, 'r') as js:
             data = json.load(js)
@@ -583,8 +586,8 @@ def main(args=None):
 
     #disable_eager_execution()
 
-    #backbone = models.backbone('resnet50')
-    backbone = models.backbone('resnet101')
+    backbone = models.backbone('resnet50')
+    #backbone = models.backbone('resnet101')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
     #backbone = models.backbone('xception')

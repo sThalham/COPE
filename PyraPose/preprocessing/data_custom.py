@@ -57,8 +57,8 @@ def _isArrayLike(obj):
 
 class CustomDataset(tf.data.Dataset):
 
-    def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=1080,
-                         image_max_side=1920):
+    def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
+                         image_max_side=640):
 
         def _isArrayLike(obj):
             return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
@@ -90,7 +90,7 @@ class CustomDataset(tf.data.Dataset):
         set_name = set_name.decode("utf-8")
         batch_size = batch_size
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
-        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.yml')
+        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
 
         batch_size = int(batch_size)
         image_min_side = image_min_side
@@ -130,18 +130,19 @@ class CustomDataset(tf.data.Dataset):
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
 
         # load 3D boxes
-        TDboxes = np.ndarray((22, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((22), dtype=np.float32)
-        sym_cont = np.zeros((22, 2, 3), dtype=np.float32)
-        sym_disc = np.zeros((22, 8, 16), dtype=np.float32)
+        TDboxes = np.ndarray((2, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((2), dtype=np.float32)
+        sym_cont = np.zeros((2, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((2, 8, 16), dtype=np.float32)
 
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
             x_plus = value['size_x'] + x_minus
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
+            norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -151,7 +152,8 @@ class CustomDataset(tf.data.Dataset):
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
             TDboxes[int(key), :, :] = three_box_solo
-            sphere_diameters[int(key)] = value['diameter']
+            #sphere_diameters[int(key)] = value['diameter']
+            sphere_diameters[int(key)] = norm_pts
 
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
@@ -366,19 +368,17 @@ class CustomDataset(tf.data.Dataset):
                 #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
                 #target_batch = tf.tuple(target_batch)
 
-                #yield image_source_batch, target_batch
-                yield image_source_batch, (
-                target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
+                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
 
     def __new__(self, data_dir, set_name, batch_size):
 
         return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(
                                               tf.TensorSpec(shape=(batch_size, None, None, 3), dtype=tf.float32),
-                                              (tf.TensorSpec(shape=(batch_size, 42600, 20, 8, 17), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 42600, 20 + 1), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 42600, 20, 8, 4), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 42600, 20, 8, 7), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 42600, 20), dtype=tf.float32))),
+                                              (tf.TensorSpec(shape=(batch_size, 6300, 1, 8, 17), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 1 + 1), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 1, 4), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 1, 8, 7), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 1), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 

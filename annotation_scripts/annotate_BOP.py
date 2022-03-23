@@ -173,12 +173,12 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'occlusion'
-    traintestval = 'val'
+    dataset = 'canister'
+    traintestval = 'train'
     visu = False
 
-    root = "/home/stefan/data/bop_datasets/lmo/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/occlusion_BOP_test/'
+    root = "/home/stefan/data/datasets/canister/train"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/canister_real/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -198,6 +198,9 @@ if __name__ == "__main__":
     elif dataset == 'icbin':
         mesh_info = '/home/stefan/data/bop_datasets/icbin/models_eval/models_info.json'
         num_objects = 2
+    elif dataset == 'canister':
+        mesh_info = '/home/stefan/data/datasets/canister/models/models_info.json'
+        num_objects = 1
     else:
         print('unknown dataset')
 
@@ -346,6 +349,18 @@ if __name__ == "__main__":
             calib_K = []
             # if rnd == 1:
 
+            if dataset == 'canister':
+                rgbImg = rgbImg[:, 276:-276, :]
+                rgbImg = cv2.resize(rgbImg, (640, 480))
+                fxca = fxca * (640.0 / 1656.0)#(640.0 / 2208.0)
+                fyca = fyca * (480.0 / 1242.0)
+                cxca = (cxca-276) * (640.0 / 1656.0)
+                cyca = cyca * (480.0 / 1242.0)
+
+                if int(imgNam[-7:-4]) in [108, 238, 317, 518]:
+                    print(imgNam[-7:-4])
+                    continue
+
             fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
             if myFile.exists():
@@ -359,7 +374,7 @@ if __name__ == "__main__":
                 print("storing image in : ", fileName)
 
             mask_ind = 0
-            if dataset=='tless':
+            if dataset == 'tless':
                 mask_img = np.zeros((540, 720), dtype=np.uint8)
             else:
                 mask_img = np.zeros((480, 640), dtype=np.uint8)
@@ -368,8 +383,14 @@ if __name__ == "__main__":
             # bbsca = 720.0 / 640.0
             for i in range(len(gtImg)):
                 mask_name = '000000'[:-len(samp)] + samp + '_000000'[:-len(str(mask_ind))] + str(mask_ind) + '.png'
-                mask_path = os.path.join(visPath, mask_name)
+                if dataset == 'canister':
+                    mask_path = os.path.join(masPath, mask_name)
+                else:
+                    mask_path = os.path.join(visPath, mask_name)
                 obj_mask = cv2.imread(mask_path)[:, :, 0]
+                if dataset == 'canister':
+                    obj_mask = obj_mask[:, 276:-276]
+                    obj_mask = cv2.resize(obj_mask, (640, 480))
                 mask_id = mask_ind + 1
                 mask_img = np.where(obj_mask > 0, mask_id, mask_img)
                 mask_ind = mask_ind + 1
@@ -379,6 +400,8 @@ if __name__ == "__main__":
                 bbox_vis.append(obj_bb)
 
                 obj_id = gtPose[i]['obj_id']
+                if dataset == 'canister':
+                    obj_id += 1
 
                 if dataset == 'linemod':
                     if obj_id == 7 or obj_id == 3:
@@ -393,6 +416,12 @@ if __name__ == "__main__":
                 rot = tf3d.quaternions.mat2quat(R.reshape(3, 3))
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = np.asarray(T, dtype=np.float32)
+                if dataset == 'canister':
+                    tra *= 1000.0
+                    offset = np.array([-1.396, 2.799, 54.302])
+                    offset = R.reshape(3, 3).dot(offset.T)
+                    tra = tra + offset
+
                 pose = [tra[0], tra[1], tra[2], rot[0], rot[1], rot[2], rot[3]]
 
                 visib_fract = float(curlist["visib_fract"])
