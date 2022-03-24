@@ -2,12 +2,10 @@
 from __future__ import division
 import numpy as np
 import cv2
+import math
+import transforms3d as tf3d
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-#import pyfastnoisesimd as fns
-import random
-from scipy import ndimage
-import transforms3d as tf3d
 
 from .transform import change_transform_origin
 
@@ -195,12 +193,25 @@ def adjust_pose_annotation(matrix, pose, cpara):
     #########
     # adjustment of rotation based on viewpoint change missing.... WTF
     # everything's wrong
-    #trans_aug = np.array([pose[0], pose[1], pose[2]])
-    #R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    #R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    #R_rel = np.matmul(np.linalg.inv(R_2naug[:3, :3]), R_2aug[:3, :3])
-    #R_aug = np.matmul(tf3d.quaternions.quat2mat(pose[3:7]), R_rel)
-    #pose[3:] = tf3d.quaternions.mat2quat(R_aug)
+    trans_aug = np.array([pose[0], pose[1], pose[2]])
+    R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))
+    R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))
+    R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
+    R_aug = tf3d.quaternions.quat2mat(pose[3:7]) @ R_rel
+    pose[3:] = tf3d.quaternions.mat2quat(R_aug)
+
+    #naug_ray = trans_noaug.copy() / np.linalg.norm(trans_noaug)
+    #aug_ray = trans_aug.copy() / np.linalg.norm(trans_aug)
+    #angle = math.acos(aug_ray.dot(naug_ray))
+
+    # Rotate back by that amount
+    #if angle > 0:
+    #    allo_pose = np.zeros((7,), dtype=pose.dtype)
+    #    allo_pose[:3] = trans_aug
+    #    rot_q = tf3d.quaternions.axangle2quat(np.cross(naug_ray, aug_ray), -angle)
+    #    allo_pose[3:] = tf3d.quaternions.qmult(rot_q, pose[3:])
+    #else:
+    #    allo_pose = pose.copy()
 
     return pose
 
@@ -219,12 +230,12 @@ def lookAt(eye, target, up):
 
     tx = np.dot(s, eye.T)
     ty = np.dot(u, eye.T)
-    tz = -np.dot(f, eye.T)
+    tz = np.dot(f, eye.T)
 
     m = np.zeros((4, 4), dtype=np.float32)
-    m[0, :3] = s
-    m[1, :3] = u
-    m[2, :3] = f
+    m[:3, 0] = u
+    m[:3, 1] = s
+    m[:3, 2] = f
     m[:, 3] = [tx, ty, tz, 1]
 
     #m[0, :-1] = s
