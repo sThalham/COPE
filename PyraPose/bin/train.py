@@ -19,7 +19,6 @@ limitations under the License.
 import argparse
 import os
 import sys
-import yaml
 import numpy as np
 
 import tensorflow.keras as keras

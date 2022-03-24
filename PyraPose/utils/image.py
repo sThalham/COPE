@@ -194,10 +194,10 @@ def adjust_pose_annotation(matrix, pose, cpara):
     # adjustment of rotation based on viewpoint change missing.... WTF
     # everything's wrong
     trans_aug = np.array([pose[0], pose[1], pose[2]])
-    R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))
-    R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))
-    R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
-    R_aug = tf3d.quaternions.quat2mat(pose[3:7]) @ R_rel
+    R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+    R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+    R_rel = R_2naug[:3, :3] @ np.linalg.inv(R_2aug[:3, :3])
+    R_aug = tf3d.quaternions.quat2mat(pose[3:7]) @ np.linalg.inv(R_rel)
     pose[3:] = tf3d.quaternions.mat2quat(R_aug)
 
     #naug_ray = trans_noaug.copy() / np.linalg.norm(trans_noaug)
@@ -233,8 +233,8 @@ def lookAt(eye, target, up):
     tz = np.dot(f, eye.T)
 
     m = np.zeros((4, 4), dtype=np.float32)
-    m[:3, 0] = u
-    m[:3, 1] = s
+    m[:3, 0] = s
+    m[:3, 1] = u
     m[:3, 2] = f
     m[:, 3] = [tx, ty, tz, 1]
 
@@ -243,6 +243,7 @@ def lookAt(eye, target, up):
     #m[2, :-1] = -f
     #m[-1, -1] = 1.0
 
+    #return np.linalg.inv(m)
     return m
 
 

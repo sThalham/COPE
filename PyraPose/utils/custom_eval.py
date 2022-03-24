@@ -167,9 +167,37 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
     colors_viz = np.random.randint(255, size=(15, 3))
 
+    debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
+    debug_set = os.listdir(debug_root)
+
     eval_img = []
     for index, sample in enumerate(generator):
 
+        print(debug_set[index])
+        debug_path = os.path.join(debug_root, debug_set[index])
+        image = cv2.imread(debug_path)
+        image = cv2.flip(image, 0)
+
+        fac = 1.5
+        image = image[:, 160:-160, :]
+        image = cv2.resize(image, (640, 480))
+        fxkin = 909.926 / 1.5
+        fykin = 907.91687 / 1.5
+        cxkin = (643.5625 - 160) / 1.5
+        cykin = 349.01718 / 1.5
+
+        image = image.astype(np.float32)
+        image[..., 0] -= 103.939
+        image[..., 1] -= 116.779
+        image[..., 2] -= 123.68
+
+        image_raw = copy.deepcopy(image)
+        image_raw[..., 0] += 103.939
+        image_raw[..., 1] += 116.779
+        image_raw[..., 2] += 123.68
+        image_raw = image_raw.astype(np.uint8)
+
+        '''
         scene_id = sample[0].numpy()
         image_id = sample[1].numpy()
         image = sample[2]
@@ -243,6 +271,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
                                  colGT,
                                  2)
 
+        '''
         # run network
         start_t = time.time()
         t_error = 0
@@ -260,13 +289,14 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
-            if inv_cls not in gt_labels:
-                continue
+            #if inv_cls not in gt_labels:
+            #    continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
+            '''
             eval_line = []
             sc_id = int(scene_id[0])
             eval_line.append(sc_id)
@@ -307,20 +337,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
             if true_cls == 1:
                 model_vsd = mv1
-            elif true_cls == 5:
-                model_vsd = mv5
-            elif true_cls == 6:
-                model_vsd = mv6
-            elif true_cls == 8:
-                model_vsd = mv8
-            elif true_cls == 9:
-                model_vsd = mv9
-            elif true_cls == 10:
-                model_vsd = mv10
-            elif true_cls == 11:
-                model_vsd = mv11
-            elif true_cls == 12:
-                model_vsd = mv12
 
             add_errors = []
             iou_ovlaps = []
@@ -352,7 +368,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             #    gt_boxes[idx_add, :] = -1
             # else:
             #    falseDets[true_cls] += 1
-
+            '''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -363,8 +379,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (0, 39, 236)
+            #if err_add > model_dia[true_cls] * 0.1:
+            #    colEst = (0, 39, 236)
 
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -379,6 +395,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
+        '''
             if true_cls == 1:
                 model_vsd = md1
 
@@ -397,8 +414,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
-        '''
+            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
 
         boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
