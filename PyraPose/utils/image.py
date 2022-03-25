@@ -196,8 +196,8 @@ def adjust_pose_annotation(matrix, pose, cpara):
     trans_aug = np.array([pose[0], pose[1], pose[2]])
     R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
     R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    R_rel = R_2naug[:3, :3] @ np.linalg.inv(R_2aug[:3, :3])
-    R_aug = tf3d.quaternions.quat2mat(pose[3:7]) @ np.linalg.inv(R_rel)
+    R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
+    R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
     pose[3:] = tf3d.quaternions.mat2quat(R_aug)
 
     #naug_ray = trans_noaug.copy() / np.linalg.norm(trans_noaug)
@@ -216,32 +216,21 @@ def adjust_pose_annotation(matrix, pose, cpara):
     return pose
 
 
-def lookAt(eye, target, up):
-    # eye is from
-    # target is to
-    # expects numpy arrays
-    f = eye - target
-    f = f/np.linalg.norm(f)
+def lookAt(obj, origin, up):
 
-    s = np.cross(up, f)
-    s = s/np.linalg.norm(s)
-    u = np.cross(f, s)
-    u = u/np.linalg.norm(u)
+    a3 = obj - origin
+    a3 = a3/np.linalg.norm(a3)
 
-    tx = np.dot(s, eye.T)
-    ty = np.dot(u, eye.T)
-    tz = np.dot(f, eye.T)
+    a1 = np.cross(up, a3)
+    a1 = a1/np.linalg.norm(a1)
+    a2 = np.cross(a3, a1)
+    a2 = a2/np.linalg.norm(a1)
 
     m = np.zeros((4, 4), dtype=np.float32)
-    m[:3, 0] = s
-    m[:3, 1] = u
-    m[:3, 2] = f
-    m[:, 3] = [tx, ty, tz, 1]
-
-    #m[0, :-1] = s
-    #m[1, :-1] = u
-    #m[2, :-1] = -f
-    #m[-1, -1] = 1.0
+    m[:3, 0] = a1
+    m[:3, 1] = a2
+    m[:3, 2] = a3
+    m[:, 3] = [obj[0], obj[1], obj[2], 1]
 
     #return np.linalg.inv(m)
     return m

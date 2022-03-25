@@ -377,10 +377,10 @@ class CustomDataset(tf.data.Dataset):
             #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.3, -0.3),
-            max_translation=(0.3, 0.3),
-            min_scaling=(0.9, 0.9),
-            max_scaling=(1.1, 1.1),
+            min_translation=(-0.2, -0.2),
+            max_translation=(0.2, 0.2),
+            min_scaling=(0.8, 0.8),
+            max_scaling=(1.2, 1.2),
         )
 
         def load_image(image_index):
