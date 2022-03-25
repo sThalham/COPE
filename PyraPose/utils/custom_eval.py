@@ -167,13 +167,13 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
     colors_viz = np.random.randint(255, size=(15, 3))
 
-    debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
-    debug_set = os.listdir(debug_root)
+    #debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
+    #debug_set = os.listdir(debug_root)
 
     eval_img = []
     for index, sample in enumerate(generator):
 
-        print(debug_set[index])
+        '''
         debug_path = os.path.join(debug_root, debug_set[index])
         image = cv2.imread(debug_path)
         image = cv2.flip(image, 0)
@@ -271,7 +271,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
                                  colGT,
                                  2)
 
-        '''
         # run network
         start_t = time.time()
         t_error = 0
@@ -296,7 +295,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
-            '''
             eval_line = []
             sc_id = int(scene_id[0])
             eval_line.append(sc_id)
@@ -368,7 +366,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             #    gt_boxes[idx_add, :] = -1
             # else:
             #    falseDets[true_cls] += 1
-            '''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -379,8 +376,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
-            #if err_add > model_dia[true_cls] * 0.1:
-            #    colEst = (0, 39, 236)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (0, 39, 236)
 
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)

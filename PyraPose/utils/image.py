@@ -189,6 +189,8 @@ def adjust_pose_annotation(matrix, pose, cpara):
     pose[2] = pose[2] / matrix[0, 0]
     pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
     pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
+    #pose[0] = pose[0]
+    #pose[2] = pose_temp
 
     #########
     # adjustment of rotation based on viewpoint change missing.... WTF
@@ -199,6 +201,24 @@ def adjust_pose_annotation(matrix, pose, cpara):
     R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
     R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
     pose[3:] = tf3d.quaternions.mat2quat(R_aug)
+
+    #trans_aug = np.array([pose[0], pose[1], pose[2]])
+    #trans_aug[2] = pose[2] / matrix[0, 0]
+    #trans_aug[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * trans_aug[2]) / cpara[0]
+    #trans_aug[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * trans_aug[2]) / cpara[1]
+
+    #R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+    #R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+
+    #print('trans_pre: ', pose[:3])
+    #T_aug = np.eye(4)
+    #T_aug[:3, :3] = tf3d.quaternions.quat2mat(pose[3:7])
+    #T_aug[:3, 2] = pose[:3]
+    #T_rel = np.linalg.inv(R_2naug) @ R_2aug
+    #T_aug = T_aug @ T_rel
+    #pose[:3] = T_aug[:3, 2]
+    #pose[3:] = tf3d.quaternions.mat2quat(T_aug[:3, :3])
+    #print('trans_pose: ', pose[:3])
 
     #naug_ray = trans_noaug.copy() / np.linalg.norm(trans_noaug)
     #aug_ray = trans_aug.copy() / np.linalg.norm(trans_aug)

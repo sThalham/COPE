@@ -367,14 +367,10 @@ class CustomDataset(tf.data.Dataset):
                 for sdx, sym in enumerate(value['symmetries_discrete']):
                     sym_disc[int(key), sdx, :] = np.array(sym)
                     sym_disc[int(key), sdx, [3, 7, 11]] *= 0.001
-            #else:
-                #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
 
             if "symmetries_continuous" in value:
                 sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
-            #else:
-            #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
             min_translation=(-0.2, -0.2),
