@@ -184,15 +184,23 @@ def augment_image(image, sequential):
 
 def adjust_pose_annotation(matrix, pose, cpara):
 
+    #print('matrix: ', matrix)
+
     trans_noaug = np.array([pose[0], pose[1], pose[2]])
 
     #x = (pix * z) / f
+    scale = matrix[0, 0]
 
-    pose[2] = pose[2] / matrix[0, 0]
+    #pose[2] = pose[2] / matrix[0, 0]
     #pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
     #pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
-    #pose[0] = pose[0] + (((cpara[2] * matrix[0, 0]) - cpara[2]) * pose[2]) / cpara[0]
-    #pose[1] = pose[1] + (((cpara[3] * matrix[0, 0]) - cpara[2]) * pose[2]) / cpara[1]
+    pose[2] = pose[2] / scale
+    #scaling changes center
+    cpara[2] = ((cpara[2] - 320) * scale) + 320
+    cpara[3] = ((cpara[3] - 240) * scale) + 240
+    # translation
+    pose[0] = pose[0] + (matrix[0, 2] * pose[2]) / cpara[0]
+    pose[1] = pose[1] + (matrix[1, 2] * pose[2]) / cpara[1]
 
     #pose[0] = pose[0] + ((cpara[2] * (matrix[0, 0] - 1.0)) * pose[2]) / cpara[0]
     #pose[1] = pose[1] + ((cpara[3] * (matrix[0, 0] - 1.0)) * pose[2]) / cpara[1]
@@ -252,7 +260,7 @@ def adjust_pose_annotation(matrix, pose, cpara):
     #else:
     #    allo_pose = pose.copy()
 
-    return pose
+    return pose#, cpara
 
 
 def lookAt(obj, origin, up):
