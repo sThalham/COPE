@@ -373,10 +373,10 @@ class CustomDataset(tf.data.Dataset):
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.2, -0.2),
-            max_translation=(0.2, 0.2),
-            min_scaling=(1.0, 1.0),
-            max_scaling=(1.0, 1.0),
+            min_translation=(-0.05, -0.05),
+            max_translation=(0.05, 0.05),
+            min_scaling=(0.95, 0.95),
+            max_scaling=(1.05, 1.05),
         )
 
         def load_image(image_index):

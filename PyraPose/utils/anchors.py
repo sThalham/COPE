@@ -448,6 +448,7 @@ def anchor_targets_bbox(
                 #box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                 #                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 #box3D = np.reshape(box3D, (16))
+
                 '''
                 tDbox = box3D.astype(np.uint16)
                 colGT = (0, 205, 0)
