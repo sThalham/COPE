@@ -545,11 +545,11 @@ class CustomDataset(tf.data.Dataset):
             batches = np.arange(len(groups))
 
             for btx in range(len(batches)):
-                #x_s = [load_image(image_index) for image_index in groups[btx]]
-                #y_s = [load_annotations(image_index) for image_index in groups[btx]]
+                x_s = [load_image(image_index) for image_index in groups[btx]]
+                y_s = [load_annotations(image_index) for image_index in groups[btx]]
 
-                x_s = [load_image(1)]
-                y_s = [load_annotations(1)]
+                #x_s = [load_image(1)]
+                #y_s = [load_annotations(1)]
 
                 assert (len(x_s) == len(y_s))
 
