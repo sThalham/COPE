@@ -373,8 +373,8 @@ class CustomDataset(tf.data.Dataset):
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.25, -0.25),
-            max_translation=(0.25, 0.25),
+            min_translation=(-0.2, -0.2),
+            max_translation=(0.2, 0.2),
             min_scaling=(1.0, 1.0),
             max_scaling=(1.0, 1.0),
         )
@@ -545,8 +545,11 @@ class CustomDataset(tf.data.Dataset):
             batches = np.arange(len(groups))
 
             for btx in range(len(batches)):
-                x_s = [load_image(image_index) for image_index in groups[btx]]
-                y_s = [load_annotations(image_index) for image_index in groups[btx]]
+                #x_s = [load_image(image_index) for image_index in groups[btx]]
+                #y_s = [load_annotations(image_index) for image_index in groups[btx]]
+
+                x_s = [load_image(1)]
+                y_s = [load_annotations(1)]
 
                 assert (len(x_s) == len(y_s))
 

@@ -439,7 +439,7 @@ def anchor_targets_bbox(
                 #reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 reprojection_batch[index, locations_positive_obj, cls] = 1
 
-                '''
+
                 #rot = np.asarray(pose[], dtype=np.float32)
                 #tra = pose[:3]
                 #tDbox = rot[:3, :3].dot(annotations['segmentations'][idx].T).T
@@ -448,6 +448,7 @@ def anchor_targets_bbox(
                 #box3D = toPix_array(tDbox, fx=annotations['cam_params'][idx][0], fy=annotations['cam_params'][idx][1],
                 #                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 #box3D = np.reshape(box3D, (16))
+                '''
                 tDbox = box3D.astype(np.uint16)
                 colGT = (0, 205, 0)
                 image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
@@ -477,7 +478,6 @@ def anchor_targets_bbox(
                                      colGT,
                                      2)
                 '''
-
 
         #rind = np.random.randint(0, 1000)
         #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)

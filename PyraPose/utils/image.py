@@ -184,8 +184,6 @@ def augment_image(image, sequential):
 
 def adjust_pose_annotation(matrix, pose, cpara):
 
-    #print('matrix: ', matrix)
-
     trans_noaug = np.array([pose[0], pose[1], pose[2]])
 
     #x = (pix * z) / f
@@ -195,9 +193,11 @@ def adjust_pose_annotation(matrix, pose, cpara):
     #pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
     #pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
     pose[2] = pose[2] / scale
+    #pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
+    #pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
+
     #scaling changes center
-    cpara[2] = ((cpara[2] - 320) * scale) + 320
-    cpara[3] = ((cpara[3] - 240) * scale) + 240
+
     # translation
     pose[0] = pose[0] + (matrix[0, 2] * pose[2]) / cpara[0]
     pose[1] = pose[1] + (matrix[1, 2] * pose[2]) / cpara[1]
@@ -225,8 +225,10 @@ def adjust_pose_annotation(matrix, pose, cpara):
 
     R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
     R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
-    R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
+    #R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
+    #R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
+    R_rel = np.linalg.inv(R_2aug[:3, :3]) @ R_2naug[:3, :3]
+    R_aug = np.linalg.inv(np.linalg.inv(tf3d.quaternions.quat2mat(pose[3:7])) @ R_rel)
     pose[3:] = tf3d.quaternions.mat2quat(R_aug)
 
     #trans_aug = np.array([pose[0], pose[1], pose[2]])

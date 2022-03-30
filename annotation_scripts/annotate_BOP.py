@@ -174,11 +174,11 @@ def create_BB(rgb):
 if __name__ == "__main__":
 
     dataset = 'canister'
-    traintestval = 'val'
+    traintestval = 'train'
     visu = False
 
     root = "/home/stefan/data/datasets/canister/train"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/canister_real/'
+    target = '/home/stefan/data/train_data/canister_center/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -357,9 +357,22 @@ if __name__ == "__main__":
                 cxca = (cxca-276) * (640.0 / 1656.0)
                 cyca = cyca * (480.0 / 1242.0)
 
+                warp_x = 320 - cxca
+                warp_y = 240 - cyca
+                cxca = 320
+                cyca = 240
+
                 if int(imgNam[-7:-4]) in [108, 238, 317, 518]:
                     print(imgNam[-7:-4])
                     continue
+
+                warp_mat = np.array([
+                    [1, 0, warp_x],
+                    [0, 1, warp_y],
+                    [0, 0, 1]
+                ], dtype=np.float64)
+
+                rgbImg = cv2.warpAffine(rgbImg, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
 
             fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
@@ -477,6 +490,10 @@ if __name__ == "__main__":
                 "name": iname,
             }
             dict["licenses"].append(tempTL)
+
+            if dataset == 'canister':
+                mask_img = cv2.warpAffine(mask_img, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]),
+                                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
 
             # mask_img = cv2.resize(mask_img, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_NEAREST)
             mask_safe_path = fileName[:-8] + '_mask.png'
