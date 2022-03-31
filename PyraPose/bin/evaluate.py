@@ -270,6 +270,7 @@ def create_generator(args):
                 intrinsics[1] = img["fy"]
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
+
             break
 
     else:

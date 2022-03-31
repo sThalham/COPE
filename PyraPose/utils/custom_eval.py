@@ -155,7 +155,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
-    pc1, mv1, md1 = load_pcd(data_path,'000001')
+    pc1, mv1, md1 = load_pcd(data_path, '000001')
 
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
@@ -167,13 +167,12 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
     colors_viz = np.random.randint(255, size=(15, 3))
 
-    #debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
-    #debug_set = os.listdir(debug_root)
+    debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
+    debug_set = os.listdir(debug_root)
 
     eval_img = []
     for index, sample in enumerate(generator):
 
-        '''
         debug_path = os.path.join(debug_root, debug_set[index])
         image = cv2.imread(debug_path)
         image = cv2.flip(image, 0)
@@ -181,10 +180,35 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         fac = 1.5
         image = image[:, 160:-160, :]
         image = cv2.resize(image, (640, 480))
-        fxkin = 909.926 / 1.5
-        fykin = 907.91687 / 1.5
-        cxkin = (643.5625 - 160) / 1.5
-        cykin = 349.01718 / 1.5
+        fxd435 = 909.926 / 1.5
+        fyd435 = 907.91687 / 1.5
+        cxd435 = (643.5625 - 160) / 1.5
+        cyd435 = 349.01718 / 1.5
+
+        #for centered dataset
+        #cxca = (1072.132568 - 276) * (640.0 / 1656.0)
+        #cyca = 601.889771 * (480.0 / 1242.0)
+        #cxd435 = 320 + cxca - cxd435
+        #cyd435 = 240 + cyca - cyd435
+
+        fxkin = 1359.9708251953125 * (640.0 / 1656.0)
+        fykin = 1359.9708251953125 * (480.0 / 1242.0)
+        shift_x = (fxd435 / fxkin) * 320
+        shift_y = (fyd435 / fykin) * 240
+        print(cyd435 - shift_y)
+        pad_img = np.zeros((960, 1280, 3), dtype=np.uint8)
+        pad_img[240:-240, 320:-320, :] = image
+        print(pad_img.shape)
+        image = pad_img[int(240 + cyd435-shift_y):int(240 + cyd435+shift_y), int(320 + cxd435-shift_x):int(320 + cxd435+shift_x), :]
+        print(image.shape)
+        image = cv2.resize(image, (640, 480))
+
+        # for real dataset
+        cxkin = 320
+        cykin = 240
+        # for centered dataset
+        #cxkin = cxd435
+        #cykin = cyd435
 
         image = image.astype(np.float32)
         image[..., 0] -= 103.939
@@ -271,6 +295,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
                                  colGT,
                                  2)
 
+
+        '''
         # run network
         start_t = time.time()
         t_error = 0
@@ -290,10 +316,12 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             pose = poses[odx, :]
             #if inv_cls not in gt_labels:
             #    continue
+
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
+            '''
 
             eval_line = []
             sc_id = int(scene_id[0])
@@ -366,6 +394,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             #    gt_boxes[idx_add, :] = -1
             # else:
             #    falseDets[true_cls] += 1
+            '''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -376,8 +405,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (0, 39, 236)
+            #if err_add > model_dia[true_cls] * 0.1:
+            #    colEst = (0, 39, 236)
 
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -392,15 +421,13 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
-        '''
             if true_cls == 1:
                 model_vsd = md1
 
-            colEst = (50, 205, 50)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (25, 119, 242)
 
-            colEst = colors_viz[true_cls - 1, :]
+            colEst = (50, 205, 50)
+            #if err_add > model_dia[true_cls] * 0.1:
+            #    colEst = (25, 119, 242)
 
             pts = model_vsd["pts"]
             proj_pts = R_est.dot(pts.T).T
@@ -412,150 +439,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
             image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
-
-
-        boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
-        t_img = time.time() - start_t
-
-        labels_cls = np.argmax(labels[0, :, :], axis=1)
-
-        for inv_cls in np.unique(labels_cls):
-
-            true_cls = inv_cls + 1
-            n_img += 1
-
-            print('inv_cls: ', inv_cls)
-            print('gt: ', gt_labels)
-
-            if inv_cls != int(gt_labels[0]) or true_cls in [3, 7]:
-                continue
-
-            cls_indices = np.where(labels_cls == inv_cls)
-            labels_filt = labels[0, cls_indices[0], inv_cls]
-            pose_votes = boxes3D[0, cls_indices[0], inv_cls, :]
-            above_thres = np.where(labels_filt > 0.25)
-
-            pose_votes = pose_votes[above_thres[0], :]
-
-            hyps = pose_votes.shape[0]
-            if hyps < 1:
-                continue
-
-            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32) # .reshape((8, 1, 3))
-            obj_points = np.repeat(ori_points[np.newaxis, :, :], hyps, axis=0)
-            obj_points = obj_points.reshape((int(hyps * 8), 1, 3))
-            K = np.float64([float(fxkin), 0., float(cxkin), 0., float(fykin), float(cykin), 0., 0., 1.]).reshape(3, 3)
-
-            est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((hyps * 8, 2))
-            #est_points = pose_votes.reshape((hyps * 8, 1, 2))
-
-            retval, orvec, otvec, _ = cv2.solvePnPRansac(objectPoints=obj_points,
-                                                               imagePoints=est_points, cameraMatrix=K,
-                                                               distCoeffs=None, rvec=None, tvec=None,
-                                                               useExtrinsicGuess=False, iterationsCount=300,
-                                                               reprojectionError=5.0, confidence=0.99,
-                                                               flags=cv2.SOLVEPNP_EPNP)
-            R_est, _ = cv2.Rodrigues(orvec)
-            t_est = otvec[:, 0]
-
-            #gt_idx = np.argwhere(gt_labels == inv_cls)
-            #gt_pose = gt_poses[gt_idx, :]
-            #gt_box = gt_boxes[gt_idx, :]
-            #gt_pose = gt_pose[0][0]
-            #gt_box = gt_box[0][0]
-
-
-            # detection
-            #min_x = int(np.nanmin(pose[::2], axis=0))
-            #min_y = int(np.nanmin(pose[1::2], axis=0))
-            #max_x = int(np.nanmax(pose[::2], axis=0))
-            #max_y = int(np.nanmax(pose[1::2], axis=0))
-            #est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
-
-            if true_cls == 1:
-                model_vsd = mv1
-            elif true_cls == 5:
-                model_vsd = mv5
-            elif true_cls == 6:
-                model_vsd = mv6
-            elif true_cls == 8:
-                model_vsd = mv8
-            elif true_cls == 9:
-                model_vsd = mv9
-            elif true_cls == 10:
-                model_vsd = mv10
-            elif true_cls == 11:
-                model_vsd = mv11
-            elif true_cls == 12:
-                model_vsd = mv12
-
-            add_errors = []
-            iou_ovlaps = []
-            for gtdx in range(gt_poses.shape[0]):
-                t_rot = tf3d.quaternions.quat2mat(gt_poses[gtdx, 3:])
-                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
-                t_gt = np.array(gt_poses[gtdx, :3], dtype=np.float32)
-                t_gt = t_gt * 0.001
-
-                print('t_gt: ', t_gt)
-
-                if true_cls == 10 or true_cls == 11:
-                    err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-                else:
-                    err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
-                add_errors.append(err_add)
-
-                #iou = boxoverlap(est_box, gt_boxes[gtdx, :])
-                #iou_ovlaps.append(iou)
-
-            idx_add = np.argmin(np.array(add_errors))
-            err_add = add_errors[idx_add]
-            gt_pose = gt_poses[idx_add, :]
-
-            if err_add < model_dia[true_cls] * 0.1:
-                if np.max(gt_poses[idx_add, :]) != -1:
-                    truePoses[true_cls] += 1
-                    gt_poses[idx_add, :] = -1
-            else:
-                falsePoses[true_cls] += 1
-
-            print(' ')
-            print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
-
-            # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
-            #    continue
-
-            #idx_iou = np.argmax(np.array(iou_ovlaps))
-            #iou_ov = iou_ovlaps[idx_iou]
-
-            #if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
-            #    trueDets[true_cls] += 1
-            #    gt_boxes[idx_add, :] = -1
-            #else:
-            #    falseDets[true_cls] += 1
-
-            eDbox = R_est.dot(ori_points.T).T
-            eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
-            est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
-            eDbox = np.reshape(est3D, (16))
-            pose = eDbox.astype(np.uint16)
-            colEst = (50, 205, 50)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (0, 39, 236)
-
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-        '''
 
         #if index > 0:
         #    times[n_img] += t_img

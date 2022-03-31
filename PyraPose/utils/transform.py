@@ -183,10 +183,10 @@ def change_transform_origin(transform, center):
 
 
 def random_transform(
-    min_translation=(-0.2, -0.2),
-    max_translation=(0.2, 0.2),
-    min_scaling=(0.8, 0.8),
-    max_scaling=(1.2, 1.2),
+    min_translation=(-0.0, -0.0),
+    max_translation=(0.0, 0.0),
+    min_scaling=(1.0, 1.0),
+    max_scaling=(1.0, 1.0),
     prng=DEFAULT_PRNG
 ):
     """ Create a random transformation.
