@@ -375,8 +375,8 @@ class CustomDataset(tf.data.Dataset):
         transform_generator = random_transform_generator(
             min_translation=(-0.05, -0.05),
             max_translation=(0.05, 0.05),
-            min_scaling=(0.95, 0.95),
-            max_scaling=(1.05, 1.05),
+            min_scaling=(1.00, 1.00),
+            max_scaling=(1.00, 1.00),
         )
 
         def load_image(image_index):

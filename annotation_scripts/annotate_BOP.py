@@ -174,10 +174,10 @@ def create_BB(rgb):
 if __name__ == "__main__":
 
     dataset = 'canister'
-    traintestval = 'train'
+    traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/datasets/canister/train"  # path to train samples, depth + rgb
+    root = "/home/stefan/data/datasets/canister/test"  # path to train samples, depth + rgb
     target = '/home/stefan/data/train_data/canister_center/'
 
     if dataset == 'linemod':
@@ -350,12 +350,29 @@ if __name__ == "__main__":
             # if rnd == 1:
 
             if dataset == 'canister':
+
+                # HSRB
+                # fxkin = 538.391033
+                # fykin = 538.085452
+                # cxkin = 315.30747
+                # cykin = 233.048356
+
+                #zed
+                '''
                 rgbImg = rgbImg[:, 276:-276, :]
                 rgbImg = cv2.resize(rgbImg, (640, 480))
                 fxca = fxca * (640.0 / 1656.0)#(640.0 / 2208.0)
                 fyca = fyca * (480.0 / 1242.0)
                 cxca = (cxca-276) * (640.0 / 1656.0)
                 cyca = cyca * (480.0 / 1242.0)
+                '''
+                # d435
+                rgbImg = rgbImg[:, 160:-160, :]
+                rgbImg = cv2.resize(rgbImg, (640, 480))
+                fxca = fxca * (640.0 / 960.0)  # (640.0 / 2208.0)
+                fyca = fyca * (480.0 / 720.0)
+                cxca = (cxca - 160) * (640.0 / 960.0)
+                cyca = cyca * (480.0 / 720.0)
 
                 warp_x = 320 - cxca
                 warp_y = 240 - cyca
@@ -373,6 +390,10 @@ if __name__ == "__main__":
                 ], dtype=np.float64)
 
                 rgbImg = cv2.warpAffine(rgbImg, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
+
+                rgbImg = np.flip(rgbImg, axis=0)
+                rgbImg = np.flip(rgbImg, axis=1)
+                rgbImg = rgbImg.astype(dtype=np.uint8)
 
             fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
@@ -402,8 +423,13 @@ if __name__ == "__main__":
                     mask_path = os.path.join(visPath, mask_name)
                 obj_mask = cv2.imread(mask_path)[:, :, 0]
                 if dataset == 'canister':
-                    obj_mask = obj_mask[:, 276:-276]
+                    # zed
+                    #obj_mask = obj_mask[:, 276:-276]
+                    #obj_mask = cv2.resize(obj_mask, (640, 480))
+                    # d435
+                    obj_mask = obj_mask[:, 160:-160]
                     obj_mask = cv2.resize(obj_mask, (640, 480))
+
                 mask_id = mask_ind + 1
                 mask_img = np.where(obj_mask > 0, mask_id, mask_img)
                 mask_ind = mask_ind + 1
@@ -429,11 +455,23 @@ if __name__ == "__main__":
                 rot = tf3d.quaternions.mat2quat(R.reshape(3, 3))
                 rot = np.asarray(rot, dtype=np.float32)
                 tra = np.asarray(T, dtype=np.float32)
+
                 if dataset == 'canister':
                     tra *= 1000.0
                     offset = np.array([-1.396, 2.799, 54.302])
                     offset = R.reshape(3, 3).dot(offset.T)
                     tra = tra + offset
+
+                # interlude for rotating d435
+                trans = np.eye(4)
+                trans[:3, :3] = R.reshape(3, 3)
+                trans[:3, 3] = tra
+                mod_ori = np.eye(4)
+                mod_ori[:3, :3] = tf3d.euler.euler2mat(math.pi, 0.0, 0.0, 'szyx')
+                trans = mod_ori @ trans
+                tra = trans[:3, 3]
+                # tra[:2] *= -1
+                rot = tf3d.quaternions.mat2quat(trans[:3, :3])
 
                 pose = [tra[0], tra[1], tra[2], rot[0], rot[1], rot[2], rot[3]]
 
@@ -494,6 +532,9 @@ if __name__ == "__main__":
             if dataset == 'canister':
                 mask_img = cv2.warpAffine(mask_img, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]),
                                     flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
+
+                mask_img = np.flip(mask_img, axis=0)
+                mask_img = np.flip(mask_img, axis=1)
 
             # mask_img = cv2.resize(mask_img, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_NEAREST)
             mask_safe_path = fileName[:-8] + '_mask.png'

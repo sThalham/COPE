@@ -271,6 +271,10 @@ def create_generator(args):
                 intrinsics[2] = img["cx"]
                 intrinsics[3] = img["cy"]
 
+                intrinsics[0] = 1359.9708251953125 * (640.0 / 1656.0)  # (640.0 / 2208.0)
+                intrinsics[1] = 1359.9708251953125 * (480.0 / 1242.0)
+                intrinsics[2] = (1072.132568359375 - 276) * (640.0 / 1656.0)
+                intrinsics[3] = 601.8897705078125 * (480.0 / 1242.0)
             break
 
     else:

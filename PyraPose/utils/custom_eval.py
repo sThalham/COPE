@@ -167,12 +167,13 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
     colors_viz = np.random.randint(255, size=(15, 3))
 
-    debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
-    debug_set = os.listdir(debug_root)
+    #debug_root = "/home/stefan/data/datasets/canister/test/003/rgb"
+    #debug_set = os.listdir(debug_root)
 
     eval_img = []
     for index, sample in enumerate(generator):
 
+        '''
         debug_path = os.path.join(debug_root, debug_set[index])
         image = cv2.imread(debug_path)
         image = cv2.flip(image, 0)
@@ -240,6 +241,32 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         cykin = gt_calib[0, 3]
 
         image_raw = image.numpy()
+
+        # modify image and intrinsics
+        fxzed = 1359.9708251953125 * (640.0 / 1656.0)  # (640.0 / 2208.0)
+        fyzed = 1359.9708251953125 * (480.0 / 1242.0)
+        cxzed = (1072.132568359375 - 276) * (640.0 / 1656.0)
+        cyzed = 601.8897705078125 * (480.0 / 1242.0)
+
+        shift_cx = cxzed - 320
+        shift_cy = cyzed - 240
+
+        shift_x = (fxkin / fxzed) * 320
+        shift_y = (fykin / fyzed) * 240
+        pad_img = np.zeros((960, 1280, 3), dtype=np.uint8)
+        pad_img[240:-240, 320:-320, :] = image
+        image = pad_img[int(240 - shift_cy + cyzed - shift_y):int(240 - shift_cy + cyzed + shift_y),
+                int(320 - shift_cx + cxzed - shift_x):int(320 - shift_cx + cxzed + shift_x), :]
+
+        fxkin = fxzed
+        fykin = fyzed
+        cxkin = cxzed
+        cykin = cyzed
+
+        image = cv2.resize(image, (640, 480))
+        #image_raw = image
+
+        #image_raw = image.numpy()
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
@@ -296,7 +323,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
                                  2)
 
 
-        '''
         # run network
         start_t = time.time()
         t_error = 0
@@ -321,7 +347,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
-            '''
 
             eval_line = []
             sc_id = int(scene_id[0])
@@ -394,7 +419,6 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             #    gt_boxes[idx_add, :] = -1
             # else:
             #    falseDets[true_cls] += 1
-            '''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -405,8 +429,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
-            #if err_add > model_dia[true_cls] * 0.1:
-            #    colEst = (0, 39, 236)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (0, 39, 236)
 
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -424,8 +448,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             if true_cls == 1:
                 model_vsd = md1
 
-
-            colEst = (50, 205, 50)
+            #colEst = (50, 205, 50)
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (25, 119, 242)
 
