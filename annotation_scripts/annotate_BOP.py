@@ -177,8 +177,8 @@ if __name__ == "__main__":
     traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/datasets/canister/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/canister_center/'
+    root = "/home/stefan/data/datasets/canister/val"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/canister_final/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -351,11 +351,38 @@ if __name__ == "__main__":
 
             if dataset == 'canister':
 
+                if int(imgNam[-7:-4]) in [108, 238, 317, 518] and scene_id=='000000':
+                    print(imgNam[-7:-4])
+                    continue
+
                 # HSRB
-                # fxkin = 538.391033
-                # fykin = 538.085452
-                # cxkin = 315.30747
-                # cykin = 233.048356
+                fxkin = 538.391033
+                fykin = 538.085452
+                cxkin = 315.30747
+                cykin = 233.048356
+
+                shift_x = (fxca / fxkin) * 320
+                shift_y = (fyca / fykin) * 240
+
+                sha_y, sha_x, _ = rgbImg.shape
+                pad_img = np.zeros((sha_y * 2, sha_x * 2, 3), dtype=np.uint8)
+                pad_img[int(sha_y*0.5):-int(sha_y*0.5), int(sha_x*0.5):-int(sha_x*0.5), :] = rgbImg
+                rgbImg = pad_img[int((sha_y*0.5)+cyca-shift_y):int((sha_y*0.5)+cyca+shift_y), int((sha_x*0.5)+cxca-shift_x):int((sha_x*0.5)+cxca+shift_x), :]
+
+                #rgbImg = rgbImg[int(sha_y*0.5):-int(sha_y*0.5), int(sha_x*0.5):-int(sha_x*0.5), :]
+
+                fxca = fxkin
+                fyca = fykin
+                cxvan = cxca
+                cyvan = cyca
+                cxca = 320.0
+                cyca = 240.0
+                rgbImg = cv2.resize(rgbImg, (640, 480))
+
+                if scene_id == '000001':
+                    rgbImg = np.flip(rgbImg, axis=0)
+                    rgbImg = np.flip(rgbImg, axis=1)
+                rgbImg = rgbImg.astype(dtype=np.uint8)
 
                 #zed
                 '''
@@ -366,6 +393,9 @@ if __name__ == "__main__":
                 cxca = (cxca-276) * (640.0 / 1656.0)
                 cyca = cyca * (480.0 / 1242.0)
                 '''
+                '''
+                print(fxca, fyca, cxca, cyca)
+
                 # d435
                 rgbImg = rgbImg[:, 160:-160, :]
                 rgbImg = cv2.resize(rgbImg, (640, 480))
@@ -390,10 +420,8 @@ if __name__ == "__main__":
                 ], dtype=np.float64)
 
                 rgbImg = cv2.warpAffine(rgbImg, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
-
-                rgbImg = np.flip(rgbImg, axis=0)
-                rgbImg = np.flip(rgbImg, axis=1)
-                rgbImg = rgbImg.astype(dtype=np.uint8)
+                '''
+                
 
             fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
@@ -427,7 +455,12 @@ if __name__ == "__main__":
                     #obj_mask = obj_mask[:, 276:-276]
                     #obj_mask = cv2.resize(obj_mask, (640, 480))
                     # d435
-                    obj_mask = obj_mask[:, 160:-160]
+                    #obj_mask = obj_mask[:, 160:-160]
+                    #obj_mask = cv2.resize(obj_mask, (640, 480))
+                    pad_img = np.zeros((sha_y * 2, sha_x * 2), dtype=np.uint8)
+                    pad_img[int(sha_y * 0.5):-int(sha_y * 0.5), int(sha_x * 0.5):-int(sha_x * 0.5)] = obj_mask
+                    obj_mask = pad_img[int((sha_y * 0.5) + cyvan - shift_y):int((sha_y * 0.5) + cyvan + shift_y),
+                               int((sha_x * 0.5) + cxvan - shift_x):int((sha_x * 0.5) + cxvan + shift_x)]
                     obj_mask = cv2.resize(obj_mask, (640, 480))
 
                 mask_id = mask_ind + 1
@@ -463,15 +496,16 @@ if __name__ == "__main__":
                     tra = tra + offset
 
                 # interlude for rotating d435
-                trans = np.eye(4)
-                trans[:3, :3] = R.reshape(3, 3)
-                trans[:3, 3] = tra
-                mod_ori = np.eye(4)
-                mod_ori[:3, :3] = tf3d.euler.euler2mat(math.pi, 0.0, 0.0, 'szyx')
-                trans = mod_ori @ trans
-                tra = trans[:3, 3]
-                # tra[:2] *= -1
-                rot = tf3d.quaternions.mat2quat(trans[:3, :3])
+                if scene_id == '000001':
+                    trans = np.eye(4)
+                    trans[:3, :3] = R.reshape(3, 3)
+                    trans[:3, 3] = tra
+                    mod_ori = np.eye(4)
+                    mod_ori[:3, :3] = tf3d.euler.euler2mat(math.pi, 0.0, 0.0, 'szyx')
+                    trans = mod_ori @ trans
+                    tra = trans[:3, 3]
+                    # tra[:2] *= -1
+                    rot = tf3d.quaternions.mat2quat(trans[:3, :3])
 
                 pose = [tra[0], tra[1], tra[2], rot[0], rot[1], rot[2], rot[3]]
 
@@ -530,11 +564,12 @@ if __name__ == "__main__":
             dict["licenses"].append(tempTL)
 
             if dataset == 'canister':
-                mask_img = cv2.warpAffine(mask_img, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]),
-                                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
+                #mask_img = cv2.warpAffine(mask_img, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]),
+                #                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
 
-                mask_img = np.flip(mask_img, axis=0)
-                mask_img = np.flip(mask_img, axis=1)
+                if scene_id == '000001':
+                    mask_img = np.flip(mask_img, axis=0)
+                    mask_img = np.flip(mask_img, axis=1)
 
             # mask_img = cv2.resize(mask_img, None, fx=1 / 4, fy=1 / 4, interpolation=cv2.INTER_NEAREST)
             mask_safe_path = fileName[:-8] + '_mask.png'

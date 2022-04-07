@@ -478,7 +478,7 @@ def create_generators(args, preprocess_image):
         dataset = CustomDataset(args.custom_path, 'train', batch_size=args.batch_size)
         num_classes = 1
         #train_samples = 624
-        train_samples = 8000
+        train_samples = 10452
         dataset = tf.data.Dataset.range(args.workers).interleave(
             lambda _: dataset,
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
