@@ -242,6 +242,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
         image_raw = image.numpy()
 
+        '''
         # modify image and intrinsics
         fxzed = 1359.9708251953125 * (640.0 / 1656.0)  # (640.0 / 2208.0)
         fyzed = 1359.9708251953125 * (480.0 / 1242.0)
@@ -265,6 +266,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
         image = cv2.resize(image, (640, 480))
         #image_raw = image
+        '''
 
         #image_raw = image.numpy()
         image_raw[..., 0] += 103.939
@@ -467,12 +469,12 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         #    times[n_img] += t_img
         #    times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_raw)
+        #cv2.imwrite(name, image_raw)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)

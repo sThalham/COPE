@@ -178,7 +178,7 @@ if __name__ == "__main__":
     visu = False
 
     root = "/home/stefan/data/datasets/canister/val"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/canister_final/'
+    target = '/home/stefan/data/train_data/canister_d435_Ihsr_center/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -274,6 +274,9 @@ if __name__ == "__main__":
 
         scene_id = str(set)
 
+        if scene_id == '000000':
+            continue
+
         rgbPath = set_root + "/rgb/"
         depPath = set_root + "/depth/"
         masPath = set_root + "/mask/"
@@ -355,6 +358,7 @@ if __name__ == "__main__":
                     print(imgNam[-7:-4])
                     continue
 
+
                 # HSRB
                 fxkin = 538.391033
                 fykin = 538.085452
@@ -384,8 +388,17 @@ if __name__ == "__main__":
                     rgbImg = np.flip(rgbImg, axis=1)
                 rgbImg = rgbImg.astype(dtype=np.uint8)
 
-                #zed
                 '''
+                #435
+                rgbImg = rgbImg[:, 160:-160, :]
+                rgbImg = cv2.resize(rgbImg, (640, 480))
+                fxca = fxca * (640.0 / 960.0)  # (640.0 / 2208.0)
+                fyca = fyca * (480.0 / 720.0)
+                cxca = 640 - ((cxca - 160) * (640.0 / 960.0))
+                cyca = 480 - (cyca * (480.0 / 720.0))
+
+                #zed
+                
                 rgbImg = rgbImg[:, 276:-276, :]
                 rgbImg = cv2.resize(rgbImg, (640, 480))
                 fxca = fxca * (640.0 / 1656.0)#(640.0 / 2208.0)
@@ -457,10 +470,12 @@ if __name__ == "__main__":
                     # d435
                     #obj_mask = obj_mask[:, 160:-160]
                     #obj_mask = cv2.resize(obj_mask, (640, 480))
+
                     pad_img = np.zeros((sha_y * 2, sha_x * 2), dtype=np.uint8)
                     pad_img[int(sha_y * 0.5):-int(sha_y * 0.5), int(sha_x * 0.5):-int(sha_x * 0.5)] = obj_mask
                     obj_mask = pad_img[int((sha_y * 0.5) + cyvan - shift_y):int((sha_y * 0.5) + cyvan + shift_y),
                                int((sha_x * 0.5) + cxvan - shift_x):int((sha_x * 0.5) + cxvan + shift_x)]
+
                     obj_mask = cv2.resize(obj_mask, (640, 480))
 
                 mask_id = mask_ind + 1
