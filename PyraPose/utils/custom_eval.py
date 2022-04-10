@@ -44,13 +44,19 @@ def load_pcd(data_path, cat):
     # load meshes
     ply_path = os.path.join(data_path, 'meshes', 'obj_' + cat + '.ply')
     pcd_model = open3d.io.read_point_cloud(ply_path)
+
+    factor = 0.001
+    if np.nanmax(pcd_model.points) < 10.0:
+        factor = 1.0
     model_vsd = {}
     model_vsd['pts'] = np.asarray(pcd_model.points)
-    model_vsd['pts'] = model_vsd['pts'] * 0.001
+    model_vsd['pts'] = model_vsd['pts'] * factor
 
-    pcd_down = pcd_model.voxel_down_sample(voxel_size=3)
+    voxel_size = 0.003 / factor
+
+    pcd_down = pcd_model.voxel_down_sample(voxel_size=voxel_size)
     model_down = {}
-    model_down['pts'] = np.asarray(pcd_down.points) * 0.001
+    model_down['pts'] = np.asarray(pcd_down.points) * factor
 
     return pcd_model, model_vsd, model_down
 '''
@@ -240,7 +246,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         cxkin = gt_calib[0, 2]
         cykin = gt_calib[0, 3]
 
-        image_raw = image.numpy()
+        #image_raw = image.numpy()
 
         '''
         # modify image and intrinsics
@@ -268,10 +274,44 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         #image_raw = image
         '''
 
-        #image_raw = image.numpy()
+        image_raw = image.numpy()
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
+
+        image = copy.deepcopy(image_raw)
+
+        # zed interlude
+        # HSRB
+        fxhsr = 538.391033
+        fyhsr = 538.085452
+        cxhsr = 320.0
+        cyhsr = 240.0
+
+        shift_x = (fxkin / fxhsr) * 320
+        shift_y = (fykin / fyhsr) * 240
+
+        sha_y, sha_x, _ = image.shape
+        pad_img = np.zeros((sha_y * 2, sha_x * 2, 3), dtype=np.uint8)
+        pad_img[int(sha_y * 0.5):-int(sha_y * 0.5), int(sha_x * 0.5):-int(sha_x * 0.5), :] = image
+        image = pad_img[int((sha_y * 0.5) + cyhsr - shift_y):int((sha_y * 0.5) + cyhsr + shift_y),
+                int((sha_x * 0.5) + cxhsr - shift_x):int((sha_x * 0.5) + cxhsr + shift_x), :]
+
+        fxkin = fxhsr
+        fykin = fyhsr
+        cxvan = cxkin
+        cyvan = cykin
+        cxkin = 320.0
+        cykin = 240.0
+        image = cv2.resize(image, (640, 480))
+        image = image.astype(np.float32)
+
+        image_raw = copy.deepcopy(image)
+
+        image[..., 0] -= 103.939
+        image[..., 1] -= 116.779
+        image[..., 2] -= 123.68
+
         image_raw = image_raw.astype(np.uint8)
         image_ori = image_raw.astype(np.uint8)
 
@@ -396,6 +436,8 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
 
             err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
 
+            print(np.nanmax(model_vsd["pts"]), t_est, model_dia[true_cls])
+
             if err_add < model_dia[true_cls] * 0.1:
                 if np.max(gt_poses[gt_idx, :]) != -1:
                     truePoses[true_cls] += 1
@@ -454,27 +496,27 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (25, 119, 242)
 
-            pts = model_vsd["pts"]
-            proj_pts = R_est.dot(pts.T).T
-            proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
-            proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
-            proj_pts = proj_pts.astype(np.uint16)
-            proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
-            proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
-            proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
-            proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            #pts = model_vsd["pts"]
+            #proj_pts = R_est.dot(pts.T).T
+            #proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
+            #proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
+            #proj_pts = proj_pts.astype(np.uint16)
+            #proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
+            #proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
+            #proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
+            #proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
+            #image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
         #if index > 0:
         #    times[n_img] += t_img
         #    times_count[n_img] += 1
 
-        #name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
-        #cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_raw)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
