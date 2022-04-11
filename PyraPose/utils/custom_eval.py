@@ -279,6 +279,9 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
 
+        '''
+        # zed test set
+
         image = copy.deepcopy(image_raw)
 
         # zed interlude
@@ -311,6 +314,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         image[..., 0] -= 103.939
         image[..., 1] -= 116.779
         image[..., 2] -= 123.68
+        '''
 
         image_raw = image_raw.astype(np.uint8)
         image_ori = image_raw.astype(np.uint8)

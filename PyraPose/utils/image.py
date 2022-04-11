@@ -194,14 +194,14 @@ def adjust_pose_annotation(matrix, pose, cpara):
     pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
     pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
 
-    trans_aug = np.array([pose[0], pose[1], pose[2]])
-    R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
-    R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
+    #trans_aug = np.array([pose[0], pose[1], pose[2]])
+    #R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+    #R_2aug = lookAt(trans_aug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
+    #R_rel = np.linalg.inv(R_2naug[:3, :3]) @ R_2aug[:3, :3]
+    #R_aug = R_rel @ tf3d.quaternions.quat2mat(pose[3:7])
     #R_rel = np.linalg.inv(R_2aug[:3, :3]) @ R_2naug[:3, :3]
     #R_aug = np.linalg.inv(np.linalg.inv(tf3d.quaternions.quat2mat(pose[3:7])) @ R_rel)
-    pose[3:] = tf3d.quaternions.mat2quat(R_aug)
+    #pose[3:] = tf3d.quaternions.mat2quat(R_aug)
 
     return pose#, cpara
 

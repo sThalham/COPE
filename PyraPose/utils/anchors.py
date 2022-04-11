@@ -59,10 +59,10 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
         #is_there_sym = False
         #raw_images = []
         #raw_images.append(copy.deepcopy(image_raw))
@@ -103,16 +103,16 @@ def anchor_targets_bbox(
             # reason:
             # long-shaped object fall into lower levels than diameter
             # while boxy objects
-            #if reso_van < -2:
-            #    reso_van = -2
-            #reso_idx = int(2 + reso_van)
-            #locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
+            if reso_van < -2:
+                reso_van = -2
+            reso_idx = int(2 + reso_van)
+            locations_positive_obj = np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx]
 
-            locations_positive_obj = []
-            for reso_idx in range(len(masks_level)):
-                locations_positive_obj.append(
-                    np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
-            locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
+            #locations_positive_obj = []
+            #for reso_idx in range(len(masks_level)):
+            #    locations_positive_obj.append(
+            #        np.where(masks_level[reso_idx] == int(mask_id))[0] + location_offset[reso_idx])
+            #locations_positive_obj = np.concatenate(locations_positive_obj, axis=0)
 
             #if reso_idx==0:
             #vizmask = np.zeros((4800, 3))
@@ -405,6 +405,7 @@ def anchor_targets_bbox(
                 #                    cx=annotations['cam_params'][idx][2], cy=annotations['cam_params'][idx][3])
                 #box3D = np.reshape(box3D, (16))
 
+                '''
                 tDbox = box3D.astype(np.uint16)
                 colGT = (0, 205, 0)
                 image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
@@ -433,13 +434,14 @@ def anchor_targets_bbox(
                 image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                      colGT,
                                      2)
+                '''
 
-        rind = np.random.randint(0, 1000)
+        #rind = np.random.randint(0, 1000)
         #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
         #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
         #image_raw = np.concatenate([images_row1, images_row2], axis=0)
-        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
-        cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
+        #cv2.imwrite(name, image_raw)
 
 
         #img_P3 = img_P3.astype(np.uint8)
