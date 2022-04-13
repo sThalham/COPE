@@ -177,7 +177,7 @@ if __name__ == "__main__":
     traintestval = 'val'
     visu = False
 
-    root = "/home/stefan/data/datasets/canister/val"  # path to train samples, depth + rgb
+    root = "/home/stefan/data/datasets/canister/test"  # path to train samples, depth + rgb
     target = '/home/stefan/data/train_data/canister_d435_Ihsr_center/'
 
     if dataset == 'linemod':
