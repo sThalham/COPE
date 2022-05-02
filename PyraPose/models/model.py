@@ -311,12 +311,9 @@ def pyrapose(
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
     projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
-    #projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
     projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[1]
     projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
-    #projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
-    #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16]) * 0.01 # factor for scaling
 
     #discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
@@ -336,9 +333,39 @@ def pyrapose(
     projection = tf.math.divide_no_nan(projection, rep_object_diameters)
 
     rename_layer_2 = keras.layers.Lambda(lambda x: x, name='projection')
-    projection = rename_layer_2(projection)
+    projection2img = rename_layer_2(projection)
 
-    pyramids.append(projection)
+    pyramids.append(projection2img)
+
+    # project to object frame
+    obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
+    calib = tf.zeros([3, 4])
+    calib[0, 0] = intrinsics[0]
+    calib[1, 1] = intrinsics[1]
+    calib[0, 2] = intrinsics[2]
+    calib[1, 2] = intrinsics[3]
+    calib[2, 2] = 1
+
+    trans2obj = tf.zeros([tf.shape(location)[0], tf.shape(location)[1], num_classes, 4, 4])
+    trans2obj[:, :, :, 3, 3] = 1
+    trans2obj[:, :, :, :3, :3] = rot
+    trans2obj[:, :, :, :3, 3] = trans[:, :, :, 0, :]
+
+    points2D = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 2])
+    exp_ones = tf.ones([tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 1])
+    points2D = tf.concat([points2D, exp_ones], axis=3)
+
+    points3D = tf.linalg.matmul(points2D, calib)
+    pointsObj = tf.linalg.matmul(trans2obj, points3D)
+
+    cor_dev = obj_correspondences - pointsObj
+    cor_dev = tf.math.abs(cor_dev)
+    cor_dev = tf.math.sum(cor_dev, axis=[3, 4])
+
+    rename_layer_3 = keras.layers.Lambda(lambda x: x, name='correspondences')
+    projection2obj = rename_layer_3(cor_dev)
+
+    pyramids.append(projection2obj)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 

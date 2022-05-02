@@ -345,7 +345,8 @@ def anchor_targets_bbox(
                                 image_now = cv2.line(image_now, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()),
                                                      colGT,
                                                      2)
-                                image_now = cv2.line(image_now, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()),
+                                image_now = cv2.line(image_now, tuple(tDbox[4:6].ravel()), tuplexpix = ((translation[:, 0] * fx) / translation[:, 2]) + cx
+    ypix = ((translation[:, 1] * fy) / translation[:, 2]) + cy(tDbox[12:14].ravel()),
                                                      colGT,
                                                      2)
                                 image_now = cv2.line(image_now, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()),
@@ -462,7 +463,7 @@ def anchor_targets_bbox(
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
         '''
 
-    return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch
+    return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch, reprojection_batch
     #return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
 
 
