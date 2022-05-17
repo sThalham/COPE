@@ -359,7 +359,7 @@ def anchor_targets_bbox(
                                                      tuple(tDbox[12:14].ravel()),
                                                      colGT,
                                                      2)
-                                image_now = cv2.line(image_now, tuple(tDbox[12:14].ravel()),
+                                i            print('anno: ', annotations)mage_now = cv2.line(image_now, tuple(tDbox[12:14].ravel()),
                                                      tuple(tDbox[14:16].ravel()),
                                                      colGT,
                                                      2)
