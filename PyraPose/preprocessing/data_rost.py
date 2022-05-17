@@ -336,12 +336,13 @@ class RostDataset(tf.data.Dataset):
             catToImgs[ann['category_id']].append(ann['image_id'])
 
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
+        num_classes = len(classes)
 
         # load 3D boxes
-        TDboxes = np.ndarray((2, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((2), dtype=np.float32)
-        sym_cont = np.zeros((2, 2, 3), dtype=np.float32)
-        sym_disc = np.zeros((2, 8, 16), dtype=np.float32)
+        TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes + 1), dtype=np.float32)
+        sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
         for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
@@ -383,7 +384,7 @@ class RostDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            path = path[:-4] + '_rgb' + path[-4:]
+            #path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
 

@@ -91,7 +91,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
             'rotations'     : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
             'consistency'   : losses.projection_deviation(num_classes=num_classes, weight=0.1),
             'projection'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
-            'correspondence'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
+            #'correspondence'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
         },
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )
@@ -525,7 +525,7 @@ def create_generators(args, preprocess_image):
 
         dataset = RostDataset(args.rost_path, 'train', batch_size=args.batch_size)
         num_classes = 6
-        train_samples = 1664
+        train_samples = 1664 * 8
         dataset = tf.data.Dataset.range(args.workers).interleave(
             lambda _: dataset,
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
