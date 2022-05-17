@@ -337,6 +337,7 @@ def pyrapose(
 
     pyramids.append(projection2img)
 
+    '''
     # project to object frame
     obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
     calib = tf.zeros([3, 4])
@@ -360,12 +361,13 @@ def pyrapose(
 
     cor_dev = obj_correspondences - pointsObj
     cor_dev = tf.math.abs(cor_dev)
-    cor_dev = tf.math.sum(cor_dev, axis=[3, 4])
+    cor_dev = tf.math.reduce_sum(cor_dev, axis=[3, 4])
 
     rename_layer_3 = keras.layers.Lambda(lambda x: x, name='correspondences')
     projection2obj = rename_layer_3(cor_dev)
 
     pyramids.append(projection2obj)
+    '''
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 

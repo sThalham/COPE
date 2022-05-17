@@ -85,7 +85,7 @@ def anchor_targets_bbox(
             mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
             masks_level.append(mask_level.flatten())
             back_objs = np.where(mask_level == 0)[0] + location_offset[jdx]
-            labels_batch[index, back_objs, -1] = 0
+            labels_batch[index, back_objs, -1] = -1
 
         #calculated_boxes = np.empty((0, 16))
 
@@ -463,7 +463,7 @@ def anchor_targets_bbox(
         #print('conf: ', np.mean(confidences_batch[:, :, :, 16:23]), np.max(confidences_batch[:, :, :, 16:23]), np.min(confidences_batch[:, :, :, 16:23]))
         '''
 
-    return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch, reprojection_batch
+    return regression_batch, labels_batch, locations_batch, rotations_batch, reprojection_batch#, reprojection_batch
     #return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(labels_batch), tf.convert_to_tensor(locations_batch), tf.convert_to_tensor(rotations_batch), tf.convert_to_tensor(reprojection_batch)#, tf.convert_to_tensor(confidences_batch)
 
 
