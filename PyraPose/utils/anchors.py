@@ -85,7 +85,7 @@ def anchor_targets_bbox(
             mask_level = np.asarray(Image.fromarray(mask).resize((resx[1], resx[0]), Image.NEAREST)).flatten()
             masks_level.append(mask_level.flatten())
             back_objs = np.where(mask_level == 0)[0] + location_offset[jdx]
-            labels_batch[index, back_objs, -1] = -1
+            labels_batch[index, back_objs, -1] = 0
 
         #calculated_boxes = np.empty((0, 16))
 

@@ -172,7 +172,7 @@ class RostDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            path = path[:-4] + '_rgb' + path[-4:]
+            #path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
 
@@ -261,7 +261,8 @@ class RostDataset(tf.data.Dataset):
                 anno.append(item[1])
 
             img_path = image_paths[image_index]
-            scene_id = np.array([int(img_path[-15:-9])])
+            #scene_id = np.array([int(img_path[-15:-9])])
+            scene_id = np.array([int(img_path[-11:-5])])
 
             yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
