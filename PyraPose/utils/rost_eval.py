@@ -158,8 +158,8 @@ def evaluate_rost(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((7), dtype=np.uint32)
     trueDets = np.zeros((7), dtype=np.uint32)
     falseDets = np.zeros((7), dtype=np.uint32)
-    times = np.zeros((40), dtype=np.float32)
-    times_count = np.zeros((40), dtype=np.float32)
+    times = np.zeros((100), dtype=np.float32)
+    times_count = np.zeros((100), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(15, 3))
 
