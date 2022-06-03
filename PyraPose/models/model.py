@@ -1,5 +1,6 @@
 import tensorflow.keras as keras
 import tensorflow as tf
+import tensorflow_addons as tfa
 from .. import initializers
 from .. import layers
 from . import assert_training_model
@@ -27,7 +28,8 @@ def default_classification_model(
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=classification_feature_size,
-            activation='relu',
+            #activation='relu',
+            activation=tfa.activations.mish,
             kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
             bias_initializer='zeros',
             **options
@@ -81,7 +83,8 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='relu',
+            #activation='relu',
+            activation=tfa.activations.mish,
             **options
         )(outputs)
 
@@ -111,8 +114,8 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = inputs
 
     outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
-    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=512, activation=tfa.activations.mish, **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=256, activation=tfa.activations.mish, **options)(outputs)
     translations = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
     translations = keras.layers.Reshape((-1, num_classes, 3))(translations)
     rotations = keras.layers.Conv1D(num_classes * 6, **options)(outputs)
