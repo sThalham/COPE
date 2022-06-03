@@ -147,6 +147,9 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
 
+                if annotations['visibility'][idx] < 0.25:
+                    continue
+
                 '''
                 trans = np.eye(4)
                 trans[:3, :3] = tf3d.quaternions.quat2mat(pose[3:]).reshape((3, 3))
