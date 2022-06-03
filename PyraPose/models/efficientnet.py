@@ -95,9 +95,9 @@ def effnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=No
         # freeze to block2g_add for ENB7(156 last)
         if i < 157 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        print(i, layer.name, layer)
+        #print(i, layer.name, layer)
 
-    effnet.summary()
+    #effnet.summary()
 
         # if 'bn' in layer.name:
         #    layer.trainable = False

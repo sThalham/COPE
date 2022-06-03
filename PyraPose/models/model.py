@@ -131,17 +131,18 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
 
-def __create_PFPN(C3, C4, C5, feature_size=256):
+def __create_PFPN(P3, P4, P5, project=True, feature_size=256):
     options = {
         'activation': 'relu',
         'padding': 'same',
         'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
-    # 3x3 conv for test 4
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C3)
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C4)
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C5)
+    if project == True:
+        # 3x3 conv for test 4
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5)
 
     P5_upsampled = layers.UpsampleLike()([P5, P4])
     P4_upsampled = layers.UpsampleLike()([P4, P3])
@@ -154,26 +155,31 @@ def __create_PFPN(C3, C4, C5, feature_size=256):
     P3_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P3_mid)
     P3_fin = keras.layers.Add()([P3_mid, P3])  # skip connection
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P3',
-                             **options)(P3_fin)
-
     P4_fin = keras.layers.Add()([P3_down, P4_mid])
     P4_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P4_mid)
     P4_fin = keras.layers.Add()([P4_fin, P4])  # skip connection
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P4',
-                             **options)(P4_fin)
     P5_fin = keras.layers.Add()([P4_down, P5])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P5',
+
+    if project == True:
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P3', **options)(P3_fin)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P4',
+                             **options)(P4_fin)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P5',
                              **options)(P5_fin)
+    else:
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P3_fin)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P4_fin)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P5_fin)
 
     return [P3, P4, P5]
 
 
 def __create_DPA(C3, C4, C5, feature_size=256):
     options = {
-        'activation': 'swish',
+        'activation': 'relu',
         'padding': 'same',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
     }
     # C3 -- P3 -- P3_mid -- P3 --
     #         \     |  \    |
@@ -261,6 +267,8 @@ def pyrapose(
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
+    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
+    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
 
     pyramids = []
     regression_P3 = regression_branch(P3)
