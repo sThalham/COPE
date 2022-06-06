@@ -91,7 +91,6 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
             'rotations'     : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
             'consistency'   : losses.projection_deviation(num_classes=num_classes, weight=0.1),
             'projection'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
-            'correspondence'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
         },
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )

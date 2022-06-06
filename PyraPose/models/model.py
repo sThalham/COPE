@@ -337,36 +337,6 @@ def pyrapose(
 
     pyramids.append(projection2img)
 
-    # project to object frame
-    obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
-    calib = tf.zeros([3, 4])
-    calib[0, 0] = intrinsics[0]
-    calib[1, 1] = intrinsics[1]
-    calib[0, 2] = intrinsics[2]
-    calib[1, 2] = intrinsics[3]
-    calib[2, 2] = 1
-
-    trans2obj = tf.zeros([tf.shape(location)[0], tf.shape(location)[1], num_classes, 4, 4])
-    trans2obj[:, :, :, 3, 3] = 1
-    trans2obj[:, :, :, :3, :3] = rot
-    trans2obj[:, :, :, :3, 3] = trans[:, :, :, 0, :]
-
-    points2D = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 2])
-    exp_ones = tf.ones([tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 1])
-    points2D = tf.concat([points2D, exp_ones], axis=3)
-
-    points3D = tf.linalg.matmul(points2D, calib)
-    pointsObj = tf.linalg.matmul(trans2obj, points3D)
-
-    cor_dev = obj_correspondences - pointsObj
-    cor_dev = tf.math.abs(cor_dev)
-    cor_dev = tf.math.sum(cor_dev, axis=[3, 4])
-
-    rename_layer_3 = keras.layers.Lambda(lambda x: x, name='correspondences')
-    projection2obj = rename_layer_3(cor_dev)
-
-    pyramids.append(projection2obj)
-
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
@@ -392,7 +362,7 @@ def inference_model(
         object_diameters=None,
         num_classes=None,
         name='pyrapose',
-        score_threshold=0.75,
+        score_threshold=0.5,
         pose_hyps=9,
         iou_threshold=0.5,
         max_detections=100,
@@ -416,16 +386,6 @@ def inference_model(
     translations = model.outputs[2]
     rotations = model.outputs[3]
     consistency = model.outputs[4] # gone for just reprojection
-
-    #tf_diameter = tf.convert_to_tensor(187.8992)
-    #tf_diameter = tf.convert_to_tensor(220.0)
-    # print('detections 3: ', detections[3])
-    # rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
-    #tf_diameter = tf.convert_to_tensor(300.0)
-    #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, tf.newaxis],
-    #                               [tf.shape(regression)[0], tf.shape(regression)[1], 15])
-    #rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-    #rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
