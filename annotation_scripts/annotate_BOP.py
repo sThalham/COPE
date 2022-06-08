@@ -173,12 +173,12 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'canister'
+    dataset = 'tless'
     traintestval = 'val'
-    visu = False
+    visu = True
 
-    root = "/home/stefan/data/datasets/canister/test"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/canister_d435_Ihsr_center/'
+    root = "/home/stefan/data/bop_datasets/tless/test_primesense"  # path to train samples, depth + rgb
+    target = '/home/stefan/data/train_data/tless_PBR_BOP/'
 
     if dataset == 'linemod':
         mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
     elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/bop_datasets/tless/models/models_eval/models_info.json'
+        mesh_info = '/home/stefan/data/bop_datasets/tless/models_eval/models_info.json'
         num_objects = 30
     elif dataset == 'homebrewed':
         mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
@@ -274,7 +274,9 @@ if __name__ == "__main__":
 
         scene_id = str(set)
 
-        if scene_id == '000000':
+        print(scene_id)
+
+        if scene_id == '000004' or scene_id == '000008' or scene_id == '000002'  or scene_id == '000018':
             continue
 
         rgbPath = set_root + "/rgb/"
@@ -358,12 +360,40 @@ if __name__ == "__main__":
                     print(imgNam[-7:-4])
                     continue
 
-
                 # HSRB
                 fxkin = 538.391033
                 fykin = 538.085452
                 cxkin = 315.30747
                 cykin = 233.048356
+
+                shift_x = (fxca / fxkin) * 320
+                shift_y = (fyca / fykin) * 240
+
+                sha_y, sha_x, _ = rgbImg.shape
+                pad_img = np.zeros((sha_y * 2, sha_x * 2, 3), dtype=np.uint8)
+                pad_img[int(sha_y*0.5):-int(sha_y*0.5), int(sha_x*0.5):-int(sha_x*0.5), :] = rgbImg
+                rgbImg = pad_img[int((sha_y*0.5)+cyca-shift_y):int((sha_y*0.5)+cyca+shift_y), int((sha_x*0.5)+cxca-shift_x):int((sha_x*0.5)+cxca+shift_x), :]
+
+                fxca = fxkin
+                fyca = fykin
+                cxvan = cxca
+                cyvan = cyca
+                cxca = 320.0
+                cyca = 240.0
+                rgbImg = cv2.resize(rgbImg, (640, 480))
+
+                if scene_id == '000001':
+                    rgbImg = np.flip(rgbImg, axis=0)
+                    rgbImg = np.flip(rgbImg, axis=1)
+                rgbImg = rgbImg.astype(dtype=np.uint8)
+
+            elif dataset == 'tless':
+
+                # tless train
+                fxkin = 1075.65091572
+                fykin = 1073.90347929
+                cxkin = 360
+                cykin = 240
 
                 shift_x = (fxca / fxkin) * 320
                 shift_y = (fyca / fykin) * 240
@@ -383,59 +413,6 @@ if __name__ == "__main__":
                 cyca = 240.0
                 rgbImg = cv2.resize(rgbImg, (640, 480))
 
-                if scene_id == '000001':
-                    rgbImg = np.flip(rgbImg, axis=0)
-                    rgbImg = np.flip(rgbImg, axis=1)
-                rgbImg = rgbImg.astype(dtype=np.uint8)
-
-                '''
-                #435
-                rgbImg = rgbImg[:, 160:-160, :]
-                rgbImg = cv2.resize(rgbImg, (640, 480))
-                fxca = fxca * (640.0 / 960.0)  # (640.0 / 2208.0)
-                fyca = fyca * (480.0 / 720.0)
-                cxca = 640 - ((cxca - 160) * (640.0 / 960.0))
-                cyca = 480 - (cyca * (480.0 / 720.0))
-
-                #zed
-                
-                rgbImg = rgbImg[:, 276:-276, :]
-                rgbImg = cv2.resize(rgbImg, (640, 480))
-                fxca = fxca * (640.0 / 1656.0)#(640.0 / 2208.0)
-                fyca = fyca * (480.0 / 1242.0)
-                cxca = (cxca-276) * (640.0 / 1656.0)
-                cyca = cyca * (480.0 / 1242.0)
-                '''
-                '''
-                print(fxca, fyca, cxca, cyca)
-
-                # d435
-                rgbImg = rgbImg[:, 160:-160, :]
-                rgbImg = cv2.resize(rgbImg, (640, 480))
-                fxca = fxca * (640.0 / 960.0)  # (640.0 / 2208.0)
-                fyca = fyca * (480.0 / 720.0)
-                cxca = (cxca - 160) * (640.0 / 960.0)
-                cyca = cyca * (480.0 / 720.0)
-
-                warp_x = 320 - cxca
-                warp_y = 240 - cyca
-                cxca = 320
-                cyca = 240
-
-                if int(imgNam[-7:-4]) in [108, 238, 317, 518]:
-                    print(imgNam[-7:-4])
-                    continue
-
-                warp_mat = np.array([
-                    [1, 0, warp_x],
-                    [0, 1, warp_y],
-                    [0, 0, 1]
-                ], dtype=np.float64)
-
-                rgbImg = cv2.warpAffine(rgbImg, warp_mat[:2, :], dsize=(rgbImg.shape[1], rgbImg.shape[0]), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REPLICATE, borderValue=0)
-                '''
-                
-
             fileName = target + 'images/' + traintestval + '/' + imgNam[:-4] + '_rgb.png'
             myFile = Path(fileName)
             if myFile.exists():
@@ -449,10 +426,10 @@ if __name__ == "__main__":
                 print("storing image in : ", fileName)
 
             mask_ind = 0
-            if dataset == 'tless':
-                mask_img = np.zeros((540, 720), dtype=np.uint8)
-            else:
-                mask_img = np.zeros((480, 640), dtype=np.uint8)
+            #if dataset == 'tless':
+            #    mask_img = np.zeros((540, 720), dtype=np.uint8)
+           # else:
+            mask_img = np.zeros((480, 640), dtype=np.uint8)
             bbvis = []
             cnt = 0
             # bbsca = 720.0 / 640.0
@@ -463,13 +440,7 @@ if __name__ == "__main__":
                 else:
                     mask_path = os.path.join(visPath, mask_name)
                 obj_mask = cv2.imread(mask_path)[:, :, 0]
-                if dataset == 'canister':
-                    # zed
-                    #obj_mask = obj_mask[:, 276:-276]
-                    #obj_mask = cv2.resize(obj_mask, (640, 480))
-                    # d435
-                    #obj_mask = obj_mask[:, 160:-160]
-                    #obj_mask = cv2.resize(obj_mask, (640, 480))
+                if dataset == 'canister' or dataset == 'tless':
 
                     pad_img = np.zeros((sha_y * 2, sha_x * 2), dtype=np.uint8)
                     pad_img[int(sha_y * 0.5):-int(sha_y * 0.5), int(sha_x * 0.5):-int(sha_x * 0.5)] = obj_mask
@@ -511,7 +482,7 @@ if __name__ == "__main__":
                     tra = tra + offset
 
                 # interlude for rotating d435
-                if scene_id == '000001':
+                if scene_id == '000001' and dataset == 'canister':
                     trans = np.eye(4)
                     trans[:3, :3] = R.reshape(3, 3)
                     trans[:3, 3] = tra
