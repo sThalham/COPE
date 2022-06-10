@@ -387,14 +387,15 @@ class ICbinDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'labels': np.empty((0,)),
+            annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
-                    if a['feature_visibility'] < 0.5:
+                    if a['feature_visibility'] < 0.25:
                         continue
+                annotations['visibility'] = np.concatenate([annotations['visibility'], [a['feature_visibility']]])
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[

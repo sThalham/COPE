@@ -147,7 +147,7 @@ def anchor_targets_bbox(
                 labels_batch[index, locations_positive_obj, -1] = 1
                 labels_batch[index, locations_positive_obj, cls] = 1
 
-                if annotations['visibility'][idx] < 0.25:
+                if annotations['visibility'][idx] < 0.5:
                     continue
 
                 '''
