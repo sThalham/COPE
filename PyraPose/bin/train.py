@@ -637,10 +637,10 @@ def main(args=None):
 
     #backbone = models.backbone('resnet50')
     #backbone = models.backbone('resnet101')
-    backbone = models.backbone('efficientnet')
+    backbone = models.backbone('resnet152')
+    #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
     #backbone = models.backbone('xception')
-    #backbone = models.backbone('densenet')
     #backbone = models.backbone('nasnetmobile')
 
     # optionally choose specific GPU

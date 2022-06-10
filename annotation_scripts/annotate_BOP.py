@@ -387,7 +387,7 @@ if __name__ == "__main__":
                     rgbImg = np.flip(rgbImg, axis=1)
                 rgbImg = rgbImg.astype(dtype=np.uint8)
 
-            elif dataset == 'tless':
+            elif dataset == 'tles':
 
                 # tless train
                 fxkin = 1075.65091572
