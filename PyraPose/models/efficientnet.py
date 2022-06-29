@@ -78,7 +78,7 @@ class EfficientNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def effnet_model(num_classes, inputs=None, modifier=None, **kwargs):
+def effnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -86,17 +86,18 @@ def effnet_model(num_classes, inputs=None, modifier=None, **kwargs):
             # inputs = keras.layers.Input(shape=(None, None, 3))
             inputs = keras.layers.Input(shape=(480, 640, 3))
 
-    effnet = tf.keras.applications.EfficientNetB4(
+    effnet = tf.keras.applications.EfficientNetB7(
         include_top=False, weights='imagenet', input_tensor=inputs, classes=num_classes)
 
     for i, layer in enumerate(effnet.layers):
         # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
         #    layer.trainable=False
-        if i < 88 or 'bn' in layer.name:  # freezing first 2 stages
+        # freeze to block2g_add for ENB7(156 last)
+        if i < 157 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        print(i, layer.name, layer)
+        #print(i, layer.name, layer)
 
-    effnet.summary()
+    #effnet.summary()
 
         # if 'bn' in layer.name:
         #    layer.trainable = False
@@ -108,11 +109,11 @@ def effnet_model(num_classes, inputs=None, modifier=None, **kwargs):
     if modifier:
         effnet = modifier(effnet)
 
-    # alternatively 146/323/..
-    effnet_outputs = [effnet.layers[149].output, effnet.layers[326].output, effnet.layers[473].output]
-    #xception_outputs = [resnet.layers[31].output, resnet.layers[121].output, resnet.layers[131].output]
+    # alternatively block3g_add/block5j_add/last
+    # layer idx     /260       /557        /812
+    effnet_outputs = [effnet.layers[260].output, effnet.layers[557].output, effnet.layers[812].output]
 
     # create the full model
-    return model.pyrapose(inputs=inputs, num_classes=num_classes, backbone_layers=effnet_outputs, **kwargs)
+    return model.pyrapose(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, backbone_layers=effnet_outputs, **kwargs)
 
 

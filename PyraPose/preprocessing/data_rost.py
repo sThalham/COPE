@@ -78,7 +78,7 @@ def load_classes(categories):
     return classes, labels, labels_inverse, labels_rev
 
 
-class LinemodDataset(tf.data.Dataset):
+class RostDataset(tf.data.Dataset):
 
     def _sample(data_dir, set_name, batch_size, image_min_side=480, image_max_side=640):
 
@@ -172,7 +172,7 @@ class LinemodDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            path = path[:-4] + '_rgb' + path[-4:]
+            #path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
 
@@ -181,7 +181,8 @@ class LinemodDataset(tf.data.Dataset):
                 CHECK DONE HERE: Annotations + images correct
             """
             ids = image_ids[image_index]
-            image_num = int(str(ids)[1:])
+
+            image_num = int(str(ids))#[1:])
 
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
@@ -248,6 +249,7 @@ class LinemodDataset(tf.data.Dataset):
             y_t = load_annotations(image_index)
 
             x_t, scale = resize_image(x_t, min_side=image_min_side, max_side=image_max_side)
+
             y_t['bboxes'] *= scale
             y_t['cam_params'] *= scale
 
@@ -259,7 +261,8 @@ class LinemodDataset(tf.data.Dataset):
                 anno.append(item[1])
 
             img_path = image_paths[image_index]
-            scene_id = np.array([int(img_path[-15:-9])])
+            #scene_id = np.array([int(img_path[-15:-9])])
+            scene_id = np.array([int(img_path[-11:-5])])
 
             yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
@@ -350,12 +353,6 @@ class LinemodDataset(tf.data.Dataset):
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
-            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
-            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
-            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
-            #x_minus = x_plus * -1.0
-            #y_minus = y_plus * -1.0
-            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -371,18 +368,15 @@ class LinemodDataset(tf.data.Dataset):
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
                     sym_disc[int(key), sdx, :] = np.array(sym)
-            #else:
-                #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
+                    sym_disc[int(key), sdx, [3, 7, 11]] *= 0.001
 
             if "symmetries_continuous" in value:
                 sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
-            #else:
-            #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
-            min_translation=(0.0, 0.0),
-            max_translation=(0.0, 0.0),
+            min_translation=(-0.00, -0.00),
+            max_translation=(0.00, 0.00),
             min_scaling=(0.95, 0.95),
             max_scaling=(1.05, 1.05),
         )
@@ -391,7 +385,7 @@ class LinemodDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            path = path[:-4] + '_rgb' + path[-4:]
+            #path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
 
@@ -409,15 +403,14 @@ class LinemodDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
+            annotations = {'mask': mask, 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
-                    if a['feature_visibility'] < 0.25:
+                    if a['feature_visibility'] < 0.5:
                         continue
-                annotations['visibility'] = np.concatenate([annotations['visibility'], [a['feature_visibility']]])
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -485,29 +478,6 @@ class LinemodDataset(tf.data.Dataset):
         max_shape = (image_min_side, image_max_side, 3)
 
         seq = iaa.Sequential([
-            #iaa.SomeOf((0, 2), [
-            #    iaa.BlendAlphaFrequencyNoise(
-            #        exponent=(-4, 4),
-            #        foreground=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
-            #        background=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
-            #        upscale_method=["linear", "cubic"]
-            #    ),
-            #    iaa.BlendAlphaSimplexNoise(
-            #        foreground=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
-            #        background=iaa.MultiplyAndAddToBrightness((0.5, 1.5), (-50, 50)),
-            #        upscale_method=["linear", "cubic"]
-            #    ),
-            #    iaa.BlendAlphaSimplexNoise(
-            #        foreground=[iaa.MultiplyHue((0.5, 1.5)), iaa.MultiplySaturation((0.5, 1.5))],
-            #        background=[iaa.MultiplyHue((0.5, 1.5)), iaa.MultiplySaturation((0.5, 1.5))],
-            #        upscale_method=["linear", "cubic"]
-            #    ),
-            #    iaa.BlendAlphaSimplexNoise(
-            #        foreground=[iaa.AddToHue((-50, 50)), iaa.AddToSaturation((-50, 50))],
-            #        background=[iaa.AddToHue((-50, 50)), iaa.AddToSaturation((-50, 50))],
-            #        upscale_method=["linear", "cubic"]
-            #    ),
-            #]),
             # blur
             iaa.SomeOf((0, 2), [
                 iaa.GaussianBlur((0.0, 2.0)),
@@ -531,10 +501,6 @@ class LinemodDataset(tf.data.Dataset):
                 ]),
                 iaa.Add((-10, 10), per_channel=0.5),
                 iaa.Multiply((0.75, 1.25), per_channel=0.5),
-                #iaa.BlendAlphaFrequencyNoise(
-                #    exponent=(-4, 0),
-                #    first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
-                #    second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
                 iaa.FrequencyNoiseAlpha(
                     exponent=(-4, 0),
                     first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
@@ -561,6 +527,9 @@ class LinemodDataset(tf.data.Dataset):
                 x_s = [load_image(image_index) for image_index in groups[btx]]
                 y_s = [load_annotations(image_index) for image_index in groups[btx]]
 
+                #x_s = [load_image(1)]
+                #y_s = [load_annotations(1)]
+
                 assert (len(x_s) == len(y_s))
 
                 # filter annotations
@@ -585,8 +554,6 @@ class LinemodDataset(tf.data.Dataset):
                 #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
                 #target_batch = tf.tuple(target_batch)
 
-                #yield image_source_batch, target_batch
-                #yield image_source_batch, target_batch
                 yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
 
     def __new__(self, data_dir, set_name, batch_size):
@@ -607,17 +574,13 @@ class LinemodDataset(tf.data.Dataset):
                                                   # "cam_params": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="cam_params")}),
                                               args=(data_dir, set_name, batch_size))
 
-        elif set_name == 'train':
-            return tf.data.Dataset.from_generator(self._generate,
-                                              output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
-                                                                (tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 17),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15 + 1),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 4),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32),
-                                                                #tf.TensorSpec(shape=(batch_size, 6300, 15),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15), dtype=tf.float32))),
+        return tf.data.Dataset.from_generator(self._generate,
+                                              output_signature=(
+                                              tf.TensorSpec(shape=(batch_size, None, None, 3), dtype=tf.float32),
+                                              (tf.TensorSpec(shape=(batch_size, 6300, 6, 8, 17), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 6 + 1), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 6, 4), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 6, 8, 7), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 6), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
-
-        else:
-            print('Define valid set_type for dataset generator [train, val].')
 

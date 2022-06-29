@@ -282,6 +282,53 @@ def create_generator(args):
                 #intrinsics[3] = 601.8897705078125 * (480.0 / 1242.0)
             break
 
+    elif args.dataset_type == 'rost':
+        from ..preprocessing.data_rost import RostDataset
+
+        dataset = RostDataset(args.rost_path, 'val', batch_size=1)
+        num_classes = 6
+        mesh_info = os.path.join(args.rost_path, 'annotations', 'models_info' + '.json')
+        correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+        for key, value in json.load(open(mesh_info)).items():
+            x_minus = value['min_x']
+            y_minus = value['min_y']
+            z_minus = value['min_z']
+            x_plus = value['size_x'] + x_minus
+            y_plus = value['size_y'] + y_minus
+            z_plus = value['size_z'] + z_minus
+            norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+            # x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            # y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            # z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            # x_minus = x_plus * -1.0
+            # y_minus = y_plus * -1.0
+            # z_minus = z_plus * -1.0
+            three_box_solo = np.array([[x_plus, y_plus, z_plus],
+                                       [x_plus, y_plus, z_minus],
+                                       [x_plus, y_minus, z_minus],
+                                       [x_plus, y_minus, z_plus],
+                                       [x_minus, y_plus, z_plus],
+                                       [x_minus, y_plus, z_minus],
+                                       [x_minus, y_minus, z_minus],
+                                       [x_minus, y_minus, z_plus]])
+            correspondences[int(key) - 1, :, :] = three_box_solo
+            # sphere_diameters[int(key) - 1] = value['diameter']
+            sphere_diameters[int(key) - 1] = norm_pts
+        path = os.path.join(args.rost_path, 'annotations', 'instances_val.json')
+        with open(path, 'r') as js:
+            data = json.load(js)
+        image_ann = data["images"]
+        intrinsics = np.ndarray((4), dtype=np.float32)
+        for img in image_ann:
+            if "fx" in img:
+                intrinsics[0] = img["fx"]
+                intrinsics[1] = img["fy"]
+                intrinsics[2] = img["cx"]
+                intrinsics[3] = img["cy"]
+
+            break
+
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
@@ -315,6 +362,9 @@ def parse_args(args):
 
     custom_parser = subparsers.add_parser('custom')
     custom_parser.add_argument('custom_path', help='Path to dataset directory (ie. /tmp/ICbin).')
+
+    rost_parser = subparsers.add_parser('rost')
+    rost_parser.add_argument('rost_path', help='Path to dataset directory (ie. /tmp/ICbin).')
 
     parser.add_argument('model',              help='Path to RetinaNet model.')
     parser.add_argument('--convert-model',    help='Convert the model to an inference model (ie. the input is a training model).', action='store_true')
@@ -387,6 +437,11 @@ def main(args=None):
         from ..utils.custom_eval import evaluate_custom
 
         evaluate_custom(generator, model, args.custom_path, args.score_threshold)
+
+    elif args.dataset_type == 'rost':
+        from ..utils.rost_eval import evaluate_rost
+
+        evaluate_rost(generator, model, args.rost_path, args.score_threshold)
 
     else:
          print('unknown dataset: ', args.dataset_type)

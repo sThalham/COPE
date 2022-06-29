@@ -54,14 +54,14 @@ def backbone(backbone_name):
         from .resnet50 import ResNetBackbone as b
     elif 'resnet101' in backbone_name:
         from .resnet101 import ResNetBackbone as b
+    elif 'resnet152' in backbone_name:
+        from .resnet152 import ResNetBackbone as b
     elif 'efficientnet' in backbone_name:
         from .efficientnet import EfficientNetBackbone as b
     elif 'darknet' in backbone_name:
         from .darknet53 import DarkNetBackbone as b
     elif 'xception' in backbone_name:
         from .xception import XceptionBackbone as b
-    elif 'densenet' in backbone_name:
-        from .densenet import DenseNetBackbone as b
     elif 'nasnetmobile' in backbone_name:
         from .nasnetmobile import NASNetBackbone as b
     else:

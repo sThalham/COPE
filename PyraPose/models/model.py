@@ -1,5 +1,6 @@
 import tensorflow.keras as keras
 import tensorflow as tf
+import tensorflow_addons as tfa
 from .. import initializers
 from .. import layers
 from . import assert_training_model
@@ -27,7 +28,8 @@ def default_classification_model(
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=classification_feature_size,
-            activation='relu',
+            #activation='relu',
+            activation=tfa.activations.mish,
             kernel_initializer=keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
             bias_initializer='zeros',
             **options
@@ -81,7 +83,8 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     for i in range(4):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='relu',
+            #activation='relu',
+            activation=tfa.activations.mish,
             **options
         )(outputs)
 
@@ -111,8 +114,8 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     outputs = inputs
 
     outputs = keras.layers.Reshape((-1, num_classes * 16))(outputs)
-    outputs = keras.layers.Conv1D(filters=512, activation='relu', **options)(outputs)
-    outputs = keras.layers.Conv1D(filters=256, activation='relu', **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=512, activation=tfa.activations.mish, **options)(outputs)
+    outputs = keras.layers.Conv1D(filters=256, activation=tfa.activations.mish, **options)(outputs)
     translations = keras.layers.Conv1D(num_classes * 3, **options)(outputs)
     translations = keras.layers.Reshape((-1, num_classes, 3))(translations)
     rotations = keras.layers.Conv1D(num_classes * 6, **options)(outputs)
@@ -128,17 +131,18 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
 
 
-def __create_PFPN(C3, C4, C5, feature_size=256):
+def __create_PFPN(P3, P4, P5, project=True, feature_size=256):
     options = {
         'activation': 'relu',
         'padding': 'same',
         'kernel_regularizer': keras.regularizers.l2(0.001),
     }
 
-    # 3x3 conv for test 4
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C3)
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C4)
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C5)
+    if project == True:
+        # 3x3 conv for test 4
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5)
 
     P5_upsampled = layers.UpsampleLike()([P5, P4])
     P4_upsampled = layers.UpsampleLike()([P4, P3])
@@ -151,26 +155,31 @@ def __create_PFPN(C3, C4, C5, feature_size=256):
     P3_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P3_mid)
     P3_fin = keras.layers.Add()([P3_mid, P3])  # skip connection
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P3',
-                             **options)(P3_fin)
-
     P4_fin = keras.layers.Add()([P3_down, P4_mid])
     P4_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2,
                                   **options)(P4_mid)
     P4_fin = keras.layers.Add()([P4_fin, P4])  # skip connection
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P4',
-                             **options)(P4_fin)
     P5_fin = keras.layers.Add()([P4_down, P5])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P5',
+
+    if project == True:
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P3', **options)(P3_fin)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P4',
+                             **options)(P4_fin)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, name='P5',
                              **options)(P5_fin)
+    else:
+        P3 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P3_fin)
+        P4 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P4_fin)
+        P5 = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P5_fin)
 
     return [P3, P4, P5]
 
 
 def __create_DPA(C3, C4, C5, feature_size=256):
     options = {
-        'activation': 'swish',
+        'activation': 'relu',
         'padding': 'same',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
     }
     # C3 -- P3 -- P3_mid -- P3 --
     #         \     |  \    |
@@ -258,6 +267,8 @@ def pyrapose(
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
+    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
+    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
 
     pyramids = []
     regression_P3 = regression_branch(P3)
@@ -311,12 +322,9 @@ def pyrapose(
 
     projected_boxes_x = box3d[:, :, :, :, 0] * intrinsics[0]
     projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
-    #projected_boxes_x = tf.math.add(projected_boxes_x, intrinsics[2])
     projected_boxes_y = box3d[:, :, :, :, 1] * intrinsics[1]
     projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
-    #projected_boxes_y = tf.math.add(projected_boxes_y, intrinsics[3])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
-    #pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], tf.shape(location)[2], 16])
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16]) * 0.01 # factor for scaling
 
     #discrepancy = tf.concat([destd_boxes, pro_boxes], axis=3)
@@ -336,9 +344,41 @@ def pyrapose(
     projection = tf.math.divide_no_nan(projection, rep_object_diameters)
 
     rename_layer_2 = keras.layers.Lambda(lambda x: x, name='projection')
-    projection = rename_layer_2(projection)
+    projection2img = rename_layer_2(projection)
 
-    pyramids.append(projection)
+    pyramids.append(projection2img)
+
+    '''
+    # project to object frame
+    obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
+    calib = tf.zeros([3, 4])
+    calib[0, 0] = intrinsics[0]
+    calib[1, 1] = intrinsics[1]
+    calib[0, 2] = intrinsics[2]
+    calib[1, 2] = intrinsics[3]
+    calib[2, 2] = 1
+
+    trans2obj = tf.zeros([tf.shape(location)[0], tf.shape(location)[1], num_classes, 4, 4])
+    trans2obj[:, :, :, 3, 3] = 1
+    trans2obj[:, :, :, :3, :3] = rot
+    trans2obj[:, :, :, :3, 3] = trans[:, :, :, 0, :]
+
+    points2D = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 2])
+    exp_ones = tf.ones([tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 1])
+    points2D = tf.concat([points2D, exp_ones], axis=3)
+
+    points3D = tf.linalg.matmul(points2D, calib)
+    pointsObj = tf.linalg.matmul(trans2obj, points3D)
+
+    cor_dev = obj_correspondences - pointsObj
+    cor_dev = tf.math.abs(cor_dev)
+    cor_dev = tf.math.reduce_sum(cor_dev, axis=[3, 4])
+
+    rename_layer_3 = keras.layers.Lambda(lambda x: x, name='correspondences')
+    projection2obj = rename_layer_3(cor_dev)
+
+    pyramids.append(projection2obj)
+    '''
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
@@ -365,9 +405,9 @@ def inference_model(
         object_diameters=None,
         num_classes=None,
         name='pyrapose',
-        score_threshold=0.75,
+        score_threshold=0.5,
         pose_hyps=9,
-        iou_threshold=0.5,
+        iou_threshold=0.75,
         max_detections=100,
         **kwargs
 ):
