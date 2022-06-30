@@ -406,8 +406,8 @@ def inference_model(
         num_classes=None,
         name='pyrapose',
         score_threshold=0.5,
-        pose_hyps=9,
-        iou_threshold=0.75,
+        pose_hyps=10,
+        iou_threshold=0.5,
         max_detections=100,
         **kwargs
 ):
@@ -430,16 +430,6 @@ def inference_model(
     rotations = model.outputs[3]
     consistency = model.outputs[4] # gone for just reprojection
 
-    #tf_diameter = tf.convert_to_tensor(187.8992)
-    #tf_diameter = tf.convert_to_tensor(220.0)
-    # print('detections 3: ', detections[3])
-    # rep_object_diameters = tf.gather(tf_diameter, indices=detections[3])
-    #tf_diameter = tf.convert_to_tensor(300.0)
-    #rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, tf.newaxis],
-    #                               [tf.shape(regression)[0], tf.shape(regression)[1], 15])
-    #rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-    #rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
-
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
     rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
@@ -448,10 +438,11 @@ def inference_model(
     poses = tf.concat([translations, rotations], axis=3)
     poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
-    
+
+    consistency = tf.math.reduce_sum(consistency, axis=3)
+
     #consistency = boxes3D - consistency
     #consistency = tf.math.abs(consistency)
-    consistency = tf.math.reduce_sum(consistency, axis=3)
     #consistency = tf.math.reduce_sum(poses, axis=3)
     #discrepancy = destd_boxes - pro_boxes
     #discrepancy = tf.math.abs(discrepancy)
@@ -465,6 +456,6 @@ def inference_model(
         iou_threshold=iou_threshold,
     )([boxes3D, classification, poses, consistency])
 
-    return keras.models.Model(inputs=model.inputs, outputs=[detections[0], detections[1], detections[2], detections[3]], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[detections[0], detections[1], detections[2], detections[3], detections[4]], name=name)
 
-    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification], name=name)
+    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, poses], name=name)

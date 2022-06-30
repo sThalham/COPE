@@ -14,9 +14,6 @@ import yaml
 import time
 import csv
 
-import progressbar
-assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
-
 
 def toPix_array(translation, fx, fy, cx, cy):
 

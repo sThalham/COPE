@@ -244,6 +244,7 @@ class LinemodDataset(tf.data.Dataset):
             return annotations
 
         for image_index, image_path in enumerate(image_paths):
+
             x_t = load_image(image_index)
             y_t = load_annotations(image_index)
 

@@ -30,9 +30,6 @@ import sys
 import matplotlib.pyplot as plt
 import time
 
-import progressbar
-assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
-
 
 # LineMOD
 fxkin = 572.41140
@@ -340,6 +337,9 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         gt_calib = sample[6].numpy()
         allLabels = copy.deepcopy(gt_labels)
 
+        #if scene_id != 10:
+        #    continue
+
         if gt_labels.size == 0 or int(gt_labels[0]) in [2, 6]:
             continue
 
@@ -375,7 +375,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             tDbox = tDbox.astype(np.uint16)
             tDbox = np.where(tDbox < 3, 3, tDbox)
 
-            colGT = (245, 102, 65)
+            # colGT = (245, 102, 65)
+            colGT = (50, 205, 50)
+
+            box = gt_boxes[obj, :]
+            print(box)
+            image_ori = cv2.rectangle(image_ori, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), colGT, 2)
 
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
@@ -409,6 +414,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_error = 0
         t_img = 0
         n_img = 0
+        '''
 
         scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
@@ -530,18 +536,18 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             if err_add > model_dia[true_cls] * 0.1:
                 colEst = (0, 39, 236)
 
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
             if true_cls == 1:
                 model_vsd = md1
@@ -585,11 +591,10 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            #image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
         '''
 
-
-        boxes3D, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes3D, labels, poses = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         labels_cls = np.argmax(labels[0, :, :], axis=1)
@@ -608,7 +613,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             cls_indices = np.where(labels_cls == inv_cls)
             labels_filt = labels[0, cls_indices[0], inv_cls]
             pose_votes = boxes3D[0, cls_indices[0], inv_cls, :]
-            above_thres = np.where(labels_filt > 0.25)
+            above_thres = np.where(labels_filt > 0.5)
 
             pose_votes = pose_votes[above_thres[0], :]
 
@@ -622,7 +627,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             K = np.float64([float(fxkin), 0., float(cxkin), 0., float(fykin), float(cykin), 0., 0., 1.]).reshape(3, 3)
 
             est_points = np.ascontiguousarray(pose_votes, dtype=np.float32).reshape((hyps * 8, 2))
-            #est_points = pose_votes.reshape((hyps * 8, 1, 2))
+            est_points = pose_votes.reshape((hyps * 8, 1, 2))
 
             retval, orvec, otvec, _ = cv2.solvePnPRansac(objectPoints=obj_points,
                                                                imagePoints=est_points, cameraMatrix=K,
@@ -632,6 +637,12 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
                                                                flags=cv2.SOLVEPNP_EPNP)
             R_est, _ = cv2.Rodrigues(orvec)
             t_est = otvec[:, 0]
+
+            #pose = np.mean(pose_votes, axis=1)
+            #R_est = pose[3:]
+            #t_est = pose[:3]
+            #print('R_est: ', R_est)
+            #print('t_est: ', t_est)
 
             #gt_idx = np.argwhere(gt_labels == inv_cls)
             #gt_pose = gt_poses[gt_idx, :]
@@ -730,7 +741,6 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-        '''
 
         #if index > 0:
         #    times[n_img] += t_img
@@ -743,6 +753,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         #cv2.imwrite(name, image_rows)
         #cv2.imwrite(name, image_raw)
 
+        #name = '/home/stefan/PyraPose_viz/' + 'raw_' + str(index) + '.png'
+        #cv2.imwrite(name, image_raw)
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
 
