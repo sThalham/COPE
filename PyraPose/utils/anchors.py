@@ -59,10 +59,10 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
         #is_there_sym = False
         #raw_images = []
         #raw_images.append(copy.deepcopy(image_raw))
@@ -376,8 +376,8 @@ def anchor_targets_bbox(
                 #if is_sym == True:
                     #print('cls: ', cls)
                     #print('sym: ', sym_disc.shape[0], symmetry_mask)
-                image_raw = cv2.rectangle(image_raw, (int(annotations['bboxes'][idx][0]), int(annotations['bboxes'][idx][1])),
-                                          (int(annotations['bboxes'][idx][2]), int(annotations['bboxes'][idx][3])), (42, 205, 50), 2)
+                #image_raw = cv2.rectangle(image_raw, (int(annotations['bboxes'][idx][0]), int(annotations['bboxes'][idx][1])),
+                #                          (int(annotations['bboxes'][idx][2]), int(annotations['bboxes'][idx][3])), (42, 205, 50), 2)
 
                 #points = box3D_transform(box3D, image_locations[locations_positive_obj, :], obj_diameter)
                 points = box3D_transform_symmetric(hyps_boxes, image_locations_rep[locations_positive_obj, :, :], obj_diameter)
@@ -445,12 +445,12 @@ def anchor_targets_bbox(
                                      2)
                 '''
 
-        rind = np.random.randint(0, 1000)
+        #rind = np.random.randint(0, 1000)
         #images_row1 = np.concatenate([raw_images[0], raw_images[1]], axis=1)
         #images_row2 = np.concatenate([raw_images[2], raw_images[3]], axis=1)
         #image_raw = np.concatenate([images_row1, images_row2], axis=0)
-        name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
-        cv2.imwrite(name, image_raw)
+        #name = '/home/stefan/PyraPose_viz/anno_' + str(rind) + 'RGB.jpg'
+        #cv2.imwrite(name, image_raw)
 
 
         #img_P3 = img_P3.astype(np.uint8)
