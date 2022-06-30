@@ -62,7 +62,7 @@ class CustomModel(tf.keras.Model):
         self.consistency_tracker.update_state(losses[5])
         self.projection_tracker.update_state(losses[6])
 
-        return {"loss": self.loss_tracker.result(), "points": self.box_tracker.result(), "box": self.points_tracker.result(), "cls": self.cls_tracker.result(), "tra": self.translations_tracker.result(), "rot": self.rotations_tracker.result(), "pro": self.projection_tracker.result(), "con": self.consistency_tracker.result()}
+        return {"loss": self.loss_tracker.result(), "pts": self.points_tracker.result(), "box": self.box_tracker.result(), "cls": self.cls_tracker.result(), "tra": self.translations_tracker.result(), "rot": self.rotations_tracker.result(), "pro": self.projection_tracker.result(), "con": self.consistency_tracker.result()}
 
 
     @property

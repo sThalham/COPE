@@ -82,9 +82,7 @@ def convert_model(model, diameters, classes):
 
 
 def assert_training_model(model):
-    #assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'projection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    #assert (all(output in model.output_names for output in ['points', 'cls', 'translations', 'rotations', 'consistency', 'projection'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
-    assert (all(output in model.output_names for output in ['points', 'cls'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
+    assert (all(output in model.output_names for output in ['pts', 'box', 'cls', 'tra', 'rot', 'pro', 'con'])), "Input is not a training model. Outputs were found, outputs are: {}).".format(model.output_names)
 
 
 def check_training_model(model):
