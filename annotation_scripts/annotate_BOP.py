@@ -173,15 +173,15 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'tless'
-    traintestval = 'val'
-    visu = True
+    dataset = 'icbin'
+    traintestval = 'train'
+    visu = False
 
-    root = "/home/stefan/data/bop_datasets/tless/test_primesense"  # path to train samples, depth + rgb
-    target = '/home/stefan/data/train_data/tless_PBR_BOP/'
+    root = "/hdd/bop_datasets/icbin/train_pbr"  # path to train samples, depth + rgb
+    target = '/hdd/train_data/icbin_PBR_BOP/'
 
     if dataset == 'linemod':
-        mesh_info = '/home/stefan/data/Meshes/linemod_13/models_info.yml'
+        mesh_info = '/hdd/bop_datasets/lm/models_eval/models_info.json'
         num_objects = 15
     elif dataset == 'occlusion':
         mesh_info = '/home/stefan/data/bop_datasets/lmo/models_eval/models_info.json'
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
         num_objects = 33
     elif dataset == 'icbin':
-        mesh_info = '/home/stefan/data/bop_datasets/icbin/models_eval/models_info.json'
+        mesh_info = '/hdd/bop_datasets/icbin/models_eval/models_info.json'
         num_objects = 2
     elif dataset == 'canister':
         mesh_info = '/home/stefan/data/datasets/canister/models/models_info.json'
@@ -276,8 +276,8 @@ if __name__ == "__main__":
 
         print(scene_id)
 
-        if scene_id == '000004' or scene_id == '000008' or scene_id == '000002'  or scene_id == '000018':
-            continue
+        #if scene_id == '000004' or scene_id == '000008' or scene_id == '000002'  or scene_id == '000018':
+        #    continue
 
         rgbPath = set_root + "/rgb/"
         depPath = set_root + "/depth/"
@@ -421,8 +421,7 @@ if __name__ == "__main__":
                 imgI = depImg.astype(np.uint16)
 
                 rgb_name = fileName[:-8] + '_rgb.png'
-                cv2.imwrite(fileName, rgbImg)
-                #cv2.imwrite(fileName, imgI)
+                cv2.imwrite(fileName, imgI)
                 print("storing image in : ", fileName)
 
             mask_ind = 0
@@ -431,6 +430,7 @@ if __name__ == "__main__":
            # else:
             mask_img = np.zeros((480, 640), dtype=np.uint8)
             bbvis = []
+            bbox_vis = []
             cnt = 0
             # bbsca = 720.0 / 640.0
             for i in range(len(gtImg)):
@@ -454,8 +454,8 @@ if __name__ == "__main__":
                 mask_ind = mask_ind + 1
 
                 curlist = gtImg[i]
-                obj_bb = curlist["bbox_visib"]
-                bbox_vis.append(obj_bb)
+                #obj_bb = curlist["bbox_visib"]
+                obj_bb = curlist["bbox_obj"]
 
                 obj_id = gtPose[i]['obj_id']
                 if dataset == 'canister':
@@ -581,8 +581,12 @@ if __name__ == "__main__":
                 for i, bb in enumerate(bbvis):
 
                     bb = np.array(bb)
+                    bbox = np.array(bbox_vis[i])
 
-                    phler = True
+                    img = cv2.rectangle(img, (int(bbox[0]), int(bbox[1])),
+                                              (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3])), (42, 205, 50), 2)
+
+                    phler = False
                     if phler:
                         pose = np.asarray(bbvis[i], dtype=np.int16)
 

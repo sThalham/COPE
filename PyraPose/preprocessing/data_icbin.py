@@ -537,7 +537,7 @@ class ICbinDataset(tf.data.Dataset):
                 target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
                 yield image_source_batch, (
-                target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
+                target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, batch_size):
 
@@ -562,6 +562,7 @@ class ICbinDataset(tf.data.Dataset):
                                               output_signature=(
                                               tf.TensorSpec(shape=(batch_size, 480, 640, 3), dtype=tf.float32),
                                               (tf.TensorSpec(shape=(batch_size, 6300, 2, 8, 17), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 4 + 1), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 2 + 1), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 2, 4), dtype=tf.float32),
                                                tf.TensorSpec(shape=(batch_size, 6300, 2, 8, 7), dtype=tf.float32),

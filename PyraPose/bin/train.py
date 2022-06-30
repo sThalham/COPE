@@ -435,7 +435,7 @@ def create_generators(args, preprocess_image):
         mesh_info = os.path.join(args.icbin_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
