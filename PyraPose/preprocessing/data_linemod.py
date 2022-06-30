@@ -588,7 +588,7 @@ class LinemodDataset(tf.data.Dataset):
 
                 #yield image_source_batch, target_batch
                 #yield image_source_batch, target_batch
-                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
+                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, batch_size):
 
@@ -612,10 +612,10 @@ class LinemodDataset(tf.data.Dataset):
             return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
                                                                 (tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 17),dtype=tf.float32),
+                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15, 5),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15 + 1),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15, 4),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32),
-                                                                #tf.TensorSpec(shape=(batch_size, 6300, 15),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 

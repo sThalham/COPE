@@ -85,13 +85,13 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
     # compile model
     custom_model.compile(
         loss={
-            'points'        : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
+            'pts'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
+            'box'           : losses.per_cls_l1(num_classes=num_classes, weight=1.0),
             'cls'           : losses.focal(),
-            'translations'  : losses.per_cls_l1_trans(num_classes=num_classes, weight=1.0),
-            'rotations'     : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
-            'consistency'   : losses.projection_deviation(num_classes=num_classes, weight=0.1),
-            'projection'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
-            #'correspondence'    : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
+            'tra'           : losses.per_cls_l1_trans(num_classes=num_classes, weight=1.0),
+            'rot'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
+            'con'           : losses.projection_deviation(num_classes=num_classes, weight=0.1),
+            'pro'           : losses.per_cls_l1_rep(num_classes=num_classes, weight=0.15),
         },
         optimizer=keras.optimizers.Adam(learning_rate=lr, clipnorm=0.001)
     )
@@ -636,8 +636,8 @@ def main(args=None):
     #disable_eager_execution()
 
     #backbone = models.backbone('resnet50')
-    #backbone = models.backbone('resnet101')
-    backbone = models.backbone('resnet152')
+    backbone = models.backbone('resnet101')
+    #backbone = models.backbone('resnet152')
     #backbone = models.backbone('efficientnet')
     #backbone = models.backbone('darknet')
     #backbone = models.backbone('xception')

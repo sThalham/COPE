@@ -443,37 +443,6 @@ def per_cls_l1(num_classes=0, weight=1.0, sigma=3.0):
         normalizer = tf.math.reduce_sum(anchor_anno, axis=1) * tf.cast(in_shape[3], dtype=tf.float32) # accumulate over batch, locations and regressed values
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer) # normalize per cls separately
 
-
-
-        #y_pred_exp = tf.expand_dims(y_pred, axis=2)
-        #regression = tf.tile(y_pred_exp, [1, 1, num_classes, 1])
-        #regression = y_pred
-
-        #anchor_state = y_true[:, :, :, 16:]
-        #regression_target = y_true[:, :, :, :16]
-        #regression = tf.where(tf.math.equal(anchor_state, 1), regression[:, :, :, :16], 0.0)
-
-        #regression_target, anchor_state = tf.split(y_true, num_or_size_splits=2, axis=3)
-        #regression = tf.where(tf.math.equal(anchor_state, 1), regression, 0.0)
-
-        # compute smooth L1 loss
-        # f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
-        #        |x| - 0.5 / sigma / sigma    otherwise
-        #regression_diff = regression - regression_target
-        #regression_diff = keras.backend.abs(regression_diff)
-        #regression_loss = backend.where(
-        #    keras.backend.less(regression_diff, 1.0 / sigma_squared),
-        #    0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
-        #    regression_diff - 0.5 / sigma_squared
-        #)
-
-        # comp norm per class
-        #normalizer = tf.math.reduce_sum(anchor_state, axis=[0, 1, 3])
-        #retain per cls loss
-        #per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0, 1, 3])
-
-        #loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
-
         return weight * tf.math.reduce_sum(loss, axis=0)
 
     return _per_cls_l1

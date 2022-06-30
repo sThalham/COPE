@@ -96,6 +96,37 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     return keras.models.Model(inputs=inputs, outputs=regress)
 
 
+def default_box_model(num_values, pyramid_feature_size=256, prior_probability=0.01, regression_feature_size=256):
+    options = {
+        'kernel_size': 3,
+        'strides': 1,
+        'padding': 'same',
+        'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
+        'bias_initializer': 'zeros',
+        'kernel_regularizer': keras.regularizers.l2(0.001),
+    }
+
+    if keras.backend.image_data_format() == 'channels_first':
+        inputs = keras.layers.Input(shape=(pyramid_feature_size, None, None))
+    else:
+        inputs = keras.layers.Input(shape=(None, None, pyramid_feature_size))
+
+    outputs = inputs
+    for i in range(4):
+        outputs = keras.layers.Conv2D(
+            filters=regression_feature_size,
+            activation=tfa.activations.mish,
+            **options
+        )(outputs)
+
+    regress = keras.layers.Conv2D(num_values, **options)(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        regress = keras.layers.Permute((2, 3, 1))(regress)
+    regress = keras.layers.Reshape((-1, num_values))(regress)
+
+    return keras.models.Model(inputs=inputs, outputs=regress)
+
+
 def default_pose_model(num_classes, prior_probability=0.01, regression_feature_size=512):
     options = {
         'kernel_size': 1,
@@ -128,7 +159,7 @@ def default_pose_model(num_classes, prior_probability=0.01, regression_feature_s
     rotations_2 = tf.math.l2_normalize(rotations_2, axis=3)
     rotations = tf.concat([rotations_1, rotations_2], axis=3)
 
-    return keras.models.Model(inputs=inputs, outputs=rotations, name='rotations'), keras.models.Model(inputs=inputs, outputs=translations, name='translations')
+    return keras.models.Model(inputs=inputs, outputs=rotations, name='rot'), keras.models.Model(inputs=inputs, outputs=translations, name='tra')
 
 
 def __create_PFPN(P3, P4, P5, project=True, feature_size=256):
@@ -262,6 +293,7 @@ def pyrapose(
         name='pyrapose'
 ):
     regression_branch = default_regression_model(16)
+    detections_branch = default_regression_model(4)
     pose_branch = default_pose_model(num_classes)
     location_branch = default_classification_model(num_classes)
 
@@ -274,8 +306,14 @@ def pyrapose(
     regression_P3 = regression_branch(P3)
     regression_P4 = regression_branch(P4)
     regression_P5 = regression_branch(P5)
-    regression = keras.layers.Concatenate(axis=1, name='points')([regression_P3, regression_P4, regression_P5])
+    regression = keras.layers.Concatenate(axis=1, name='pts')([regression_P3, regression_P4, regression_P5])
     pyramids.append(regression)
+
+    detections_P3 = detections_branch(P3)
+    detections_P4 = detections_branch(P4)
+    detections_P5 = detections_branch(P5)
+    detections = keras.layers.Concatenate(axis=1, name='box')([detections_P3, detections_P4, detections_P5])
+    pyramids.append(detections)
 
     location_P3 = location_branch(P3)
     location_P4 = location_branch(P4)
@@ -331,7 +369,7 @@ def pyrapose(
     discrepancy = destd_boxes - pro_boxes
     discrepancy = tf.math.abs(discrepancy)
 
-    rename_layer = keras.layers.Lambda(lambda x: x, name='consistency')
+    rename_layer = keras.layers.Lambda(lambda x: x, name='con')
     consistency = rename_layer(discrepancy)
     pyramids.append(consistency)
 
@@ -343,7 +381,7 @@ def pyrapose(
     projection= layers.NormRegression(name='NormProjection')([projection, locations_tiled])
     projection = tf.math.divide_no_nan(projection, rep_object_diameters)
 
-    rename_layer_2 = keras.layers.Lambda(lambda x: x, name='projection')
+    rename_layer_2 = keras.layers.Lambda(lambda x: x, name='pro')
     projection2img = rename_layer_2(projection)
 
     pyramids.append(projection2img)
