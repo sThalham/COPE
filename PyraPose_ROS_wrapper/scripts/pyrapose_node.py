@@ -35,6 +35,7 @@ from PyraPose import models
 from object_detector_msgs.srv import get_poses, get_posesResponse
 from object_detector_msgs.msg import PoseWithConfidence
 from geometry_msgs.msg import PoseArray, Pose
+from open3d_ros_helper import open3d_ros_helper as orh
 ###################################
 ##### Global Variable Space #######
 ######## aka. death zone ##########
@@ -198,7 +199,7 @@ class PoseEstimationClass:
 
     def publish_pose(self, det_names, det_poses, det_confidences):
         msg = PoseArray()
-        msg.header.frame_id = '/head_rgbd_sensor_rgb_frame'
+        msg.header.frame_id = 'head_rgbd_sensor_rgb_frame'
         msg.header.stamp = rospy.Time(0)
 
         for idx in range(len(det_names)):
@@ -315,7 +316,7 @@ class PoseEstimationServer:
 
     def fill_pose(self, det_names, det_poses, det_confidences):
         msg = PoseArray()
-        msg.header.frame_id = '/head_rgbd_sensor_rgb_frame'
+        msg.header.frame_id = 'head_rgbd_sensor_rgb_frame'
         msg.header.stamp = rospy.Time(0)
 
         for idx in range(len(det_names)):
@@ -329,6 +330,11 @@ class PoseEstimationServer:
             item.orientation.z = det_poses[idx][6]
             msg.poses.append(item)
         self.pose_pub.publish(msg)
+        #o3dcloud = open3d.io.read_point_cloud('/stefan/meshes/obj_000001.ply')
+        #transforms3d.det_poses
+        #o3dcloud.transform(trans)
+        #roscloud = orh.o3dpc_to_rospc(o3dcloud, frame_id='/head_rgbd_sensor_rgb_frame')
+
 
         msg = get_posesResponse()
         for idx in range(len(det_names)):
@@ -351,7 +357,7 @@ class PoseEstimationServer:
 
     def viz_pose(self, image):
         msg = Image()
-        msg.header.frame_id = '/head_rgbd_sensor_rgb_frame'
+        msg.header.frame_id = 'head_rgbd_sensor_rgb_frame'
         msg.header.stamp = rospy.Time(0)
         data = self.bridge.cv2_to_imgmsg(image, "passthrough")
         self.viz_pub.publish(data)
