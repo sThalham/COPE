@@ -386,38 +386,6 @@ def pyrapose(
 
     pyramids.append(projection2img)
 
-    '''
-    # project to object frame
-    obj_correspondences = tf.tile(obj_correspondences[tf.newaxis, tf.newaxis, :, :, :], [tf.shape(location)[0], tf.shape(location)[1], 1, 1, 1])
-    calib = tf.zeros([3, 4])
-    calib[0, 0] = intrinsics[0]
-    calib[1, 1] = intrinsics[1]
-    calib[0, 2] = intrinsics[2]
-    calib[1, 2] = intrinsics[3]
-    calib[2, 2] = 1
-
-    trans2obj = tf.zeros([tf.shape(location)[0], tf.shape(location)[1], num_classes, 4, 4])
-    trans2obj[:, :, :, 3, 3] = 1
-    trans2obj[:, :, :, :3, :3] = rot
-    trans2obj[:, :, :, :3, 3] = trans[:, :, :, 0, :]
-
-    points2D = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 2])
-    exp_ones = tf.ones([tf.shape(location)[0], tf.shape(location)[1], num_classes, 8, 1])
-    points2D = tf.concat([points2D, exp_ones], axis=3)
-
-    points3D = tf.linalg.matmul(points2D, calib)
-    pointsObj = tf.linalg.matmul(trans2obj, points3D)
-
-    cor_dev = obj_correspondences - pointsObj
-    cor_dev = tf.math.abs(cor_dev)
-    cor_dev = tf.math.reduce_sum(cor_dev, axis=[3, 4])
-
-    rename_layer_3 = keras.layers.Lambda(lambda x: x, name='correspondences')
-    projection2obj = rename_layer_3(cor_dev)
-
-    pyramids.append(projection2obj)
-    '''
-
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
@@ -462,20 +430,22 @@ def inference_model(
     locations = __build_locations(features, strides)
 
     regression = model.outputs[0]
-    #center = model.outputs[1]
-    classification = model.outputs[1]
-    translations = model.outputs[2]
-    rotations = model.outputs[3]
-    consistency = model.outputs[4] # gone for just reprojection
+    detections = model.outputs[1]
+    classification = model.outputs[2]
+    translations = model.outputs[3]
+    rotations = model.outputs[4]
+    consistency = model.outputs[5] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
     rep_regression = tf.tile(regression[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
     rep_locations = tf.tile(locations[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
+    rep_detections = tf.tile(detections[:, :, tf.newaxis, :], [1, 1, num_classes, 1])
 
     poses = tf.concat([translations, rotations], axis=3)
     poses = layers.DenormPoses(name='poses_world')(poses)
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
+    boxes = layers.RegressBoxes(name='boxes')([rep_detections, rep_locations, rep_object_diameters])
 
     consistency = tf.math.reduce_sum(consistency, axis=3)
 
@@ -485,15 +455,15 @@ def inference_model(
     #discrepancy = destd_boxes - pro_boxes
     #discrepancy = tf.math.abs(discrepancy)
 
-    detections = layers.FilterDetections(
+    filtered_detections = layers.FilterDetections(
         name='filtered_detections',
         score_threshold=score_threshold,
         max_detections=max_detections,
         num_classes=num_classes,
         pose_hyps=pose_hyps,
         iou_threshold=iou_threshold,
-    )([boxes3D, classification, poses, consistency])
+    )([boxes3D, boxes, classification, poses, consistency])
 
-    return keras.models.Model(inputs=model.inputs, outputs=[detections[0], detections[1], detections[2], detections[3], detections[4]], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[filtered_detections[0], filtered_detections[1], filtered_detections[2], filtered_detections[3], filtered_detections[4]], name=name)
 
     #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, poses], name=name)

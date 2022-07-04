@@ -3,21 +3,18 @@ import tensorflow as tf
 from tensorflow import meshgrid
 
 
-def bbox_transform_inv(boxes, deltas, mean=None, std=None):
+def bbox_transform_inv(regression, locations, obj_diameter, mean=None, std=None):
     if mean is None:
         mean = [0, 0, 0, 0]
     if std is None:
-        std = [0.2, 0.2, 0.2, 0.2]
+        std = [1.0, 1.0, 1.0, 1.0]
 
-    width  = boxes[:, :, 2] - boxes[:, :, 0]
-    height = boxes[:, :, 3] - boxes[:, :, 1]
+    x1 = locations[:, :, :, 0] - (regression[:, :, :, 0] * (std[0] * obj_diameter) + mean[0])
+    y1 = locations[:, :, :, 1] - (regression[:, :, :, 1] * (std[1] * obj_diameter) + mean[1])
+    x2 = locations[:, :, :, 0] - (regression[:, :, :, 2] * (std[2] * obj_diameter) + mean[2])
+    y2 = locations[:, :, :, 1] - (regression[:, :, :, 3] * (std[3] * obj_diameter) + mean[3])
 
-    x1 = boxes[:, :, 0] + (deltas[:, :, 0] * std[0] + mean[0]) * width
-    y1 = boxes[:, :, 1] + (deltas[:, :, 1] * std[1] + mean[1]) * height
-    x2 = boxes[:, :, 2] + (deltas[:, :, 2] * std[2] + mean[2]) * width
-    y2 = boxes[:, :, 3] + (deltas[:, :, 3] * std[3] + mean[3]) * height
-
-    pred_boxes = keras.backend.stack([x1, y1, x2, y2], axis=2)
+    pred_boxes = keras.backend.stack([x1, y1, x2, y2], axis=3)
 
     return pred_boxes
 

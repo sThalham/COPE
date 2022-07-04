@@ -200,7 +200,7 @@ class RegressBoxes(keras.layers.Layer):
         if mean is None:
             mean = np.array([0, 0, 0, 0])
         if std is None:
-            std = np.full(16, 0.65)
+            std = np.full(4, 1.0)
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -217,11 +217,11 @@ class RegressBoxes(keras.layers.Layer):
         super(RegressBoxes, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        anchors, regression = inputs
-        return bbox_transform_inv(anchors, regression, mean=self.mean, std=self.std)
+        regression, locations, diameters = inputs
+        return bbox_transform_inv(regression, locations, diameters, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0]
+        return input_shape[1]
 
     def get_config(self):
         config = super(RegressBoxes, self).get_config()

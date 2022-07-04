@@ -133,6 +133,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
     max_gt = 0
 
     eval_img = []
+    eval_det = []
     for index, sample in enumerate(generator):
 
         scene_id = sample[0].numpy()
@@ -160,7 +161,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
         image_mask = copy.deepcopy(image_raw)
         image_box = copy.deepcopy(image_raw)
-        image_poses = copy.deepcopy(image_raw)
+        image_pose = copy.deepcopy(image_raw)
         if gt_labels.shape[0] > max_gt:
             max_gt = gt_labels.shape[0]
 
@@ -172,7 +173,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             t_gt = np.array(gt_poses[obj, :3], dtype=np.float32)
             t_gt = t_gt * 0.001
 
-            '''
             ori_points = np.ascontiguousarray(threeD_boxes[int(gt_labels[obj]) + 1, :, :], dtype=np.float32)
 
             tDbox = R_gt.dot(ori_points.T).T
@@ -183,33 +183,36 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             colGT = (245, 102, 65)
 
-            image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
-                                colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
-                                colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
-                                colGT,
-                                2)
-            image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
-                                colGT,
-                                2)
-            '''
+            image_pose = cv2.line(image_pose, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[6:8].ravel()), tuple(tDbox[0:2].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[0:2].ravel()), tuple(tDbox[8:10].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[2:4].ravel()), tuple(tDbox[10:12].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[4:6].ravel()), tuple(tDbox[12:14].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[6:8].ravel()), tuple(tDbox[14:16].ravel()), colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[8:10].ravel()), tuple(tDbox[10:12].ravel()),
+                                  colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[10:12].ravel()), tuple(tDbox[12:14].ravel()),
+                                  colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[12:14].ravel()), tuple(tDbox[14:16].ravel()),
+                                  colGT,
+                                  2)
+            image_pose = cv2.line(image_pose, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
+                                  colGT,
+                                  2)
+
+            gt_box = gt_boxes[obj, :]
+            image_box = cv2.rectangle(image_box, (int(gt_box[0]), int(gt_box[1])), (int(gt_box[2]), int(gt_box[3])),
+                                      (245, 17, 50), 1)
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -221,7 +224,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         '''
@@ -394,10 +397,12 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
+        boxes = boxes[labels != -1]
         labels = labels[labels != -1]
 
         for odx, inv_cls in enumerate(labels):
 
+            box = boxes[odx, :]
             true_cls = inv_cls + 1
             pose = poses[odx, :]
             if inv_cls not in gt_labels:
@@ -427,12 +432,11 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             eval_line.append(time_bop)
             eval_img.append(eval_line)
 
-            #gt_idx = np.argwhere(gt_labels == inv_cls)
-            #gt_pose = gt_poses[gt_idx, :]
-            #gt_box = gt_boxes[gt_idx, :]
-            #gt_pose = gt_pose[0][0]
-            #gt_box = gt_box[0][0]
-
+            gt_idx = np.argwhere(gt_labels == inv_cls)
+            gt_pose = gt_poses[gt_idx, :]
+            gt_box = gt_boxes[gt_idx, :]
+            gt_pose = gt_pose[0][0]
+            gt_box = gt_box[0][0]
 
             # detection
             min_x = int(np.nanmin(pose[::2], axis=0))
@@ -485,48 +489,37 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
 
-            idx_iou = np.argmax(np.array(iou_ovlaps))
-            iou_ov = iou_ovlaps[idx_iou]
-
-            if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
-                trueDets[true_cls] += 1
-                gt_boxes[idx_add, :] = -1
-            else:
-                falseDets[true_cls] += 1
-
+            ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
-            eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
+            eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
             est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
             eDbox = np.reshape(est3D, (16))
             pose = eDbox.astype(np.uint16)
-            colEst1 = (0, 145, 195)
-            colEst = (0, 204, 0)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (0, 0, 255)
+            pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
             if err_add > model_dia[true_cls] * 0.1:
                 colEst = (0, 39, 236)
 
-            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_pose = cv2.line(image_pose, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            '''
 
-            if true_cls == 1:
-                model_vsd = md1
-            elif true_cls == 2:
-                model_vsd = md2
+            colEst = (50, 205, 50)
+            if err_add > model_dia[true_cls] * 0.1:
+                colEst = (25, 119, 242)
 
-            colEst = colors_viz[true_cls - 1, :]
+            colEst = colors_viz[true_cls -1, :]
 
             pts = model_vsd["pts"]
             proj_pts = R_est.dot(pts.T).T
@@ -537,21 +530,38 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_ori[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            '''
+
+            ###########################################
+            # Detection
+            ###########################################
+            est_box = np.array([float(box[0]), float(box[1]), float(box[2]), float(box[3])])
+
+            box_line = {
+                "scene_id": sc_id,
+                "image_id": im_id,
+                "category_id": obj_id,
+                "score": score,
+                "bbox": [int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1])],
+                # "segmentation": [],
+                "time": time_bop,
+            }
+            eval_det.append(box_line)
+
+            # bbox visualization
+            image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])),
+                                      (42, 205, 50), 1)
 
         if index > 0:
             times[n_img] += t_img
             times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
-        #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
-        #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
-        #image_rows = np.concatenate([image_row1, image_row2], axis=0)
-        #cv2.imwrite(name, image_rows)
-        cv2.imwrite(name, image_raw)
-
-        name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
-        cv2.imwrite(name, image_ori)
+        if index % 10 == 0:
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_box_' + str(index) + '.png'
+            cv2.imwrite(name, image_raw)
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_pose_' + str(index) + '.png'
+            cv2.imwrite(name, image_pose)
 
     print('max_gt: ', max_gt)
 
@@ -611,3 +621,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         with open(csv_target, 'a') as outfile:
             myWriter = csv.writer(outfile, delimiter=',')  # Write out the Headers for the CSV file
             myWriter.writerow(line_indexed)
+
+    json_target = os.path.join(wd_path, 'cope_icbin-test.json')
+    with open(json_target, 'w') as f:
+        json.dump(eval_det, f)

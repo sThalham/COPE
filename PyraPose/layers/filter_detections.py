@@ -22,6 +22,7 @@ import numpy as np
 
 def filter_detections(
     boxes3D,
+    boxes,
     classification,
     poses,
     confidence,
@@ -52,40 +53,7 @@ def filter_detections(
         In case there are less than max_detections detections, the tensors are padded with -1's.
     """
 
-    def boxoverlap(boxes):
-        a = tf.tile(boxes[tf.newaxis, :, :], [tf.shape(boxes)[0], 1, 1])
-        b = tf.transpose(a, perm=[1, 0, 2])
-
-        x1 = tf.math.maximum(a[:, :, 0], b[:, :, 0])
-        y1 = tf.math.maximum(a[:, :, 1], b[:, :, 1])
-        x2 = tf.math.minimum(a[:, :, 2], b[:, :, 2])
-        y2 = tf.math.minimum(a[:, :, 3], b[:, :, 3])
-
-        wid = x2 - x1 + 1
-        hei = y2 - y1 + 1
-        inter = wid * hei
-
-        aarea = (a[:, :, 2] - a[:, :, 0] + 1) * (a[:, :, 3] - a[:, :, 1] + 1)
-        barea = (b[:, :, 2] - b[:, :, 0] + 1) * (b[:, :, 3] - b[:, :, 1] + 1)
-
-        # intersection over union overlap
-        ovlap = tf.math.divide_no_nan(inter, (aarea + barea - inter))
-        ovlap = tf.where(tf.math.less_equal(wid, 0.0), 0.0, ovlap)
-        ovlap = tf.where(tf.math.less_equal(hei, 0.0), 0.0, ovlap)
-
-        # set invalid entries to 0 overlap
-        indicator = tf.where(tf.math.greater(ovlap, iou_threshold), 1.0, 0.0)
-
-        max_col = tf.math.argmax(indicator, axis=1)
-        rep_rows = tf.range(0, tf.shape(indicator)[0])
-        filtered_indices = tf.concat([tf.cast(max_col, dtype=tf.int32)[:, tf.newaxis], rep_rows[:, tf.newaxis]], axis=1)
-        value_updates = tf.math.reduce_max(indicator, axis=1)
-        indicator = tf.scatter_nd(filtered_indices, value_updates, tf.cast(tf.shape(indicator), dtype=tf.int32))
-        indicator = tf.cast(indicator, dtype=tf.float32)
-
-        return indicator
-
-    def _filter_detections(indices, labels, boxes3D, poses, confidence):
+    def _filter_detections(indices, labels, boxes3D, boxes, poses, confidence):
     #def _filter_detections(args):
 
         # tf vec_map
@@ -100,16 +68,19 @@ def filter_detections(
         indices = tf.stack([indices[:, 0], labels], axis=1)
 
         boxes3D = tf.gather(boxes3D, indices[:, 0], axis=0)
+        boxes = tf.gather(boxes, indices[:, 0], axis=0)
         poses = tf.gather(poses, indices[:, 0], axis=0)
         confidence = tf.gather(confidence, indices[:, 0], axis=0)
         
-        x_min = tf.math.reduce_min(boxes3D[:, ::2], axis=1)
-        y_min = tf.math.reduce_min(boxes3D[:, 1::2], axis=1)
-        x_max = tf.math.reduce_max(boxes3D[:, ::2], axis=1)
-        y_max = tf.math.reduce_max(boxes3D[:, 1::2], axis=1)
+        #x_min = tf.math.reduce_min(boxes3D[:, ::2], axis=1)
+        #y_min = tf.math.reduce_min(boxes3D[:, 1::2], axis=1)
+        #x_max = tf.math.reduce_max(boxes3D[:, ::2], axis=1)
+        #y_max = tf.math.reduce_max(boxes3D[:, 1::2], axis=1)
 
-        boxes = tf.stack([x_min, y_min, x_max, y_max], axis=1)
+        #boxes = tf.stack([x_min, y_min, x_max, y_max], axis=1)
         ########################################
+        tf.print(tf.shape(boxes3D))
+        tf.print(tf.shape(boxes))
         a = tf.tile(boxes[tf.newaxis, :, :], [tf.shape(boxes)[0], 1, 1])
         b = tf.transpose(a, perm=[1, 0, 2])
 
@@ -151,14 +122,17 @@ def filter_detections(
         conf_mask = tf.where(tf.math.equal(sort_conf, 1000.0), 0.0, 1.0)
         repeats = tf.math.minimum(pose_hyps + 1, tf.shape(poses)[0])
         n_hyps = tf.tile(repeats[tf.newaxis], [tf.shape(poses)[0]])
-        n_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
-        conf_mask = conf_mask * n_hyps
+        p_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
+        conf_mask_pose = conf_mask * p_hyps
 
-        pose_mask = tf.tile(conf_mask[:, :, tf.newaxis], [1, 1, 12])
+        box_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
+        conf_mask_box = conf_mask * box_hyps
+
+        pose_mask = tf.tile(conf_mask_pose[:, :, tf.newaxis], [1, 1, 12])
         sorted_poses = tf.gather(poses, indices=sort_args)
         filt_poses = pose_mask * sorted_poses
 
-        box_mask = tf.tile(conf_mask[:, :, tf.newaxis], [1, 1, 4])
+        box_mask = tf.tile(conf_mask_box[:, :, tf.newaxis], [1, 1, 4])
         sorted_boxes = tf.gather(boxes, indices=sort_args)
         filt_boxes = box_mask * sorted_boxes
 
@@ -194,6 +168,7 @@ def filter_detections(
     in_shape = tf.shape(boxes3D)
     classification = tf.reshape(classification, [in_shape[0] * in_shape[1], num_classes])
     boxes3D = tf.reshape(boxes3D, [in_shape[0] * in_shape[1], num_classes, 16])
+    boxes = tf.reshape(boxes, [in_shape[0] * in_shape[1], num_classes, 4])
     poses = tf.reshape(poses, [in_shape[0] * in_shape[1], num_classes, 12])
     confidence = tf.reshape(confidence, [in_shape[0] * in_shape[1], num_classes])
 
@@ -210,7 +185,7 @@ def filter_detections(
         scores = classification[:, c]
         labels = c * backend.ones((keras.backend.shape(scores)[0],), dtype='int64')
         indices = tf.where(tf.math.greater(scores, score_threshold))
-        indices, filt_poses, filt_boxes = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
+        indices, filt_poses, filt_boxes = tf.cond(tf.math.greater(tf.shape(indices)[0], 0), lambda: _filter_detections(indices, labels, boxes3D[:, c, :], boxes[:, c, :], poses[:, c, :], confidence[:, c]), lambda: dummy_fn())
         all_indices.append(indices)
         all_poses.append(filt_poses)
         all_boxes.append(filt_boxes)
@@ -322,19 +297,22 @@ class FilterDetections(keras.layers.Layer):
             inputs : List of [boxes, classification, other[0], other[1], ...] tensors.
         """
         boxes3D = inputs[0]
-        classification = inputs[1]
-        poses = inputs[2]
-        confidence = inputs[3]
+        boxes = inputs[1]
+        classification = inputs[2]
+        poses = inputs[3]
+        confidence = inputs[4]
 
         # wrap nms with our parameters
         def _filter_detections(args):
             boxes3D = inputs[0]
-            classification = inputs[1]
-            poses = inputs[2]
-            confidence = inputs[3]
+            boxes = inputs[1]
+            classification = inputs[2]
+            poses = inputs[3]
+            confidence = inputs[4]
 
             return filter_detections(
                 boxes3D,
+                boxes,
                 classification,
                 poses,
                 confidence,
@@ -348,7 +326,7 @@ class FilterDetections(keras.layers.Layer):
         # call filter_detections on each batch
         outputs = tf.map_fn(
             _filter_detections,
-            elems=[boxes3D, classification, poses, confidence],
+            elems=[boxes3D, boxes, classification, poses, confidence],
             dtype=[tf.float32, tf.int32, tf.float32, tf.int32, tf.float32],
             parallel_iterations=32
         )
