@@ -173,18 +173,18 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'icbin'
-    traintestval = 'train'
+    dataset = 'occlusion'
+    traintestval = 'val'
     visu = False
 
-    root = "/hdd/bop_datasets/icbin/train_pbr"  # path to train samples, depth + rgb
-    target = '/hdd/train_data/icbin_PBR_BOP/'
+    root = "/hdd/bop_datasets/lmo/test"  # path to train samples, depth + rgb
+    target = '/hdd/train_data/lmo_BOP_test/'
 
     if dataset == 'linemod':
         mesh_info = '/hdd/bop_datasets/lm/models_eval/models_info.json'
         num_objects = 15
     elif dataset == 'occlusion':
-        mesh_info = '/home/stefan/data/bop_datasets/lmo/models_eval/models_info.json'
+        mesh_info = '/hdd/bop_datasets/lmo/models_eval/models_info.json'
         num_objects = 15
     elif dataset == 'ycbv':
         mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
@@ -421,7 +421,7 @@ if __name__ == "__main__":
                 imgI = depImg.astype(np.uint16)
 
                 rgb_name = fileName[:-8] + '_rgb.png'
-                cv2.imwrite(fileName, imgI)
+                cv2.imwrite(fileName, rgbImg)
                 print("storing image in : ", fileName)
 
             mask_ind = 0

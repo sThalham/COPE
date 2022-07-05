@@ -54,7 +54,6 @@ def filter_detections(
     """
 
     def _filter_detections(indices, labels, boxes3D, boxes, poses, confidence):
-    #def _filter_detections(args):
 
         # tf vec_map
         #classification, labels, boxes3D, poses, confidence = args
@@ -79,8 +78,7 @@ def filter_detections(
 
         #boxes = tf.stack([x_min, y_min, x_max, y_max], axis=1)
         ########################################
-        tf.print(tf.shape(boxes3D))
-        tf.print(tf.shape(boxes))
+
         a = tf.tile(boxes[tf.newaxis, :, :], [tf.shape(boxes)[0], 1, 1])
         b = tf.transpose(a, perm=[1, 0, 2])
 
@@ -101,8 +99,10 @@ def filter_detections(
         ovlap = tf.where(tf.math.less_equal(wid, 0.0), 0.0, ovlap)
         ovlap = tf.where(tf.math.less_equal(hei, 0.0), 0.0, ovlap)
 
+
         # set invalid entries to 0 overlap
         indicator = tf.where(tf.math.greater(ovlap, iou_threshold), 1.0, 0.0)
+        #indicator = tf.where(tf.math.greater(ovlap, iou_threshold), ovlap, 0.0)
 
         max_col = tf.math.argmax(indicator, axis=1)
         rep_rows = tf.range(0, tf.shape(indicator)[0])
@@ -113,8 +113,54 @@ def filter_detections(
         #################################################
         #true_ovlaps = boxoverlap(boxes)
 
+        #tf.print('ovlaps: ', ovlap)
+        #tf.print('true_ovlaps: ', true_ovlaps)
+        #tf.print('conf: ', confidence)
+
+        ##########################################
+        # projected
+        #boxes_row = tf.tile(boxes3D[:, tf.newaxis, :], [1, tf.shape(boxes3D)[0], 1])
+        #boxes_col = tf.tile(boxes3D[tf.newaxis, :, :], [tf.shape(boxes3D)[0], 1, 1])
+        #box3D_ov = tf.math.abs(boxes_row - boxes_col)
+        #box3D_ov = tf.math.reduce_sum(box3D_ov, axis=2)
+        '''
+        x_min = tf.math.reduce_min(boxes3D[:, ::2], axis=1)
+        y_min = tf.math.reduce_min(boxes3D[:, 1::2], axis=1)
+        x_max = tf.math.reduce_max(boxes3D[:, ::2], axis=1)
+        y_max = tf.math.reduce_max(boxes3D[:, 1::2], axis=1)
+
+        box_from_3D = tf.stack([x_min, y_min, x_max, y_max], axis=1)
+        ########################################
+
+        a = tf.tile(box_from_3D[tf.newaxis, :, :], [tf.shape(boxes)[0], 1, 1])
+        b = tf.transpose(a, perm=[1, 0, 2])
+
+        x1 = tf.math.maximum(a[:, :, 0], b[:, :, 0])
+        y1 = tf.math.maximum(a[:, :, 1], b[:, :, 1])
+        x2 = tf.math.minimum(a[:, :, 2], b[:, :, 2])
+        y2 = tf.math.minimum(a[:, :, 3], b[:, :, 3])
+
+        wid = x2 - x1 + 1
+        hei = y2 - y1 + 1
+        inter = wid * hei
+
+        aarea = (a[:, :, 2] - a[:, :, 0] + 1) * (a[:, :, 3] - a[:, :, 1] + 1)
+        barea = (b[:, :, 2] - b[:, :, 0] + 1) * (b[:, :, 3] - b[:, :, 1] + 1)
+
+        # intersection over union overlap
+        ovlap3D = tf.math.divide_no_nan(inter, (aarea + barea - inter))
+        ovlap3D = tf.where(tf.math.less_equal(wid, 0.0), 0.0, ovlap3D)
+        ovlap3D = tf.where(tf.math.less_equal(hei, 0.0), 0.0, ovlap3D)
+        '''
+        ###################### end ovlap
+
         # including confidence
-        broadcast_confidence = true_ovlaps * confidence
+        #broadcast_confidence = true_ovlaps * confidence
+        # 2D box as heuristics
+        broadcast_confidence = (1.0 - ovlap) * true_ovlaps * confidence
+        # 3D box l1 as heuristics
+        #broadcast_confidence = box3D_ov * true_ovlaps * confidence
+
         #broadcast_confidence = true_ovlaps
         broadcast_confidence = tf.where(broadcast_confidence == 0, 1000.0, broadcast_confidence)
         sort_args = tf.argsort(broadcast_confidence, axis=1, direction='ASCENDING')

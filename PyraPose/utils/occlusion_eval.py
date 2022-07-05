@@ -243,6 +243,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
             
             '''
+            gt_box = gt_boxes[obj, :]
+            image_box = cv2.rectangle(image_box, (int(gt_box[0]), int(gt_box[1])), (int(gt_box[2]), int(gt_box[3])),
+                                      (245, 17, 50), 1)
+
             ori_points = np.ascontiguousarray(threeD_boxes[int(gt_labels[obj])+1, :, :], dtype=np.float32)
             tDbox = R_gt.dot(ori_points.T).T
             tDbox = tDbox + np.repeat(t_gt[:, np.newaxis], 8, axis=1).T  # * 0.001
@@ -638,6 +642,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             #else:
             #    falseDets[true_cls] += 1
 
+            '''
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
@@ -680,7 +685,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
             image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
-            '''
 
             ###########################################
             # Detection
@@ -700,8 +704,6 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
             # bbox visualization
             image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])), (42, 205, 50), 1)
-            image_box = cv2.rectangle(image_box, (int(gt_box[0]), int(gt_box[1])), (int(gt_box[2]), int(gt_box[3])),
-                                      (245, 17, 50), 1)
 
         if index > 0:
             times[n_img] += t_img
@@ -715,7 +717,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         #cv2.imwrite(name, image_raw)
         if index % 10 == 0:
             name = '/home/stefan/PyraPose_viz/' + 'lmo_box_' + str(index) + '.png'
-            cv2.imwrite(name, image_raw)
+            cv2.imwrite(name, image_box)
             name = '/home/stefan/PyraPose_viz/' + 'lmo_pose_' + str(index) + '.png'
             cv2.imwrite(name, image_pose)
 

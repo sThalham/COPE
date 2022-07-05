@@ -410,7 +410,7 @@ def inference_model(
         correspondences=None,
         object_diameters=None,
         num_classes=None,
-        name='pyrapose',
+        name='cope',
         score_threshold=0.5,
         pose_hyps=10,
         iou_threshold=0.5,
