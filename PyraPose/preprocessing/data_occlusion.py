@@ -75,10 +75,10 @@ def load_classes(categories):
     for key, value in classes.items():
         labels_rev[value] = key
 
-    #labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
-    #labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
-    #classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
-    #labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
+    labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
+    labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
+    classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
+    labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
 
     return classes, labels, labels_inverse, labels_rev
 
@@ -329,7 +329,7 @@ class OcclusionDataset(tf.data.Dataset):
         sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
         sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
-        for key, value in yaml.load(open(mesh_info)).items():
+        for key, value in json.load(open(mesh_info)).items():
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -396,17 +396,17 @@ class OcclusionDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'labels': np.empty((0,)),
+            annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
-                    if a['feature_visibility'] < 0.5:
+                    if a['feature_visibility'] < 0.25:
                         continue
                 if a['category_id'] not in [1, 5, 6, 8, 9, 10, 11, 12]:
                     continue
-
+                annotations['visibility'] = np.concatenate([annotations['visibility'], [a['feature_visibility']]])
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -576,7 +576,7 @@ class OcclusionDataset(tf.data.Dataset):
 
                 #yield image_source_batch, target_batch
                 #yield image_source_batch, target_batch
-                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
+                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, batch_size):
 
@@ -600,6 +600,7 @@ class OcclusionDataset(tf.data.Dataset):
             return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
                                                                 (tf.TensorSpec(shape=(batch_size, 6300, 8, 8, 17),dtype=tf.float32),
+                                                                 tf.TensorSpec(shape=(batch_size, 6300, 8, 5), dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 8 + 1),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 8, 4),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 8, 8, 7),dtype=tf.float32),
