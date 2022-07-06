@@ -414,9 +414,8 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
         t_error = 0
         t_img = 0
         n_img = 0
-        '''
 
-        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]
@@ -741,6 +740,7 @@ def evaluate_linemod(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+        '''
 
         #if index > 0:
         #    times[n_img] += t_img

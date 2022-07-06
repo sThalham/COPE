@@ -162,8 +162,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((16), dtype=np.uint32)
     trueDets = np.zeros((16), dtype=np.uint32)
     falseDets = np.zeros((16), dtype=np.uint32)
-    times = np.zeros((40), dtype=np.float32)
-    times_count = np.zeros((40), dtype=np.float32)
+    times = np.zeros((200), dtype=np.float32)
+    times_count = np.zeros((200), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(15, 3))
     inv_keys = [1, 5, 6, 8, 9, 10, 11, 12]
@@ -196,7 +196,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         image_raw = image_raw.astype(np.uint8)
         image_ori = image_raw.astype(np.uint8)
 
-        image_mask = copy.deepcopy(image_raw)
+        image_rep = copy.deepcopy(image_raw)
         image_box = copy.deepcopy(image_raw)
         image_pose = copy.deepcopy(image_raw)
 
@@ -283,10 +283,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_pose = cv2.line(image_pose, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                 colGT,
                                 2)
-
             gt_box = gt_boxes[obj, :]
             image_box = cv2.rectangle(image_box, (int(gt_box[0]), int(gt_box[1])), (int(gt_box[2]), int(gt_box[3])),
-                                      (245, 17, 50), 1)
+                                      (245, 17, 50), 2)
 
         # run network
         start_t = time.time()
@@ -642,7 +641,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             #else:
             #    falseDets[true_cls] += 1
 
-            '''
+
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0) #* 0.001
@@ -667,7 +666,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             image_pose = cv2.line(image_pose, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_pose = cv2.line(image_pose, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_pose = cv2.line(image_pose, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            '''
+
 
             colEst = (50, 205, 50)
             if err_add > model_dia[true_cls] * 0.1:
@@ -684,7 +683,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            image_rep[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
             ###########################################
             # Detection
@@ -703,7 +702,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             eval_det.append(box_line)
 
             # bbox visualization
-            image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])), (42, 205, 50), 1)
+            image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])), (42, 205, 50), 2)
 
         if index > 0:
             times[n_img] += t_img
@@ -715,11 +714,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         #cv2.imwrite(name, image_raw)
-        if index % 10 == 0:
+        if index % 1 == 0:
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_raw_' + str(index) + '.png'
+            cv2.imwrite(name, image_raw)
             name = '/home/stefan/PyraPose_viz/' + 'lmo_box_' + str(index) + '.png'
             cv2.imwrite(name, image_box)
             name = '/home/stefan/PyraPose_viz/' + 'lmo_pose_' + str(index) + '.png'
             cv2.imwrite(name, image_pose)
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_proj_' + str(index) + '.png'
+            cv2.imwrite(name, image_rep)
 
     #times
     print('Number of objects ----- t')

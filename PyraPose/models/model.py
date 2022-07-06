@@ -412,7 +412,7 @@ def inference_model(
         num_classes=None,
         name='cope',
         score_threshold=0.5,
-        pose_hyps=9,
+        pose_hyps=10,
         iou_threshold=0.5,
         max_detections=100,
         **kwargs

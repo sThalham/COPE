@@ -75,10 +75,10 @@ def load_classes(categories):
     for key, value in classes.items():
         labels_rev[value] = key
 
-    labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
-    labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
-    classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
-    labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
+    #labels = {0: 1, 1: 5, 2: 6, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12}
+    #labels_inverse = {1: 0, 5:1, 6:2, 8:3, 9:4, 10:5, 11:6, 12:7}
+    #classes = {'1': 0, '5': 1, '6': 2, '8': 3, '9': 4, '10': 5, '11': 6, '12': 7}
+    #labels_rev = {0: '1', 1: '5', 2: '6', 3: '8', 4: '9', 5: '10', 6: '11', 7: '12'}
 
     return classes, labels, labels_inverse, labels_rev
 
