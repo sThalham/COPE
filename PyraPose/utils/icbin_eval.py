@@ -125,8 +125,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((3), dtype=np.uint32)
     trueDets = np.zeros((3), dtype=np.uint32)
     falseDets = np.zeros((3), dtype=np.uint32)
-    times = np.zeros((100), dtype=np.float32)
-    times_count = np.zeros((100), dtype=np.float32)
+    times = np.zeros((300), dtype=np.float32)
+    times_count = np.zeros((300), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(2, 3))
     colors_viz = np.array([[205, 250, 255], [0, 215, 255]])
@@ -159,7 +159,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         image_raw = image_raw.astype(np.uint8)
         image_ori = image_raw.astype(np.uint8)
 
-        image_mask = copy.deepcopy(image_raw)
+        image_rep = copy.deepcopy(image_raw)
         image_box = copy.deepcopy(image_raw)
         image_pose = copy.deepcopy(image_raw)
         if gt_labels.shape[0] > max_gt:
@@ -489,6 +489,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
 
+            '''
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
@@ -530,8 +531,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
             proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
-            '''
+            image_rep[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
             ###########################################
             # Detection
@@ -551,19 +551,23 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             # bbox visualization
             image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])),
-                                      (42, 205, 50), 1)
+                                      (42, 205, 50), 2)
 
         if index > 0:
-            times[n_img] += t_img
-            times_count[n_img] += 1
+                times[n_img] += t_img
+                times_count[n_img] += 1
 
-        if index % 10 == 0:
-            name = '/home/stefan/PyraPose_viz/' + 'icbin_box_' + str(index) + '.png'
+        if index % 1 == 0:
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_raw_' + str(index) + '.png'
             cv2.imwrite(name, image_raw)
-            name = '/home/stefan/PyraPose_viz/' + 'icbin_pose_' + str(index) + '.png'
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_box_' + str(index) + '.png'
+            cv2.imwrite(name, image_box)
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_pose_' + str(index) + '.png'
             cv2.imwrite(name, image_pose)
+            name = '/home/stefan/PyraPose_viz/' + 'lmo_proj_' + str(index) + '.png'
+            cv2.imwrite(name, image_rep)
 
-    print('max_gt: ', max_gt)
+        print('max_gt: ', max_gt)
 
     #times
     print('Number of objects ----- t')

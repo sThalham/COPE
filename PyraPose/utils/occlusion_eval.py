@@ -162,8 +162,8 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     falsePoses = np.zeros((16), dtype=np.uint32)
     trueDets = np.zeros((16), dtype=np.uint32)
     falseDets = np.zeros((16), dtype=np.uint32)
-    times = np.zeros((200), dtype=np.float32)
-    times_count = np.zeros((200), dtype=np.float32)
+    times = np.zeros((300), dtype=np.float32)
+    times_count = np.zeros((300), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(15, 3))
     inv_keys = [1, 5, 6, 8, 9, 10, 11, 12]

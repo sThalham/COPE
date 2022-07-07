@@ -414,7 +414,7 @@ def inference_model(
         score_threshold=0.5,
         pose_hyps=10,
         iou_threshold=0.5,
-        max_detections=100,
+        max_detections=300,
         **kwargs
 ):
     # create RetinaNet model

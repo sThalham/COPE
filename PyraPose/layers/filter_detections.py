@@ -170,6 +170,7 @@ def filter_detections(
         n_hyps = tf.tile(repeats[tf.newaxis], [tf.shape(poses)[0]])
         p_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
         conf_mask_pose = conf_mask * p_hyps
+        #tf.print(tf.shape(broadcast_confidence), broadcast_confidence)
 
         box_hyps = tf.sequence_mask(n_hyps, maxlen=tf.shape(poses)[0], dtype=tf.float32)
         conf_mask_box = conf_mask * box_hyps
