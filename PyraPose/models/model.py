@@ -414,7 +414,7 @@ def inference_model(
         score_threshold=0.5,
         pose_hyps=10,
         iou_threshold=0.5,
-        max_detections=300,
+        max_detections=100,
         **kwargs
 ):
     # create RetinaNet model
@@ -434,7 +434,7 @@ def inference_model(
     classification = model.outputs[2]
     translations = model.outputs[3]
     rotations = model.outputs[4]
-    consistency = model.outputs[5] # gone for just reprojection
+    #consistency = model.outputs[5] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
@@ -447,23 +447,17 @@ def inference_model(
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
     boxes = layers.RegressBoxes(name='boxes')([rep_detections, rep_locations, rep_object_diameters])
 
-    consistency = tf.math.reduce_sum(consistency, axis=3)
+    #consistency = tf.math.reduce_sum(consistency, axis=3)
 
-    #consistency = boxes3D - consistency
-    #consistency = tf.math.abs(consistency)
-    #consistency = tf.math.reduce_sum(poses, axis=3)
-    #discrepancy = destd_boxes - pro_boxes
-    #discrepancy = tf.math.abs(discrepancy)
+    #filtered_detections = layers.FilterDetections(
+    #    name='filtered_detections',
+    #    score_threshold=score_threshold,
+    #    max_detections=max_detections,
+    #    num_classes=num_classes,
+    #    pose_hyps=pose_hyps,
+    #    iou_threshold=iou_threshold,
+    #)([boxes3D, boxes, classification, poses, consistency])
 
-    filtered_detections = layers.FilterDetections(
-        name='filtered_detections',
-        score_threshold=score_threshold,
-        max_detections=max_detections,
-        num_classes=num_classes,
-        pose_hyps=pose_hyps,
-        iou_threshold=iou_threshold,
-    )([boxes3D, boxes, classification, poses, consistency])
+    #return keras.models.Model(inputs=model.inputs, outputs=[filtered_detections[0], filtered_detections[1], filtered_detections[2], filtered_detections[3], filtered_detections[4]], name=name)
 
-    return keras.models.Model(inputs=model.inputs, outputs=[filtered_detections[0], filtered_detections[1], filtered_detections[2], filtered_detections[3], filtered_detections[4]], name=name)
-
-    #return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, classification, poses], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, boxes, classification, poses], name=name)

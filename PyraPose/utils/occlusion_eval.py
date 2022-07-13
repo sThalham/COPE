@@ -166,7 +166,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
     times_count = np.zeros((300), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(15, 3))
-    inv_keys = [1, 5, 6, 8, 9, 10, 11, 12]
+    #inv_keys = [1, 5, 6, 8, 9, 10, 11, 12]
 
     eval_img = []
     eval_det = []
@@ -292,9 +292,9 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        '''
 
-        boxes_raw, labels_raw, poses_raw = model.predict_on_batch(np.expand_dims(image, axis=0))
+        #'''
+        boxes_raw, detections_raw, labels_raw, poses_raw = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         ################################
@@ -312,13 +312,15 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             cls_indices = np.where(labels_cls == inv_cls)
             labels_filt = labels_raw[0, cls_indices[0], inv_cls]
             point_votes = boxes_raw[0, cls_indices[0], inv_cls, :]
-            #direct_votes = poses_raw[0, cls_indices[0], inv_cls, :]
+            detections_votes = detections_raw[0, cls_indices[0], inv_cls, :]
+            direct_votes = poses_raw[0, cls_indices[0], inv_cls, :]
             above_thres = np.where(labels_filt > 0.5)
 
             mask_votes = cls_indices[0][above_thres]
 
             point_votes = point_votes[above_thres[0], :]
-            #direct_votes = direct_votes[above_thres[0], :]
+            detections_votes = detections_votes[above_thres[0], :]
+            direct_votes = direct_votes[above_thres[0], :]
             labels_votes = labels_cls[cls_indices[0][above_thres[0]]]
 
             hyps = point_votes.shape[0]
@@ -326,10 +328,10 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             if hyps < 1:
                 continue
 
-            min_box_x = np.nanmin(point_votes[:, ::2], axis=1)
-            min_box_y = np.nanmin(point_votes[:, 1::2], axis=1)
-            max_box_x = np.nanmax(point_votes[:, ::2], axis=1)
-            max_box_y = np.nanmax(point_votes[:, 1::2], axis=1)
+            min_box_x = detections_votes[:, 0]
+            min_box_y = detections_votes[:, 1]
+            max_box_x = detections_votes[:, 2]
+            max_box_y = detections_votes[:, 3]
 
             pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
 
@@ -341,6 +343,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
 
             per_obj_hyps = []
             per_obj_cls = []
+            per_obj_iou = []
             per_obj_poses = []
             per_mask_hyps = []
 
@@ -349,6 +352,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 start_i = np.random.randint(pos_anchors.shape[0])
                 obj_ancs = [pos_anchors[start_i]]
                 obj_inds = [ind_anchors[start_i]]
+                obj_ious = [1.0]
                 pos_anchors = np.delete(pos_anchors, start_i, axis=0)
                 ind_anchors = np.delete(ind_anchors, start_i, axis=0)
                 # print('ind_anchors: ', ind_anchors)
@@ -366,12 +370,13 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                         for qdx in range(len(obj_ancs)):
                             # loop through anchors belonging to instance
                             iou = boxoverlap(obj_ancs[qdx], box_b)
-                            if iou > 0.8:
+                            if iou > 0.5:
                                 # print('anc_anchors: ', pos_anchors)
                                 # print('ind_anchors: ', ind_anchors)
                                 # print('adx: ', adx)
                                 obj_ancs.append(box_b)
                                 obj_inds.append(ind_anchors[adx])
+                                obj_ious.append(iou)
                                 indcs2rm.append(adx)
                                 same_obj = True
                                 break
@@ -384,16 +389,22 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                     pos_anchors = np.delete(pos_anchors, indcs2rm, axis=0)
                     ind_anchors = np.delete(ind_anchors, indcs2rm, axis=0)
 
+                sort_iou = np.argsort(obj_ious)[::-1]
+                obj_ious = np.array(obj_ious)[sort_iou]
+                obj_inds = np.array(obj_inds)[sort_iou]
+
                 per_obj_hyps.append(obj_inds)
                 per_obj_cls.append(inv_cls)
+                per_obj_iou.append(obj_ious)
 
             for inst, hyps in enumerate(per_obj_hyps):
                 inv_cls = per_obj_cls[inst]
                 true_cls = inv_cls + 1
                 box_votes = point_votes[hyps, :]
-                #dp_votes = direct_votes[hyps, :]
+                dp_votes = direct_votes[hyps, :]
                 #mask_now = mask_votes[hyps]
                 hyps = box_votes.shape[0]
+                #hyps = len(hyps[:10])
 
                 #col_box = (
                 #    int(np.random.uniform() * 255.0), int(np.random.uniform() * 255.0),
@@ -419,14 +430,18 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 est_points = np.ascontiguousarray(box_votes, dtype=np.float32).reshape((hyps * 8, 2))
                 # est_points = pose_votes.reshape((hyps * 8, 1, 2))
 
-                retval, orvec, otvec, _ = cv2.solvePnPRansac(objectPoints=obj_points,
-                                                             imagePoints=est_points, cameraMatrix=K,
-                                                             distCoeffs=None, rvec=None, tvec=None,
-                                                             useExtrinsicGuess=False, iterationsCount=300,
-                                                             reprojectionError=5.0, confidence=0.99,
-                                                             flags=cv2.SOLVEPNP_EPNP)
-                R_est, _ = cv2.Rodrigues(orvec)
-                t_est = otvec[:, 0]
+                #retval, orvec, otvec, _ = cv2.solvePnPRansac(objectPoints=obj_points,
+                #                                             imagePoints=est_points, cameraMatrix=K,
+                #                                             distCoeffs=None, rvec=None, tvec=None,
+                #                                             useExtrinsicGuess=False, iterationsCount=300,
+                #                                             reprojectionError=5.0, confidence=0.99,
+                #                                             flags=cv2.SOLVEPNP_EPNP)
+                #R_est, _ = cv2.Rodrigues(orvec)
+                #t_est = otvec[:, 0]
+
+                pose = np.mean(dp_votes, axis=0)
+                R_est = pose[:9].reshape(3, 3).T
+                t_est = pose[9:] * 0.001
 
                 gt_idx = np.argwhere(gt_labels == inv_cls)
                 gt_pose = gt_poses[gt_idx, :]
@@ -492,22 +507,22 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
                 #colEst = colors_viz[inv_cls, :].astype(np.uint8)
                 colEst = (50, 205, 50)
 
-                image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-                image_poses = cv2.line(image_poses, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
-                                       2)
-                image_poses = cv2.line(image_poses, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
-                                       2)
-                image_poses = cv2.line(image_poses, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
-                                       2)
-                image_poses = cv2.line(image_poses, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
-                                       2)
+                #image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+                #image_poses = cv2.line(image_poses, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst,
+                #                       2)
+                #image_poses = cv2.line(image_poses, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst,
+                #                       2)
+                #image_poses = cv2.line(image_poses, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst,
+                #                       2)
+                #image_poses = cv2.line(image_poses, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst,
+                #                       2)
 
                 #for bdx in range(box_votes.shape[0]):
                 #    box = box_votes[bdx, :]
@@ -590,6 +605,23 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             t_gt = np.array(gt_pose[:3], dtype=np.float32)
             t_gt = t_gt * 0.001
             
+            #if true_cls == 1:
+            #    model_vsd = mv1
+            #elif true_cls == 5:
+            #    model_vsd = mv5
+            #elif true_cls == 6:
+            #    model_vsd = mv6
+            #elif true_cls == 8:
+            #    model_vsd = mv8
+            #elif true_cls == 9:
+            #    model_vsd = mv9
+            #elif true_cls == 10:
+            #    model_vsd = mv10
+            #elif true_cls == 11:
+            #    model_vsd = mv11
+            #elif true_cls == 12:
+            #    model_vsd = mv12
+
             if true_cls == 1:
                 model_vsd = mv1
             elif true_cls == 5:
@@ -611,6 +643,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             iou_ovlaps = []
 
             if true_cls == 10 or true_cls == 11:
+            #if true_cls == 6 or true_cls == 7:
                 err_add = adi(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
             else:
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
@@ -723,6 +756,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
             cv2.imwrite(name, image_pose)
             name = '/home/stefan/PyraPose_viz/' + 'lmo_proj_' + str(index) + '.png'
             cv2.imwrite(name, image_rep)
+        '''
 
     #times
     print('Number of objects ----- t')

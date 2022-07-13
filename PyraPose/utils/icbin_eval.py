@@ -159,9 +159,11 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         image_raw = image_raw.astype(np.uint8)
         image_ori = image_raw.astype(np.uint8)
 
+        image_mask = copy.deepcopy(image_raw)
         image_rep = copy.deepcopy(image_raw)
         image_box = copy.deepcopy(image_raw)
-        image_pose = copy.deepcopy(image_raw)
+        image_poses = copy.deepcopy(image_raw)
+        image_points = copy.deepcopy(image_raw)
         if gt_labels.shape[0] > max_gt:
             max_gt = gt_labels.shape[0]
 
@@ -183,6 +185,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             colGT = (245, 102, 65)
 
+            '''
             image_pose = cv2.line(image_pose, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
             image_pose = cv2.line(image_pose, tuple(tDbox[2:4].ravel()), tuple(tDbox[4:6].ravel()), colGT, 2)
             image_pose = cv2.line(image_pose, tuple(tDbox[4:6].ravel()), tuple(tDbox[6:8].ravel()), colGT,
@@ -212,7 +215,8 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
 
             gt_box = gt_boxes[obj, :]
             image_box = cv2.rectangle(image_box, (int(gt_box[0]), int(gt_box[1])), (int(gt_box[2]), int(gt_box[3])),
-                                      (245, 17, 50), 1)
+                                      (245, 17, 50), 2)
+            '''
 
         fxkin = gt_calib[0, 0]
         fykin = gt_calib[0, 1]
@@ -224,10 +228,9 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         t_error = 0
         t_img = 0
         n_img = 0
-        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes_raw, detections_raw, labels_raw, poses_raw = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
-        '''
         labels_cls = np.argmax(labels_raw[0, :, :], axis=1)
 
         for inv_cls in np.unique(labels_cls):
@@ -241,13 +244,15 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             cls_indices = np.where(labels_cls == inv_cls)
             labels_filt = labels_raw[0, cls_indices[0], inv_cls]
             point_votes = boxes_raw[0, cls_indices[0], inv_cls, :]
+            detect_votes = detections_raw[0, cls_indices[0], inv_cls, :]
             direct_votes = poses_raw[0, cls_indices[0], inv_cls, :]
-            above_thres = np.where(labels_filt > 0.25)
+            above_thres = np.where(labels_filt > 0.5)
 
             mask_votes = cls_indices[0][above_thres]
 
             point_votes = point_votes[above_thres[0], :]
             direct_votes = direct_votes[above_thres[0], :]
+            detect_votes = detect_votes[above_thres[0], :]
             labels_votes = labels_cls[cls_indices[0][above_thres[0]]]
 
             hyps = point_votes.shape[0]
@@ -255,10 +260,10 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             if hyps < 1:
                 continue
 
-            min_box_x = np.nanmin(point_votes[:, ::2], axis=1)
-            min_box_y = np.nanmin(point_votes[:, 1::2], axis=1)
-            max_box_x = np.nanmax(point_votes[:, ::2], axis=1)
-            max_box_y = np.nanmax(point_votes[:, 1::2], axis=1)
+            min_box_x = detect_votes[:, 0]
+            min_box_y = detect_votes[:, 1]
+            max_box_x = detect_votes[:, 2]
+            max_box_y = detect_votes[:, 3]
 
             pos_anchors = np.stack([min_box_x, min_box_y, max_box_x, max_box_y], axis=1)
 
@@ -321,6 +326,7 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                 true_cls = inv_cls + 1
                 box_votes = point_votes[hyps, :]
                 dp_votes = direct_votes[hyps, :]
+                det_votes = detect_votes[hyps, :]
                 mask_now = mask_votes[hyps]
                 hyps = box_votes.shape[0]
 
@@ -338,8 +344,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                 image_mask = np.where(P3_mask > 0, P3_mask, image_mask)
                 image_mask = np.where(P4_mask > 0, P4_mask, image_mask)
                 image_mask = np.where(P5_mask > 0, P5_mask, image_mask)
-
-
 
                 ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)  # .reshape((8, 1, 3))
 
@@ -378,6 +382,9 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                         cv2.circle(image_box, (int(box[p_idx]), int(box[p_idx+1])), 3, col_box, 3)
                         p_idx += 2
 
+                image_points = cv2.rectangle(image_points, (int(det_votes[pdx, 0]), int(det_votes[pdx, 1])),
+                                          (int(det_votes[pdx, 2]), int(det_votes[pdx, 3])), col_box, 2)
+
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
         cv2.imwrite(name, image_raw)
 
@@ -393,7 +400,18 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
         # image_row1 = np.concatenate([image, image_mask], axis=0)
         cv2.imwrite(name, image_mask)
 
+        name = '/home/stefan/PyraPose_viz/' + 'det_' + str(index) + '.png'
+        # image_row1 = np.concatenate([image, image_mask], axis=0)
+        cv2.imwrite(name, image_points)
+
         '''
+        # run network
+        start_t = time.time()
+        t_error = 0
+        t_img = 0
+        n_img = 0
+        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))
+        t_img = time.time() - start_t
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
@@ -489,7 +507,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
             #    continue
 
-            '''
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
@@ -514,7 +531,6 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
             image_pose = cv2.line(image_pose, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
             image_pose = cv2.line(image_pose, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_pose = cv2.line(image_pose, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            '''
 
             colEst = (50, 205, 50)
             if err_add > model_dia[true_cls] * 0.1:
@@ -558,16 +574,20 @@ def evaluate_icbin(generator, model, data_path, threshold=0.5):
                 times_count[n_img] += 1
 
         if index % 1 == 0:
-            name = '/home/stefan/PyraPose_viz/' + 'lmo_raw_' + str(index) + '.png'
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_raw_' + str(index) + '.png'
             cv2.imwrite(name, image_raw)
-            name = '/home/stefan/PyraPose_viz/' + 'lmo_box_' + str(index) + '.png'
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_box_' + str(index) + '.png'
             cv2.imwrite(name, image_box)
-            name = '/home/stefan/PyraPose_viz/' + 'lmo_pose_' + str(index) + '.png'
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_pose_' + str(index) + '.png'
             cv2.imwrite(name, image_pose)
-            name = '/home/stefan/PyraPose_viz/' + 'lmo_proj_' + str(index) + '.png'
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_proj_' + str(index) + '.png'
             cv2.imwrite(name, image_rep)
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_mask_' + str(index) + '.png'
+            cv2.imwrite(name, image_mask)
+            name = '/home/stefan/PyraPose_viz/' + 'icbin_points_' + str(index) + '.png'
+            cv2.imwrite(name, image_points)
 
-        print('max_gt: ', max_gt)
+        '''
 
     #times
     print('Number of objects ----- t')
