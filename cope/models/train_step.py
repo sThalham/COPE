@@ -72,7 +72,7 @@ class CustomModel(tf.keras.Model):
         # or at the start of `evaluate()`.
         # If you don't implement this property, you have to call
         # `reset_states()` yourself at the time of your choosing.
-        return [self.loss_tracker, self.points_tracker, self.cls_tracker, self.translations_tracker, self.rotations_tracker, self.consistency_tracker, self.projection_tracker]
+        return [self.loss_tracker, self.points_tracker, self.box_tracker, self.cls_tracker, self.translations_tracker, self.rotations_tracker, self.consistency_tracker, self.projection_tracker]
 
     def call(self, inputs, training=False):
         x = self.pyrapose(inputs[0])

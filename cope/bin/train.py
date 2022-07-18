@@ -31,8 +31,8 @@ from tensorflow.python.framework.ops import disable_eager_execution
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    import PyraPose.bin  # noqa: F401
-    __package__ = "PyraPose.bin"
+    import cope.bin  # noqa: F401
+    __package__ = "cope.bin"
 
 from .. import layers  # noqa: F401
 from .. import losses

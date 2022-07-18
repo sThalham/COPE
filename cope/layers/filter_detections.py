@@ -196,8 +196,6 @@ def filter_detections(
         boxes = tf.math.divide_no_nan(mean_boxes, denom)
 
         zero_vector = tf.zeros(shape=(tf.shape(poses)[0]), dtype=tf.float32)
-        #bool_mask = tf.not_equal(tf.math.reduce_max(denom, axis=1), zero_vector)
-        #zero_vector = tf.ones(shape=(tf.shape(poses)[0]), dtype=tf.float32) * 1.0
 
         bool_mask = tf.math.greater(tf.math.reduce_max(denom, axis=1), zero_vector)
         poses = tf.boolean_mask(poses, bool_mask, axis=0)

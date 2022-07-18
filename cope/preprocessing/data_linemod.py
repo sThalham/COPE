@@ -409,7 +409,6 @@ class LinemodDataset(tf.data.Dataset):
             path = image_paths[image_index]
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
-            print(mask_path, mask.shape)
 
             annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
@@ -584,12 +583,7 @@ class LinemodDataset(tf.data.Dataset):
 
                 target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
-                #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
-                #target_batch = tf.tuple(target_batch)
-
-                #yield image_source_batch, target_batch
-                #yield image_source_batch, target_batch
-                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])#, target_batch[5])
+                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, batch_size):
 
@@ -616,8 +610,8 @@ class LinemodDataset(tf.data.Dataset):
                                                                  tf.TensorSpec(shape=(batch_size, 6300, 15, 5),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15 + 1),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, 15, 4),dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32))),
-                                                                #tf.TensorSpec(shape=(batch_size, 6300, 15), dtype=tf.float32))),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 15, 8, 7),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, 15), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 
         else:

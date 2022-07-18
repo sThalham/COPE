@@ -96,37 +96,6 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     return keras.models.Model(inputs=inputs, outputs=regress)
 
 
-def default_box_model(num_values, pyramid_feature_size=256, prior_probability=0.01, regression_feature_size=256):
-    options = {
-        'kernel_size': 3,
-        'strides': 1,
-        'padding': 'same',
-        'kernel_initializer': keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
-        'bias_initializer': 'zeros',
-        'kernel_regularizer': keras.regularizers.l2(0.001),
-    }
-
-    if keras.backend.image_data_format() == 'channels_first':
-        inputs = keras.layers.Input(shape=(pyramid_feature_size, None, None))
-    else:
-        inputs = keras.layers.Input(shape=(None, None, pyramid_feature_size))
-
-    outputs = inputs
-    for i in range(4):
-        outputs = keras.layers.Conv2D(
-            filters=regression_feature_size,
-            activation=tfa.activations.mish,
-            **options
-        )(outputs)
-
-    regress = keras.layers.Conv2D(num_values, **options)(outputs)
-    if keras.backend.image_data_format() == 'channels_first':
-        regress = keras.layers.Permute((2, 3, 1))(regress)
-    regress = keras.layers.Reshape((-1, num_values))(regress)
-
-    return keras.models.Model(inputs=inputs, outputs=regress)
-
-
 def default_pose_model(num_classes, prior_probability=0.01, regression_feature_size=512):
     options = {
         'kernel_size': 1,
@@ -282,7 +251,7 @@ def __create_DPA(C3, C4, C5, feature_size=256):
     return P3, P4, P5
 
 
-def pyrapose(
+def cope(
         inputs,
         backbone_layers,
         num_classes,
@@ -290,7 +259,7 @@ def pyrapose(
         obj_diameters=None,
         intrinsics=None,
         create_pyramid_features=__create_PFPN,
-        name='pyrapose'
+        name='cope'
 ):
     regression_branch = default_regression_model(16)
     detections_branch = default_regression_model(4)
@@ -417,9 +386,8 @@ def inference_model(
         max_detections=100,
         **kwargs
 ):
-    # create RetinaNet model
     if model is None:
-        model = pyrapose(**kwargs)
+        model = cope(**kwargs)
     else:
         assert_training_model(model)
 
@@ -434,7 +402,7 @@ def inference_model(
     classification = model.outputs[2]
     translations = model.outputs[3]
     rotations = model.outputs[4]
-    #consistency = model.outputs[5] # gone for just reprojection
+    consistency = model.outputs[5] # gone for just reprojection
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
@@ -447,17 +415,15 @@ def inference_model(
     boxes3D = layers.RegressBoxes3D(name='boxes3D')([rep_regression, rep_locations, rep_object_diameters])
     boxes = layers.RegressBoxes(name='boxes')([rep_detections, rep_locations, rep_object_diameters])
 
-    #consistency = tf.math.reduce_sum(consistency, axis=3)
+    consistency = tf.math.reduce_sum(consistency, axis=3)
 
-    #filtered_detections = layers.FilterDetections(
-    #    name='filtered_detections',
-    #    score_threshold=score_threshold,
-    #    max_detections=max_detections,
-    #    num_classes=num_classes,
-    #    pose_hyps=pose_hyps,
-    #    iou_threshold=iou_threshold,
-    #)([boxes3D, boxes, classification, poses, consistency])
+    filtered_detections = layers.FilterDetections(
+        name='filtered_detections',
+        score_threshold=score_threshold,
+        max_detections=max_detections,
+        num_classes=num_classes,
+        pose_hyps=pose_hyps,
+        iou_threshold=iou_threshold,
+    )([boxes3D, boxes, classification, poses, consistency])
 
-    #return keras.models.Model(inputs=model.inputs, outputs=[filtered_detections[0], filtered_detections[1], filtered_detections[2], filtered_detections[3], filtered_detections[4]], name=name)
-
-    return keras.models.Model(inputs=model.inputs, outputs=[boxes3D, boxes, classification, poses], name=name)
+    return keras.models.Model(inputs=model.inputs, outputs=[filtered_detections[0], filtered_detections[1], filtered_detections[2], filtered_detections[3], filtered_detections[4]], name=name)
