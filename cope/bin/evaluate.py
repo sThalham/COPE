@@ -29,7 +29,7 @@ from matplotlib import pyplot
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
     import PyraPose.bin  # noqa: F401
-    __package__ = "PyraPose.bin"
+    __package__ = "cope.bin"
 
 # Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import models

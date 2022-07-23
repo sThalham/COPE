@@ -198,6 +198,12 @@ def __create_DPA(C3, C4, C5, feature_size=256):
     P3_down =  keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, **options)(P3)
     P4_mid = keras.layers.Add()([P3_down, P4])
     P4_mid = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid)
+
+    # aggregate
+    P3_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3)
+    P3_early = keras.layers.Add()([P3, P3_agg])
+    P3_early = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_early)
+
     # aggregate
     P4_mid_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid)
     P4_mid = keras.layers.Add()([P4_mid, P4_mid_agg])
@@ -214,7 +220,8 @@ def __create_DPA(C3, C4, C5, feature_size=256):
 
     # P3_mid
     P4_mid_up = keras.layers.UpSampling2D(size=(2, 2))(P4_mid)
-    P3_mid = keras.layers.Add()([P3, P4_mid_up])
+    P4_mid_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid_up)
+    P3_mid = keras.layers.Add()([P3_early, P4_mid_up])
     P3_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P3_mid)
     # aggregate
     P3_mid_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_mid)
@@ -224,7 +231,10 @@ def __create_DPA(C3, C4, C5, feature_size=256):
     # P4
     P3_mid_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, **options)(P3_mid)
     P5_up = keras.layers.UpSampling2D(size=(2, 2))(P5_out)
-    P4_out = keras.layers.Add()([P3_mid_down, P4_mid, P5_up])
+    P5_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5_up)
+    P4_out = keras.layers.Add()([P4_mid, P5_up])
+    P4_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
+    P4_out = keras.layers.Add()([P3_mid_down, P4_out])
     P4_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
     # aggregate
     P4_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
@@ -233,6 +243,7 @@ def __create_DPA(C3, C4, C5, feature_size=256):
 
     # P3
     P4_up = keras.layers.UpSampling2D(size=(2, 2))(P4_out)
+    P4_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_up)
     P3_out = keras.layers.Add()([P3_mid, P4_up])
     P3_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_out)
     # aggregate
@@ -392,7 +403,7 @@ def inference_model(
         assert_training_model(model)
 
     # compute the anchors
-    features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5']]
+    features = [model.get_layer(p_name).output for p_name in ['conv3_block4_out', 'conv4_block23_out', 'conv5_block3_out']]
     strides = [8, 16, 32]
     # features = [model.get_layer(p_name).output for p_name in ['P3_con', 'P3_sub', 'P4_con', 'P4_sub', 'P5_con']]
     locations = __build_locations(features, strides)

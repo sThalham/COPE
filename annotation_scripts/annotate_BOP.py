@@ -173,12 +173,12 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'icbin'
-    traintestval = 'val'
+    dataset = 'linemod'
+    traintestval = 'train'
     visu = False
 
-    root = "/hdd/bop_datasets/icbin/test"  # path to train samples, depth + rgb
-    target = '/hdd/train_data/icbin_PBR_BOP/'
+    root = "/hdd/bop_datasets/lm/train_pbr"  # path to train samples, depth + rgb
+    target = '/hdd/train_data/linemod_PBR_BOP/'
 
     if dataset == 'linemod':
         mesh_info = '/hdd/bop_datasets/lm/models_eval/models_info.json'
