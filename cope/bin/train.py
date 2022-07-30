@@ -109,7 +109,7 @@ def create_callbacks(model, args, validation_generator=None, train_generator=Non
         checkpoint = keras.callbacks.ModelCheckpoint(
             os.path.join(
                 args.snapshot_path,
-                'pyrapose_{dataset_type}_{{epoch:02d}}.h5'.format(dataset_type=args.dataset_type)
+                'cope_{dataset_type}_{{epoch:02d}}.h5'.format(dataset_type=args.dataset_type)
             ),
         )
         checkpoint = RedirectModel(checkpoint, model)
