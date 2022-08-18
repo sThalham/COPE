@@ -18,9 +18,10 @@ Accepted for publication at WACV: Winter Conference on Applications in Computer 
 </h3>
 </div>
 
+![6D pose and Detections on multiple datasets](images/hl_mult_data.png)
 
 # Citation
-If you use this code in your research, please cite the paper:
+Please cite the paper if you are using the code:
 
 ```
 @inproceedings{thalhammer2023cope,
@@ -29,4 +30,23 @@ author={S. {Thalhammer} and T. {Patten} and M. {Vincze}},
 booktitle={tba},
 year={2022}}
 ```
+
+# Installation
+
+```
+git clone https://github.com/sThalham/COPE.git
+python3 -m pip install opencv-python==4.4.0.40
+python3 -m pip install pillow
+python3 -m pip install matplotlib
+python3 -m pip install transforms3d
+python3 -m pip install glumpy
+python3 -m pip install open3d-python
+python3 -m pip install PyOpenGL
+python3 -m pip install imgaug
+```
+
+Alternatively, use the provided Dockerfile to deploy a Docker container that satisfies the version requirements.
+
+Notes:
+- Results in the paper are generated using NVIDIA CUDA 11.6
 
