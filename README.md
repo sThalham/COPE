@@ -27,7 +27,7 @@ Please cite the paper if you are using the code:
 @inproceedings{thalhammer2023cope,
 title= {COPE: End-to-end trainable constant runtime object pose estimation}
 author={S. {Thalhammer} and T. {Patten} and M. {Vincze}},
-booktitle={tba},
+journal={arXiv preprint arXiv:2208.08807},
 year={2022}}
 ```
 
