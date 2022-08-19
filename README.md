@@ -12,7 +12,7 @@ COPE: End-to-end trainable Constant Runtime Object Pose Estimation
 Accepted for publication at WACV: Winter Conference on Applications in Computer Vision, 2023, algorithms track
 <br>
 <br>
-#<a href="https://arxiv.org/submit/4323826">[Paper]</a>
+<a href="https://arxiv.org/pdf/2208.08807.pdf">[Paper]</a>
 <br>
 <br>
 </h3>
