@@ -276,6 +276,9 @@ def filter_detections(
     #indices = tf.reshape(indices, [tf.shape(indices)[0] * tf.shape(indices)[1], tf.shape(indices)[2]])
     #poses = tf.reshape(poses, [tf.shape(poses)[0] * tf.shape(poses)[1], tf.shape(poses)[2]])
     ######################################################################################
+
+    tf.print(tf.shape(classification))
+    tf.print(tf.shape(indices))
     # select top k
     #scores              = backend.gather_nd(classification, indices)
     scores              = tf.gather_nd(classification, indices)

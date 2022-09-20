@@ -24,14 +24,15 @@ class Backbone(object):
             'RegressBoxes3D'            : layers.RegressBoxes3D(),
             'ProjectBoxes'              :layers.ProjectBoxes(),
             'DenormRegression'          : layers.DenormRegression(),
-            'NormRegression'          : layers.NormRegression(),
+            'NormRegression'            : layers.NormRegression(),
             'Locations'                 : layers.Locations(),
             'Locations_Hacked'          : layers.Locations_Hacked(),
             '_per_cls_l1'               : losses.per_cls_l1(),
-            '_per_cls_l1_trans'               : losses.per_cls_l1_trans(),
-            '_per_cls_l1_pose'         : losses.per_cls_l1_trans(),
-            '_per_cls_l1_sym'               : losses.per_cls_l1_sym(),
+            '_per_cls_l1_trans'         : losses.per_cls_l1_trans(),
+            '_per_cls_l1_pose'          : losses.per_cls_l1_trans(),
+            '_per_cls_l1_sym'           : losses.per_cls_l1_sym(),
             '_per_cls_l1_rep'           : losses.per_cls_l1_rep(),
+            '_per_cls_focal'            : losses.per_cls_focal(),
             '_projection_deviation'     : losses.projection_deviation()
         }
 

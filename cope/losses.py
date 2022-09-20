@@ -71,79 +71,35 @@ def focal(alpha=0.25, gamma=2.0):
     return _focal
 
 
-def instanced_focal(arg):
-    alpha = 0.25
-    gamma = 2.0
+def per_cls_focal(num_classes=0, weight=1.2, alpha=0.25, gamma=2.0):
 
-    y_true, y_pred = arg
+    def _per_cls_focal(y_true, y_pred):
+        labels         = y_true[:, :, :-1]
+        anchor_state   = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
+        classification = y_pred
 
-    labels = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]
-    classification = y_pred
+        # filter out "ignore" anchors
+        indices        = backend.where(keras.backend.not_equal(anchor_state, -1))
+        labels         = backend.gather_nd(labels, indices)
+        classification = backend.gather_nd(classification, indices)
 
-    indices = backend.where(keras.backend.not_equal(anchor_state, -1))
-    labels = backend.gather_nd(labels, indices)
-    classification = backend.gather_nd(classification, indices)
+        # compute the focal loss
+        alpha_factor = keras.backend.ones_like(labels) * alpha
+        alpha_factor = backend.where(keras.backend.equal(labels, 1), alpha_factor, 1 - alpha_factor)
+        focal_weight = backend.where(keras.backend.equal(labels, 1), 1 - classification, classification)
+        focal_weight = alpha_factor * focal_weight ** gamma
 
-    # compute the focal loss
-    alpha_factor = keras.backend.ones_like(labels) * alpha
-    alpha_factor = backend.where(keras.backend.equal(labels, 1), alpha_factor, 1 - alpha_factor)
-    focal_weight = backend.where(keras.backend.equal(labels, 1), 1 - classification, classification)
-    focal_weight = alpha_factor * focal_weight ** gamma
+        cls_loss = focal_weight * keras.backend.binary_crossentropy(labels, classification)
 
-    cls_loss = focal_weight * keras.backend.binary_crossentropy(labels, classification)
+        # comp norm per class
+        normalizer = tf.math.reduce_sum(labels, axis=0) * tf.cast(num_classes, dtype=tf.float32)
+        per_cls_loss = tf.math.reduce_sum(cls_loss, axis=[0])
 
-    normalizer = backend.where(keras.backend.equal(anchor_state, 1))
-    normalizer = keras.backend.cast(keras.backend.shape(normalizer)[0], keras.backend.floatx())
-    normalizer = keras.backend.maximum(keras.backend.cast_to_floatx(1.0), normalizer)
-    #loss = tf.math.reduce_sum(cls_loss) / normalizer
-    loss = cls_loss / normalizer
+        loss = tf.math.divide_no_nan(per_cls_loss, normalizer)
 
-    return (loss, loss)
+        return weight * tf.math.reduce_sum(loss, axis=0)
 
-
-def instanced_cross(arg):
-    sigma_squared = 9.0
-
-    y_true, y_pred = arg
-
-    labels = y_true[:, :, :-1]
-    anchor_state = y_true[:, :, -1]
-    classification = y_pred
-
-    #indices = backend.where(keras.backend.equal(anchor_state, 1))
-    indices = backend.where(keras.backend.not_equal(anchor_state, -1))
-    labels = backend.gather_nd(labels, indices)
-    classification = backend.gather_nd(classification, indices)
-
-    cls_loss = keras.losses.binary_crossentropy(labels, classification)
-
-    # compute the normalizer: the number of positive anchors
-    normalizer = tf.math.maximum(1, tf.shape(indices)[0])
-    normalizer = tf.cast(normalizer, dtype=tf.float32)
-    loss = tf.math.reduce_sum(cls_loss) / normalizer
-    loss = cls_loss / normalizer
-
-    return (loss, loss)
-
-
-def per_cls_cross(num_classes=0, weight=1.0):
-
-    def _per_cls_l1(y_true, y_pred):
-        #y_true_exp = tf.expand_dims(y_true, axis=0)
-        #y_true_rep = tf.tile(y_true_exp, [1, 1, num_classes, 1])
-        y_true_perm = tf.transpose(y_true, [2, 0, 1, 3])
-
-        y_pred_exp = tf.expand_dims(y_pred, axis=0)
-        y_pred_rep = tf.tile(y_pred_exp, [num_classes, 1, 1, 1])
-
-        loss_per_cls = tf.map_fn(instanced_cross, (y_true_perm, y_pred_rep))
-        #loss_per_cls = tf.map_fn(instanced_focal, (y_true_perm, y_pred_rep))
-
-        return weight * (tf.math.reduce_sum(loss_per_cls) / num_classes)
-
-    return _per_cls_l1
-
+    return _per_cls_focal
 
 
 def smooth_l1(weight=1.0, sigma=3.0):
@@ -454,7 +410,6 @@ def per_cls_l1_sym(num_classes=0, weight=1.0, sigma=3.0):
 
     def _per_cls_l1_sym(y_true, y_pred, hyp_mask):
 
-
         regression_target = y_true[:, :, :, :, :-1]
         anchor_state = y_true[:, :, :, :, -1]
 
@@ -639,7 +594,7 @@ def projection_deviation(num_classes=0, weight=1.0, sigma=3.0):
         regression_loss = tf.where(tf.math.equal(anchor_anno, 1), per_loc_loss, 0.0)
 
         # comp norm per class
-        normalizer = tf.math.reduce_sum(anchor_state, axis=0)  * tf.cast(num_classes, dtype=tf.float32)
+        normalizer = tf.math.reduce_sum(anchor_state, axis=0) * tf.cast(num_classes, dtype=tf.float32)
         per_cls_loss = tf.math.reduce_sum(regression_loss, axis=[0])
 
         loss = tf.math.divide_no_nan(per_cls_loss, normalizer)

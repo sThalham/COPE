@@ -87,7 +87,7 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         loss={
             'pts'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
             'box'           : losses.per_cls_l1(num_classes=num_classes, weight=1.0),
-            'cls'           : losses.focal(),
+            'cls'           : losses.per_cls_focal(num_classes=num_classes, weight=1.2),
             'tra'           : losses.per_cls_l1_trans(num_classes=num_classes, weight=1.0),
             'rot'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
             'con'           : losses.projection_deviation(num_classes=num_classes, weight=0.1),
