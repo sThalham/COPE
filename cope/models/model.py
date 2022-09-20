@@ -377,14 +377,6 @@ def __build_locations(features, strides):
     return keras.layers.Concatenate(axis=1, name='locations')(locations)
 
 
-#def __build_destd(features, strides):
-#    locations = [
-#        layers.Locations(stride=strides[i], name='denorm_locations_{}'.format(i))(f) for i, f in enumerate(features)
-#    ]
-
-#    return keras.layers.Concatenate(axis=1, name='denorm_locations')(locations)
-
-
 def inference_model(
         model=None,
         correspondences=None,
@@ -403,7 +395,9 @@ def inference_model(
         assert_training_model(model)
 
     # compute the anchors
-    features = [model.get_layer(p_name).output for p_name in ['conv3_block4_out', 'conv4_block23_out', 'conv5_block3_out']]
+    #features = [model.get_layer(p_name).output for p_name in ['conv3_block4_out', 'conv4_block23_out', 'conv5_block3_out']]
+    features = [model.get_layer(p_name).output for p_name in
+                ['P3', 'P4', 'P5']]
     strides = [8, 16, 32]
     # features = [model.get_layer(p_name).output for p_name in ['P3_con', 'P3_sub', 'P4_con', 'P4_sub', 'P5_con']]
     locations = __build_locations(features, strides)

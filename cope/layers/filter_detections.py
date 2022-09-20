@@ -155,9 +155,9 @@ def filter_detections(
         ###################### end ovlap
 
         # including confidence
-        #broadcast_confidence = true_ovlaps * confidence
+        broadcast_confidence = true_ovlaps * confidence
         # 2D box as heuristics
-        broadcast_confidence = (1.0 - ovlap) * true_ovlaps * confidence
+        #broadcast_confidence = (1.0 - ovlap) * true_ovlaps * confidence
         # 3D box l1 as heuristics
         #broadcast_confidence = box3D_ov * true_ovlaps * confidence
 
