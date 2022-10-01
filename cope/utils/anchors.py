@@ -77,6 +77,9 @@ def anchor_targets_bbox(
 
         for idx, pose in enumerate(annotations['poses']):
 
+            if pose[2] < 0.0:
+                continue
+
             cls = int(annotations['labels'][idx])
             mask_id = annotations['mask_ids'][idx]
             obj_diameter = annotations['diameters'][idx]
