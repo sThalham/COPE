@@ -1,5 +1,5 @@
 # tensorflow
-FROM tensorflow/tensorflow:2.7.0-gpu
+FROM tensorflow/tensorflow:2.7.4-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -19,7 +19,6 @@ RUN apt-get update -qq \
 RUN pip install --upgrade pip
 
 # uninstall Keras
-RUN pip uninstall --yes keras
 RUN pip install opencv-python==4.4.0.40
 RUN pip install progressbar2
 RUN pip install cython
@@ -32,8 +31,8 @@ RUN pip install PyOpenGL
 RUN pip install imgaug
 RUN pip install pyyaml==5.4.1
 
-#RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
+RUN git clone https://github.com/sThalham/COPE.git /cope
 
 # Go to pix2pix root
-#WORKDIR /PyraPoseAF
+WORKDIR /cope
 

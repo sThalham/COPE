@@ -477,9 +477,9 @@ def create_generators(args, preprocess_image):
         from ..preprocessing.data_custom import CustomDataset
 
         dataset = CustomDataset(args.custom_path, 'train', batch_size=args.batch_size)
-        num_classes = 1
+        num_classes = 7
         #train_samples = 624
-        train_samples = 10452
+        train_samples = 50000
         dataset = tf.data.Dataset.range(args.workers).interleave(
             lambda _: dataset,
             # num_parallel_calls=tf.data.experimental.AUTOTUNE
@@ -489,6 +489,8 @@ def create_generators(args, preprocess_image):
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in json.load(open(mesh_info)).items():
+            if int(key) > 6:
+                key = int(key) - 1
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']

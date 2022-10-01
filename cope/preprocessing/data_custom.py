@@ -338,12 +338,15 @@ class CustomDataset(tf.data.Dataset):
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
 
         # load 3D boxes
-        TDboxes = np.ndarray((2, 8, 3), dtype=np.float32)
-        sphere_diameters = np.ndarray((2), dtype=np.float32)
-        sym_cont = np.zeros((2, 2, 3), dtype=np.float32)
-        sym_disc = np.zeros((2, 8, 16), dtype=np.float32)
+        num_classes = 7
+        TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
+        sphere_diameters = np.ndarray((num_classes + 1), dtype=np.float32)
+        sym_cont = np.zeros((num_classes + 1, 2, 3), dtype=np.float32)
+        sym_disc = np.zeros((num_classes + 1, 8, 16), dtype=np.float32)
 
         for key, value in json.load(open(mesh_info)).items():
+            if int(key) > 6:
+                key = int(key) - 1
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -373,8 +376,8 @@ class CustomDataset(tf.data.Dataset):
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.05, -0.05),
-            max_translation=(0.05, 0.05),
+            min_translation=(0.0, 0.0),
+            max_translation=(0.0, 0.0),
             min_scaling=(0.95, 0.95),
             max_scaling=(1.05, 1.05),
         )
@@ -401,16 +404,20 @@ class CustomDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'labels': np.empty((0,)),
+            annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
-                    if a['feature_visibility'] < 0.5:
+                    if a['feature_visibility'] < 0.25:
                         continue
-                annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
-                                                       axis=0)
+
+                annotations['visibility'] = np.concatenate([annotations['visibility'], [a['feature_visibility']]])
+                if a['category_id'] > 6:
+                    annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']-1]]], axis=0)
+                else:
+                    annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]], axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
                     a['bbox'][0],
                     a['bbox'][1],
@@ -433,7 +440,10 @@ class CustomDataset(tf.data.Dataset):
                 annotations['mask_ids'] = np.concatenate([annotations['mask_ids'], [
                     a['mask_id'],
                 ]], axis=0)
-                objID = a['category_id']
+                if a['category_id'] > 6:
+                    objID = a['category_id'] - 1
+                else:
+                    objID = a['category_id']
                 threeDbox = TDboxes[objID, :, :]
                 annotations['segmentations'] = np.concatenate([annotations['segmentations'], [threeDbox]], axis=0)
                 annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
@@ -552,7 +562,7 @@ class CustomDataset(tf.data.Dataset):
                 #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
                 #target_batch = tf.tuple(target_batch)
 
-                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
+                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, batch_size):
 
@@ -574,11 +584,12 @@ class CustomDataset(tf.data.Dataset):
 
         return tf.data.Dataset.from_generator(self._generate,
                                               output_signature=(
-                                              tf.TensorSpec(shape=(batch_size, None, None, 3), dtype=tf.float32),
-                                              (tf.TensorSpec(shape=(batch_size, 6300, 1, 8, 17), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 1 + 1), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 1, 4), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 1, 8, 7), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 1), dtype=tf.float32))),
+                                              tf.TensorSpec(shape=(batch_size, 480, 640, 3), dtype=tf.float32),
+                                              (tf.TensorSpec(shape=(batch_size, 6300, 7, 8, 17), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 7, 5), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 7 + 1), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 7, 4), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 7, 8, 7), dtype=tf.float32),
+                                               tf.TensorSpec(shape=(batch_size, 6300, 7), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
 
