@@ -235,7 +235,7 @@ def load_model(model_path, sphere_diameters, num_classes):
     #keras.backend.tensorflow_backend.set_session(get_session())
 
     anchor_params = None
-    backbone = 'resnet50'
+    backbone = 'resnet101'
 
     print('Loading model, this may take a second...')
     print(model_path)

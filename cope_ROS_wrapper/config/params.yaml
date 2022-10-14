@@ -1,0 +1,7 @@
+model_path: ""
+meshes_path: ""
+detection_threshold: 0.5
+icp_threshold: 0.15
+color_topic: '/camera/color/image_raw'
+depth_topic: '/camera/aligned_depth_to_color/image_raw'
+camera_info_topic: '/camera/color/camera_info'
