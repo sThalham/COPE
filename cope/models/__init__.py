@@ -77,9 +77,9 @@ def load_model(filepath, backbone_name='resnet50'):
     return tensorflow.keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
 
 
-def convert_model(model, diameters, classes):
+def convert_model(model, diameters, classes, intrinsics):
     from .model import inference_model
-    return inference_model(model=model, object_diameters=diameters, num_classes=classes)
+    return inference_model(model=model, object_diameters=diameters, num_classes=classes, intrinsics=intrinsics)
 
 
 def assert_training_model(model):

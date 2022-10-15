@@ -26,7 +26,7 @@ RUN pip install pillow
 RUN pip install matplotlib
 RUN pip install transforms3d
 RUN pip install glumpy
-RUN pip install open3d-python
+RUN pip install open3d==0.13.0
 RUN pip install PyOpenGL
 RUN pip install imgaug
 RUN pip install pyyaml==5.4.1

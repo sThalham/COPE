@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-#from pycocotools.cocoeval import COCOeval
 
 import os
 import numpy as np
@@ -128,11 +127,13 @@ def boxoverlap(a, b):
 def evaluate_custom(generator, model, data_path, threshold=0.3):
 
     mesh_info = os.path.join(data_path, "meshes/models_info.json")
-    threeD_boxes = np.ndarray((2, 8, 3), dtype=np.float32)
-    model_dia = np.zeros((2), dtype=np.float32)
-    avg_dimension = np.ndarray((2), dtype=np.float32)
+    threeD_boxes = np.ndarray((9, 8, 3), dtype=np.float32)
+    model_dia = np.zeros((9), dtype=np.float32)
+    avg_dimension = np.ndarray((9), dtype=np.float32)
 
     for key, value in json.load(open(mesh_info)).items():
+        if int(key) > 6:
+            key = int(key) - 1
         fac = 0.001
         x_minus = value['min_x'] * fac
         y_minus = value['min_y'] * fac
@@ -162,6 +163,12 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
 
     pc1, mv1, md1 = load_pcd(data_path, '000001')
+    pc2, mv2, md2 = load_pcd(data_path, '000002')
+    pc3, mv3, md3 = load_pcd(data_path, '000003')
+    pc4, mv4, md4 = load_pcd(data_path, '000004')
+    pc5, mv5, md5 = load_pcd(data_path, '000005')
+    pc6, mv6, md6 = load_pcd(data_path, '000006')
+    pc7, mv7, md7 = load_pcd(data_path, '000007')
 
     allPoses = np.zeros((16), dtype=np.uint32)
     truePoses = np.zeros((16), dtype=np.uint32)
@@ -238,7 +245,7 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         gt_calib = sample[6].numpy()
         allLabels = copy.deepcopy(gt_labels)
 
-        if gt_labels.size == 0 or int(gt_labels[0]) in [2, 6]:
+        if gt_labels.size == 0: #or int(gt_labels[0]) in [2, 6]:
             continue
 
         fxkin = gt_calib[0, 0]
@@ -368,27 +375,28 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
                                  colGT,
                                  2)
 
-
         # run network
         start_t = time.time()
         t_error = 0
         t_img = 0
         n_img = 0
 
-        scores, labels, poses, mask = model.predict_on_batch(np.expand_dims(image, axis=0))
+        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]
         poses = poses[labels != -1]
+        boxes = boxes[labels != -1]
         labels = labels[labels != -1]
 
         for odx, inv_cls in enumerate(labels):
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
+            box = boxes[odx, :]
+
             #if inv_cls not in gt_labels:
             #    continue
-
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
@@ -414,71 +422,64 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             eval_line.append(time_bop)
             eval_img.append(eval_line)
 
-            gt_idx = np.argwhere(gt_labels == inv_cls)
-            gt_pose = gt_poses[gt_idx, :]
-            gt_box = gt_boxes[gt_idx, :]
-            gt_pose = gt_pose[0][0]
-            gt_box = gt_box[0][0]
+            if inv_cls in gt_labels:
 
-            # detection
-            min_x = int(np.nanmin(pose[::2], axis=0))
-            min_y = int(np.nanmin(pose[1::2], axis=0))
-            max_x = int(np.nanmax(pose[::2], axis=0))
-            max_y = int(np.nanmax(pose[1::2], axis=0))
-            est_box = np.array([float(min_x), float(min_y), float(max_x), float(max_y)])
+                gt_idx = np.argwhere(gt_labels == inv_cls)
+                gt_pose = gt_poses[gt_idx, :]
+                gt_box = gt_boxes[gt_idx, :]
+                gt_pose = gt_pose[0][0]
+                gt_box = gt_box[0][0]
 
-            t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
-            R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
-            t_gt = np.array(gt_pose[:3], dtype=np.float32)
-            t_gt = t_gt * 0.001
+                t_rot = tf3d.quaternions.quat2mat(gt_pose[3:])
+                R_gt = np.array(t_rot, dtype=np.float32).reshape(3, 3)
+                t_gt = np.array(gt_pose[:3], dtype=np.float32)
+                t_gt = t_gt * 0.001
 
-            if true_cls == 1:
-                model_vsd = mv1
+                if true_cls == 1:
+                    model_vsd = md1
+                elif true_cls == 2:
+                    model_vsd = md2
+                elif true_cls == 3:
+                    model_vsd = md3
+                elif true_cls == 4:
+                    model_vsd = md4
+                elif true_cls == 5:
+                    model_vsd = md5
+                elif true_cls == 6:
+                    model_vsd = md6
+                elif true_cls == 7:
+                    model_vsd = md7
 
-            add_errors = []
-            iou_ovlaps = []
+                add_errors = []
+                iou_ovlaps = []
 
-            err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
+                err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
 
-            print(np.nanmax(model_vsd["pts"]), t_est, model_dia[true_cls])
+                if err_add < model_dia[true_cls] * 0.1:
+                    if np.max(gt_poses[gt_idx, :]) != -1:
+                        truePoses[true_cls] += 1
+                        gt_poses[gt_idx, :] = -1
+                else:
+                    falsePoses[true_cls] += 1
 
-            if err_add < model_dia[true_cls] * 0.1:
-                if np.max(gt_poses[gt_idx, :]) != -1:
-                    truePoses[true_cls] += 1
-                    gt_poses[gt_idx, :] = -1
-            else:
-                falsePoses[true_cls] += 1
+                if inv_cls in allLabels:
+                    trueDets[true_cls] +=1
+                    allLabels[gt_idx] = -1
 
-            if inv_cls in allLabels:
-                trueDets[true_cls] +=1
-                allLabels[gt_idx] = -1
-
-            print(' ')
-            print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
-
-            # if gt_pose.size == 0:  # filter for benchvise, bowl and mug
-            #    continue
-
-            # idx_iou = np.argmax(np.array(iou_ovlaps))
-            # iou_ov = iou_ovlaps[idx_iou]
-
-            # if iou_ov > 0.7 and np.max(gt_boxes[idx_iou, :]) != -1:
-            #    trueDets[true_cls] += 1
-            #    gt_boxes[idx_add, :] = -1
-            # else:
-            #    falseDets[true_cls] += 1
+                print(' ')
+                print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
             eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
             est3D = toPix_array(eDbox, fxkin, fykin, cxkin, cykin)
             eDbox = np.reshape(est3D, (16))
-            pose = eDbox.astype(np.uint16)
+            pose = eDbox.astype(np.int16)
             pose = np.where(pose < 3, 3, pose)
 
             colEst = (50, 205, 50)
-            if err_add > model_dia[true_cls] * 0.1:
-                colEst = (0, 39, 236)
+            #if err_add > model_dia[true_cls] * 0.1:
+            #    colEst = (0, 39, 236)
 
             image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
@@ -493,8 +494,21 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
             image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
-            if true_cls == 1:
-                model_vsd = md1
+            # font
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            org = (int(box[0] + 0.5 * (box[2] - box[0])), int(box[1] + 0.5 * (box[3] - box[1])))
+            fontScale = 1
+            color = (0, 0, 255)
+            thickness = 2
+            image_raw = cv2.putText(image_raw, str(true_cls), org, font,
+                                fontScale, color, thickness, cv2.LINE_AA)
+
+            image_box = cv2.putText(image_box, str(true_cls), org, font,
+                                    fontScale, color, thickness, cv2.LINE_AA)
+            est_box = np.array([float(box[0]), float(box[1]), float(box[2]), float(box[3])])
+
+            image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])), (42, 205, 50), 2)
+
 
             #colEst = (50, 205, 50)
             #if err_add > model_dia[true_cls] * 0.1:
@@ -516,10 +530,11 @@ def evaluate_custom(generator, model, data_path, threshold=0.3):
         #    times_count[n_img] += 1
 
         name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        name_box = '/home/stefan/PyraPose_viz/' + 'box_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
-        #cv2.imwrite(name, image_rows)
+        #cv2.imwrite(name_box, image_box)
         cv2.imwrite(name, image_raw)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'

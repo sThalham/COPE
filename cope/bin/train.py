@@ -87,7 +87,6 @@ def create_models(backbone_model, num_classes, obj_correspondences, obj_diameter
         loss={
             'pts'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=1.3),
             'box'           : losses.per_cls_l1(num_classes=num_classes, weight=1.0),
-            #'cls'           : losses.per_cls_focal(num_classes=num_classes, weight=1.2),
             'cls'           : losses.focal(),
             'tra'           : losses.per_cls_l1_trans(num_classes=num_classes, weight=1.0),
             'rot'           : losses.per_cls_l1_sym(num_classes=num_classes, weight=0.3),
@@ -692,8 +691,8 @@ def main(args=None):
 
     training_model.fit(
         x=dataset,
-        steps_per_epoch=train_samples / args.batch_size,
-        #steps_per_epoch=10,
+        #steps_per_epoch=train_samples / args.batch_size,
+        steps_per_epoch=100,
         epochs=args.epochs,
         #epochs=1,
         verbose=1,

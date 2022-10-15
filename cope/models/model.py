@@ -96,7 +96,7 @@ def default_regression_model(num_values, pyramid_feature_size=256, prior_probabi
     return keras.models.Model(inputs=inputs, outputs=regress)
 
 
-def default_pose_model(num_classes, prior_probability=0.01, regression_feature_size=512):
+def default_pose_model(num_classes):
     options = {
         'kernel_size': 1,
         'strides': 1,
@@ -175,93 +175,6 @@ def __create_PFPN(P3, P4, P5, project=True, feature_size=256):
     return [P3, P4, P5]
 
 
-def __create_DPA(C3, C4, C5, feature_size=256):
-    options = {
-        'activation': 'relu',
-        'padding': 'same',
-        'kernel_regularizer': keras.regularizers.l2(0.001),
-    }
-    # C3 -- P3 -- P3_mid -- P3 --
-    #         \     |  \    |
-    #           \   |    \  |
-    # C4 -- -- -- P4_mid -- P4 --
-    #                \      |
-    #                  \    |
-    # C5 -- -- -- -- -- -- P5 --
-
-    # pre stage
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C3)
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C4)
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(C5)
-
-    # P4_mid
-    P3_down =  keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, **options)(P3)
-    P4_mid = keras.layers.Add()([P3_down, P4])
-    P4_mid = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid)
-
-    # aggregate
-    P3_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3)
-    P3_early = keras.layers.Add()([P3, P3_agg])
-    P3_early = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_early)
-
-    # aggregate
-    P4_mid_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid)
-    P4_mid = keras.layers.Add()([P4_mid, P4_mid_agg])
-    P4_mid = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid)
-
-    # P5
-    P4_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, **options)(P4_mid)
-    P5_mid = keras.layers.Add()([P4_down, P5])
-    P5_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5_mid)
-    # aggregate
-    P5_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5_out)
-    P5_out = keras.layers.Add()([P5_out, P5_agg])
-    P5_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5_out)
-
-    # P3_mid
-    P4_mid_up = keras.layers.UpSampling2D(size=(2, 2))(P4_mid)
-    P4_mid_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_mid_up)
-    P3_mid = keras.layers.Add()([P3_early, P4_mid_up])
-    P3_mid = keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, **options)(P3_mid)
-    # aggregate
-    P3_mid_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_mid)
-    P3_mid = keras.layers.Add()([P3_mid, P3_mid_agg])
-    P3_mid = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_mid)
-
-    # P4
-    P3_mid_down = keras.layers.Conv2D(feature_size, kernel_size=3, strides=2, **options)(P3_mid)
-    P5_up = keras.layers.UpSampling2D(size=(2, 2))(P5_out)
-    P5_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5_up)
-    P4_out = keras.layers.Add()([P4_mid, P5_up])
-    P4_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
-    P4_out = keras.layers.Add()([P3_mid_down, P4_out])
-    P4_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
-    # aggregate
-    P4_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
-    P4_out = keras.layers.Add()([P4_out, P4_agg])
-    P4_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_out)
-
-    # P3
-    P4_up = keras.layers.UpSampling2D(size=(2, 2))(P4_out)
-    P4_up = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4_up)
-    P3_out = keras.layers.Add()([P3_mid, P4_up])
-    P3_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_out)
-    # aggregate
-    P3_agg = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_out)
-    P3_out = keras.layers.Add()([P3_out, P3_agg])
-    P3_out = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3_out)
-
-    # residual out
-    P3 = keras.layers.Add()([P3_out, P3])
-    P3 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P3)
-    P4 = keras.layers.Add()([P4_out, P4])
-    P4 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P4)
-    P5 = keras.layers.Add()([P5_out, P5])
-    P5 = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, **options)(P5)
-
-    return P3, P4, P5
-
-
 def cope(
         inputs,
         backbone_layers,
@@ -272,6 +185,7 @@ def cope(
         create_pyramid_features=__create_PFPN,
         name='cope'
 ):
+
     regression_branch = default_regression_model(16)
     detections_branch = default_regression_model(4)
     pose_branch = default_pose_model(num_classes)
@@ -279,8 +193,6 @@ def cope(
 
     b1, b2, b3 = backbone_layers
     P3, P4, P5 = create_pyramid_features(b1, b2, b3)
-    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
-    #P3, P4, P5 = create_pyramid_features(P3, P4, P5, project=False)
 
     pyramids = []
     regression_P3 = regression_branch(P3)
@@ -304,7 +216,6 @@ def cope(
     locations_tiled = tf.tile(tf.expand_dims(location_coordinates, axis=2, name='locations_expanded'),
                               [1, 1, num_classes, 1])
     rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 6300, 1, 16])
-    #rep_object_diameters = tf.tile(obj_diameters[tf.newaxis, tf.newaxis, :, tf.newaxis], [1, 42600, 1, 16])
 
     regression_tiled = tf.tile(tf.expand_dims(regression, axis=2, name='regression_expanded'), [1, 1, num_classes, 1],
                                name='regression_tiled')
@@ -382,6 +293,7 @@ def inference_model(
         correspondences=None,
         object_diameters=None,
         num_classes=None,
+        intrinsics=None,
         name='cope',
         score_threshold=0.5,
         pose_hyps=10,
