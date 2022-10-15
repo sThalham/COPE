@@ -38,7 +38,7 @@ def create_generator(args):
     """ Create generators for evaluation.
     """
     if args.dataset_type == 'linemod':
-        from ..preprocessing.data_linemod import LinemodDataset
+        from ..preprocessing.data_generator import LinemodDataset
 
         dataset = LinemodDataset(args.linemod_path, 'val', batch_size=1)
         num_classes = 15

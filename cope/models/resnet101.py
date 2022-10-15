@@ -78,7 +78,7 @@ class ResNetBackbone(Backbone):
         return preprocess_image(inputs, mode='caffe')
 
 
-def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=None, inputs=None, modifier=None, **kwargs):
+def resnet_model(num_classes, obj_diameters, correspondences=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
             inputs = keras.layers.Input(shape=(3, None, None))
@@ -87,33 +87,21 @@ def resnet_model(num_classes, obj_diameters, correspondences=None, intrinsics=No
             inputs = keras.layers.Input(shape=(480, 640, 3))
 
     resnet = tf.keras.applications.ResNet101(
-        include_top=False, weights='imagenet', input_tensor=inputs, classes=num_classes)
+        include_top=False, weights='imagenet', input_tensor=inputs[0], classes=num_classes)
 
     for i, layer in enumerate(resnet.layers):
         # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
         #    layer.trainable=False
         if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
-        #print(i, layer.name, layer)
 
-    #resnet.summary()
-
-        #if 'bn' in layer.name:
-        #    layer.trainable = False
-        #    print("weights:", len(layer.weights))
-        #    print("trainable_weights:", len(layer.trainable_weights))
-        #    print("non_trainable_weights:", len(layer.non_trainable_weights))
-
-    #resnet = replace_relu_with_swish(resnet)
-
-        # invoke modifier if given
+    # invoke modifier if given
     if modifier:
         resnet = modifier(resnet)
 
     resnet_outputs = [resnet.layers[80].output, resnet.layers[312].output, resnet.layers[344].output]
-    #xception_outputs = [resnet.layers[31].output, resnet.layers[121].output, resnet.layers[131].output]
 
     # create the full model
-    return model.cope(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, intrinsics=intrinsics, backbone_layers=resnet_outputs, **kwargs)
+    return model.cope(inputs=inputs, num_classes=num_classes, obj_correspondences=correspondences, obj_diameters=obj_diameters, backbone_layers=resnet_outputs, **kwargs)
 
 

@@ -14,19 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils.image import read_image_bgr
 from collections import defaultdict
 
 import numpy as np
 import os
 import json
-import yaml
-import itertools
-import random
-import warnings
-import copy
 import cv2
-import time
 import imgaug.augmenters as iaa
 
 import tensorflow.keras as keras
@@ -78,7 +71,7 @@ def load_classes(categories):
     return classes, labels, labels_inverse, labels_rev
 
 
-class RostDataset(tf.data.Dataset):
+class GeneratorDataset(tf.data.Dataset):
 
     def _sample(data_dir, set_name, batch_size, image_min_side=480, image_max_side=640):
 
@@ -172,7 +165,7 @@ class RostDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            #path = path[:-4] + '_rgb' + path[-4:]
+            path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
 
@@ -181,8 +174,7 @@ class RostDataset(tf.data.Dataset):
                 CHECK DONE HERE: Annotations + images correct
             """
             ids = image_ids[image_index]
-
-            image_num = int(str(ids))#[1:])
+            image_num = int(str(ids)[1:])
 
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
@@ -245,11 +237,11 @@ class RostDataset(tf.data.Dataset):
             return annotations
 
         for image_index, image_path in enumerate(image_paths):
+
             x_t = load_image(image_index)
             y_t = load_annotations(image_index)
 
             x_t, scale = resize_image(x_t, min_side=image_min_side, max_side=image_max_side)
-
             y_t['bboxes'] *= scale
             y_t['cam_params'] *= scale
 
@@ -261,8 +253,7 @@ class RostDataset(tf.data.Dataset):
                 anno.append(item[1])
 
             img_path = image_paths[image_index]
-            #scene_id = np.array([int(img_path[-15:-9])])
-            scene_id = np.array([int(img_path[-11:-5])])
+            scene_id = np.array([int(img_path[-15:-9])])
 
             yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
 
@@ -297,7 +288,6 @@ class RostDataset(tf.data.Dataset):
         # Parameters
         data_dir = data_dir.decode("utf-8")
         set_name = set_name.decode("utf-8")
-        batch_size = batch_size
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
         mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
 
@@ -306,7 +296,6 @@ class RostDataset(tf.data.Dataset):
         image_max_side = image_max_side
         transform_parameters = TransformParameters()
         compute_anchor_targets = anchor_targets_bbox
-        compute_shapes = guess_shapes
 
         with open(path, 'r') as js:
             data = json.load(js)
@@ -317,6 +306,7 @@ class RostDataset(tf.data.Dataset):
         cat_ann = data["categories"]
         cats = {}
         image_ids = []
+        image_intrinsics = []
         image_paths = []
         imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
 
@@ -327,6 +317,7 @@ class RostDataset(tf.data.Dataset):
                 cx = img["cx"]
                 cy = img["cy"]
             image_ids.append(img['id'])  # to correlate indexing to self.image_ann
+            image_intrinsics.append([img["fx"], img["fy"], img["cx"], img["cy"]])
             image_paths.append(os.path.join(data_dir, 'images', set_name, img['file_name']))
 
         for cat in cat_ann:
@@ -353,6 +344,12 @@ class RostDataset(tf.data.Dataset):
             y_plus = value['size_y'] + y_minus
             z_plus = value['size_z'] + z_minus
             norm_pts = np.linalg.norm(np.array([value['size_x'], value['size_y'], value['size_z']]))
+            #x_plus = (value['size_x'] / norm_pts) * (value['diameter'] * 0.5)
+            #y_plus = (value['size_y'] / norm_pts) * (value['diameter'] * 0.5)
+            #z_plus = (value['size_z'] / norm_pts) * (value['diameter'] * 0.5)
+            #x_minus = x_plus * -1.0
+            #y_minus = y_plus * -1.0
+            #z_minus = z_plus * -1.0
             three_box_solo = np.array([[x_plus, y_plus, z_plus],
                                        [x_plus, y_plus, z_minus],
                                        [x_plus, y_minus, z_minus],
@@ -368,15 +365,18 @@ class RostDataset(tf.data.Dataset):
             if 'symmetries_discrete' in value:
                 for sdx, sym in enumerate(value['symmetries_discrete']):
                     sym_disc[int(key), sdx, :] = np.array(sym)
-                    sym_disc[int(key), sdx, [3, 7, 11]] *= 0.001
+            #else:
+                #sym_disc[int(key), :, :] = np.repeat(np.eye((4)).reshape(16)[np.newaxis, :], repeats=3, axis=0)  # np.zeros((3, 16))
 
             if "symmetries_continuous" in value:
                 sym_cont[int(key), 0, :] = np.array(value['symmetries_continuous'][0]['axis'], dtype=np.float32)
                 sym_cont[int(key), 1, :] = np.array(value['symmetries_continuous'][0]['offset'], dtype=np.float32)
+            #else:
+            #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.00, -0.00),
-            max_translation=(0.00, 0.00),
+            min_translation=(0.0, 0.0),
+            max_translation=(0.0, 0.0),
             min_scaling=(0.95, 0.95),
             max_scaling=(1.05, 1.05),
         )
@@ -385,9 +385,12 @@ class RostDataset(tf.data.Dataset):
             """ Load an image at the image_index.
             """
             path = image_paths[image_index]
-            #path = path[:-4] + '_rgb' + path[-4:]
+            path = path[:-4] + '_rgb' + path[-4:]
 
             return read_image_bgr(path)
+
+        def load_intrinsics(image_index):
+            return image_intrinsics[image_index]
 
         def load_annotations(image_index):
             """ Load annotations for an image_index.
@@ -403,14 +406,15 @@ class RostDataset(tf.data.Dataset):
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
-            annotations = {'mask': mask, 'labels': np.empty((0,)),
+            annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
                            'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
                            'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
-                    if a['feature_visibility'] < 0.5:
+                    if a['feature_visibility'] < 0.25:
                         continue
+                annotations['visibility'] = np.concatenate([annotations['visibility'], [a['feature_visibility']]])
                 annotations['labels'] = np.concatenate([annotations['labels'], [labels_inverse[a['category_id']]]],
                                                        axis=0)
                 annotations['bboxes'] = np.concatenate([annotations['bboxes'], [[
@@ -451,7 +455,7 @@ class RostDataset(tf.data.Dataset):
                 annotations['sym_con'] = np.concatenate(
                     [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
 
-            return annotations
+            return annotations, intrinsics
 
         def random_transform_group_entry(image, annotations, transform=None):
             """ Randomly transforms image and annotation.
@@ -478,7 +482,6 @@ class RostDataset(tf.data.Dataset):
         max_shape = (image_min_side, image_max_side, 3)
 
         seq = iaa.Sequential([
-            # blur
             iaa.SomeOf((0, 2), [
                 iaa.GaussianBlur((0.0, 2.0)),
                 iaa.AverageBlur(k=(3, 7)),
@@ -501,6 +504,10 @@ class RostDataset(tf.data.Dataset):
                 ]),
                 iaa.Add((-10, 10), per_channel=0.5),
                 iaa.Multiply((0.75, 1.25), per_channel=0.5),
+                #iaa.BlendAlphaFrequencyNoise(
+                #    exponent=(-4, 0),
+                #    first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
+                #    second=iaa.LinearContrast((0.7, 1.3), per_channel=0.5))
                 iaa.FrequencyNoiseAlpha(
                     exponent=(-4, 0),
                     first=iaa.Multiply((0.75, 1.25), per_channel=0.5),
@@ -525,10 +532,8 @@ class RostDataset(tf.data.Dataset):
 
             for btx in range(len(batches)):
                 x_s = [load_image(image_index) for image_index in groups[btx]]
+                x_intrinsics = [load_intrinsics(image_index) for image_index in groups[btx]]
                 y_s = [load_annotations(image_index) for image_index in groups[btx]]
-
-                #x_s = [load_image(1)]
-                #y_s = [load_annotations(1)]
 
                 assert (len(x_s) == len(y_s))
 
@@ -546,17 +551,16 @@ class RostDataset(tf.data.Dataset):
 
                 # x_s to image_batch
                 image_source_batch = np.zeros((batch_size,) + max_shape, dtype=keras.backend.floatx())
+                intrinsics_source_batch = np.zeros((batch_size, 4), dtype=keras.backend.floatx())
                 for image_index, image in enumerate(x_s):
                     image_source_batch[image_index, :image.shape[0], :image.shape[1], :image.shape[2]] = image
+                    intrinsics_source_batch[image_index, :] = x_intrinsics[image_index]
 
                 target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
-                #image_source_batch = tf.convert_to_tensor(image_source_batch, dtype=tf.float32)
-                #target_batch = tf.tuple(target_batch)
+                yield (image_source_batch, intrinsics_source_batch), (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
-                yield image_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4])
-
-    def __new__(self, data_dir, set_name, batch_size):
+    def __new__(self, data_dir, set_name, num_classes, batch_size):
 
         if set_name=='val':
             return tf.data.Dataset.from_generator(self._sample,
@@ -574,13 +578,17 @@ class RostDataset(tf.data.Dataset):
                                                   # "cam_params": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="cam_params")}),
                                               args=(data_dir, set_name, batch_size))
 
-        return tf.data.Dataset.from_generator(self._generate,
-                                              output_signature=(
-                                              tf.TensorSpec(shape=(batch_size, None, None, 3), dtype=tf.float32),
-                                              (tf.TensorSpec(shape=(batch_size, 6300, 6, 8, 17), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 6 + 1), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 6, 4), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 6, 8, 7), dtype=tf.float32),
-                                               tf.TensorSpec(shape=(batch_size, 6300, 6), dtype=tf.float32))),
+        elif set_name == 'train':
+            return tf.data.Dataset.from_generator(self._generate,
+                                              output_signature=((tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32), tf.TensorSpec(shape=(batch_size, 4),dtype=tf.float32)),
+                                                                (tf.TensorSpec(shape=(batch_size, 6300, num_classes, 8, 17),dtype=tf.float32),
+                                                                 tf.TensorSpec(shape=(batch_size, 6300, num_classes, 5),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, num_classes + 1),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, num_classes, 4),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, num_classes, 8, 7),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 6300, num_classes), dtype=tf.float32))),
                                               args=(data_dir, set_name, batch_size))
+
+        else:
+            print('Define valid set_type for dataset generator [train, val].')
 

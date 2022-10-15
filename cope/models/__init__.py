@@ -55,16 +55,6 @@ def backbone(backbone_name):
         from .resnet50 import ResNetBackbone as b
     elif 'resnet101' in backbone_name:
         from .resnet101 import ResNetBackbone as b
-    elif 'resnet152' in backbone_name:
-        from .resnet152 import ResNetBackbone as b
-    elif 'efficientnet' in backbone_name:
-        from .efficientnet import EfficientNetBackbone as b
-    elif 'darknet' in backbone_name:
-        from .darknet53 import DarkNetBackbone as b
-    elif 'xception' in backbone_name:
-        from .xception import XceptionBackbone as b
-    elif 'nasnetmobile' in backbone_name:
-        from .nasnetmobile import NASNetBackbone as b
     else:
         raise NotImplementedError('Backbone class for  \'{}\' not implemented.'.format(backbone))
 
@@ -79,7 +69,7 @@ def load_model(filepath, backbone_name='resnet50'):
 
 def convert_model(model, diameters, classes, intrinsics):
     from .model import inference_model
-    return inference_model(model=model, object_diameters=diameters, num_classes=classes, intrinsics=intrinsics)
+    return inference_model(model=model, object_diameters=diameters, num_classes=classes)
 
 
 def assert_training_model(model):

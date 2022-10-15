@@ -40,10 +40,8 @@ class Locations(keras.layers.Layer):
         # generate proposals from bbox deltas and shifted anchors
         if keras.backend.image_data_format() == 'channels_first':
             shape = features_shape[2:4]
-            #anchors = shift(features_shape[2:4], self.stride, self.anchors)
         else:
             shape = features_shape[1:3]
-            #anchors = shift(features_shape[1:3], self.stride, self.anchors)
 
         shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride
         shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * self.stride

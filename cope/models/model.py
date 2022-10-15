@@ -181,10 +181,10 @@ def cope(
         num_classes,
         obj_correspondences=None,
         obj_diameters=None,
-        intrinsics=None,
         create_pyramid_features=__create_PFPN,
         name='cope'
 ):
+    intrinsics = inputs[1]
 
     regression_branch = default_regression_model(16)
     detections_branch = default_regression_model(4)
@@ -290,10 +290,8 @@ def __build_locations(features, strides):
 
 def inference_model(
         model=None,
-        correspondences=None,
         object_diameters=None,
         num_classes=None,
-        intrinsics=None,
         name='cope',
         score_threshold=0.5,
         pose_hyps=10,
