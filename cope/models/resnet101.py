@@ -35,30 +35,6 @@ def replace_relu_with_swish(model):
     return model
 
 
-# taken from https://github.com/broadinstitute/keras-resnet/blob/master/keras_resnet/layers/_batch_normalization.py
-class BatchNormalization_freezeable(keras.layers.BatchNormalization):
-    """
-    Identical to keras.layers.BatchNormalization, but adds the option to freeze parameters.
-    """
-    def __init__(self, freeze, *args, **kwargs):
-        self.freeze = freeze
-        super(BatchNormalization_freezeable, self).__init__(*args, **kwargs)
-
-        # set to non-trainable if freeze is true
-        self.trainable = not self.freeze
-
-    def call(self, *args, **kwargs):
-        # Force test mode if frozen, otherwise use default behaviour (i.e., training=None).
-        if self.freeze:
-            kwargs['training'] = False
-        return super(BatchNormalization_freezeable, self).call(*args, **kwargs)
-
-    def get_config(self):
-        config = super(BatchNormalization_freezeable, self).get_config()
-        config.update({'freeze': self.freeze})
-        return config
-
-
 class ResNetBackbone(Backbone):
     """ Describes backbone information and provides utility functions.
     """
@@ -81,17 +57,14 @@ class ResNetBackbone(Backbone):
 def resnet_model(num_classes, obj_diameters, correspondences=None, inputs=None, modifier=None, **kwargs):
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
-            inputs = keras.layers.Input(shape=(3, None, None))
+            inputs = (keras.layers.Input(shape=(3, None, None)), keras.layers.Input(shape=(4)))
         else:
-            # inputs = keras.layers.Input(shape=(None, None, 3))
-            inputs = keras.layers.Input(shape=(480, 640, 3))
+            inputs = (keras.layers.Input(shape=(480, 640, 3)), keras.layers.Input(shape=(4)))
 
     resnet = tf.keras.applications.ResNet101(
         include_top=False, weights='imagenet', input_tensor=inputs[0], classes=num_classes)
 
     for i, layer in enumerate(resnet.layers):
-        # if i < 39 and 'bn' not in layer.name: #freezing first 2 stages
-        #    layer.trainable=False
         if i < 39 or 'bn' in layer.name:  # freezing first 2 stages
             layer.trainable = False
 

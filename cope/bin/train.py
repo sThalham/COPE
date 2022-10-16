@@ -125,7 +125,9 @@ def create_callbacks(model, args):
 def create_generators(args):
 
     from ..preprocessing.data_generator import GeneratorDataset
-    num_classes = 15
+
+    mesh_info = os.path.join(args.data_path, 'meshes', 'models_info' + '.json')
+    num_classes = len(json.load(open(mesh_info)).items())
     train_samples = 50000
     dataset = GeneratorDataset(args.data_path, 'train', num_classes=num_classes, batch_size=args.batch_size)
     dataset = tf.data.Dataset.range(args.workers).interleave(
@@ -134,7 +136,6 @@ def create_generators(args):
         num_parallel_calls=args.workers
     )
     dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
-    mesh_info = os.path.join(args.data_path, 'meshes', 'models_info' + '.json')
     correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
     sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
     for key, value in json.load(open(mesh_info)).items():
@@ -172,7 +173,7 @@ def parse_args(args):
     group.add_argument('--weights',           help='Initialize the model with weights from a file.')
     group.add_argument('--no-weights',        help='Don\'t initialize the model with any weights.', dest='imagenet_weights', action='store_const', const=False)
 
-    parser.add_argument('--dataset',             help='Path to dataset directory (ie. /tmp/your_converted_dataset).')
+    parser.add_argument('dataset',             help='Path to dataset directory (ie. /tmp/your_converted_dataset).')
     parser.add_argument('--data-path',           help='Path to dataset directory (ie. /tmp/your_converted_dataset).')
     parser.add_argument('--batch-size',       help='Size of the batches.', default=1, type=int)
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')

@@ -31,6 +31,12 @@ journal={arXiv preprint arXiv:2208.08807},
 year={2022}}
 ```
 
+# information about the repository branch
+This is a cleaner version of COPE, no shared data loader and evaluation; camera instrinsics are passed as input to the network, allowing different intrinsics during training and testing.
+Repository for generating the paper results is available at [https://github.com/sThalham/COPE/blob/cope\_WACV/cope/utils/anchors.py](https://github.com/sThalham/COPE/blob/cope_WACV/cope/utils/anchors.py)
+
+
+
 # Installation
 
 ```

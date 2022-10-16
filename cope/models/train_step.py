@@ -23,7 +23,7 @@ class CustomModel(tf.keras.Model):
     @tf.function
     def train_step(self, data):
 
-        x, y = data
+        x, intri, y = data
 
         loss_names = []
         losses = []
@@ -32,7 +32,7 @@ class CustomModel(tf.keras.Model):
         keypoints_gt = None
 
         with tf.GradientTape() as tape:
-            predicts = self.model(x)
+            predicts = self.model((x, intri))
             for ldx, loss_func in enumerate(self.loss):
                 loss_names.append(loss_func)
                 if loss_func != 'pro':

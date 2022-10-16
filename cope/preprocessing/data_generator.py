@@ -401,14 +401,14 @@ class GeneratorDataset(tf.data.Dataset):
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))
             anns = imgToAnns[image_ids[image_index]]
+            intris = load_intrinsics(image_index)
 
             path = image_paths[image_index]
             mask_path = path[:-4] + '_mask.png'  # + path[-4:]
             mask = cv2.imread(mask_path, -1)
 
             annotations = {'mask': mask, 'visibility': np.empty((0,)), 'labels': np.empty((0,)),
-                           'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)),
-                           'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
+                           'bboxes': np.empty((0, 4)), 'poses': np.empty((0, 7)), 'segmentations': np.empty((0, 8, 3)), 'diameters': np.empty((0,)), 'cam_params': np.empty((0, 4)), 'mask_ids': np.empty((0,)), 'sym_dis': np.empty((0, 8, 16)), 'sym_con': np.empty((0, 2, 3))}
 
             for idx, a in enumerate(anns):
                 if set_name == 'train':
@@ -445,17 +445,17 @@ class GeneratorDataset(tf.data.Dataset):
                 annotations['diameters'] = np.concatenate([annotations['diameters'], [sphere_diameters[objID]]],
                                                           axis=0)
                 annotations['cam_params'] = np.concatenate([annotations['cam_params'], [[
-                    fx,
-                    fy,
-                    cx,
-                    cy,
+                    intris[0],
+                    intris[1],
+                    intris[2],
+                    intris[3],
                 ]]], axis=0)
                 annotations['sym_dis'] = np.concatenate(
                     [annotations['sym_dis'], sym_disc[objID, :, :][np.newaxis, ...]], axis=0)
                 annotations['sym_con'] = np.concatenate(
                     [annotations['sym_con'], sym_cont[objID, :, :][np.newaxis, ...]], axis=0)
 
-            return annotations, intrinsics
+            return annotations
 
         def random_transform_group_entry(image, annotations, transform=None):
             """ Randomly transforms image and annotation.
@@ -558,7 +558,7 @@ class GeneratorDataset(tf.data.Dataset):
 
                 target_batch = compute_anchor_targets(x_s, y_s, len(classes))
 
-                yield (image_source_batch, intrinsics_source_batch), (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
+                yield image_source_batch, intrinsics_source_batch, (target_batch[0], target_batch[1], target_batch[2], target_batch[3], target_batch[4], target_batch[5])
 
     def __new__(self, data_dir, set_name, num_classes, batch_size):
 
@@ -572,15 +572,12 @@ class GeneratorDataset(tf.data.Dataset):
                                                   tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
                                                   tf.TensorSpec(shape=(None, 7), dtype=tf.float32),
                                                   tf.TensorSpec(shape=(None, 4), dtype=tf.float32)),
-                                                  #{"labels": tf.TensorSpec(shape=(None,), dtype=tf.float64, name="labels")}),
-                                                  # "bboxes": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="bboxes"),
-                                                  # "poses": tf.TensorSpec(shape=(None, 7), dtype=tf.float64, name="poses"),
-                                                  # "cam_params": tf.TensorSpec(shape=(None, 4), dtype=tf.float64, name="cam_params")}),
                                               args=(data_dir, set_name, batch_size))
 
         elif set_name == 'train':
             return tf.data.Dataset.from_generator(self._generate,
-                                              output_signature=((tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32), tf.TensorSpec(shape=(batch_size, 4),dtype=tf.float32)),
+                                              output_signature=(tf.TensorSpec(shape=(batch_size, 480, 640, 3),dtype=tf.float32),
+                                                                tf.TensorSpec(shape=(batch_size, 4),dtype=tf.float32),
                                                                 (tf.TensorSpec(shape=(batch_size, 6300, num_classes, 8, 17),dtype=tf.float32),
                                                                  tf.TensorSpec(shape=(batch_size, 6300, num_classes, 5),dtype=tf.float32),
                                                                 tf.TensorSpec(shape=(batch_size, 6300, num_classes + 1),dtype=tf.float32),
@@ -591,4 +588,6 @@ class GeneratorDataset(tf.data.Dataset):
 
         else:
             print('Define valid set_type for dataset generator [train, val].')
+
+
 
