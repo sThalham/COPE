@@ -289,7 +289,7 @@ class GeneratorDataset(tf.data.Dataset):
         data_dir = data_dir.decode("utf-8")
         set_name = set_name.decode("utf-8")
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
-        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
+        mesh_info = os.path.join(data_dir, 'meshes', 'models_info' + '.json')
 
         batch_size = int(batch_size)
         image_min_side = image_min_side
