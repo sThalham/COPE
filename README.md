@@ -67,7 +67,7 @@ sh startCont\_gpu.sh
 
 # Training and Evaluation
 
-Training data used for all the experiments in the manuscript is obtained from the [BOP-challenge] (https://bop.felk.cvut.cz/datasets/). Training is done using "PBR-BlenderProc4BOP training images" of each individual dataset. Results are provided on the specific test sets for the challenge "BOP'19/20 test images"
+Training data used for all the experiments in the manuscript is obtained from the [BOP-challenge](https://bop.felk.cvut.cz/datasets/). Training is done using "PBR-BlenderProc4BOP training images" of each individual dataset. Results are provided on the specific test sets for the challenge "BOP'19/20 test images"
 To run evaluation using our provided models the data needs to be downloaded and converted to run with our data loading scheme.
 
 ```
