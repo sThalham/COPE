@@ -173,36 +173,53 @@ def create_BB(rgb):
 
 if __name__ == "__main__":
 
-    dataset = 'linemod'
-    traintestval = 'train'
+    traintestval = sys.argv[1]
+    source = sys.argv[2]
+    target = sys.argv[3]
     visu = False
 
-    root = "/hdd/bop_datasets/lm/train_pbr"  # path to train samples, depth + rgb
-    target = '/hdd/train_data/linemod_PBR_BOP/'
+    dataset = os.path.basename(os.path.normpath(source))
+    root = os.path.join(source, traintestval)
+    models_repo = os.path.join(source, 'models_eval')
+    mesh_info = os.path.join(source, 'models_eval', 'models_info.json')
 
-    if dataset == 'linemod':
-        mesh_info = '/hdd/bop_datasets/lm/models_eval/models_info.json'
+    if traintestval == 'train_pbr':
+        traintestval = 'train'
+    else:
+        traintestval = 'val'
+
+    # make directories containing annotation
+    if not os.path.exists(target):
+        os.mkdir(os.path.join(target))
+    if not os.path.exists(os.path.join(target, 'annotations')):
+        os.mkdir(os.path.join(target, 'annotations'))
+    if not os.path.exists(os.path.join(target, 'images')):
+        os.mkdir(os.path.join(target, 'images'))
+    if not os.path.exists(os.path.join(target, 'images', traintestval)):
+        os.mkdir(os.path.join(target, 'images', traintestval))
+
+    if dataset == 'lm':
         num_objects = 15
-    elif dataset == 'occlusion':
-        mesh_info = '/hdd/bop_datasets/lmo/models_eval/models_info.json'
+    elif dataset == 'lmo':
         num_objects = 15
     elif dataset == 'ycbv':
-        mesh_info = '/home/stefan/data/Meshes/ycb_video/models/models_info.json'
         num_objects = 21
     elif dataset == 'tless':
-        mesh_info = '/home/stefan/data/bop_datasets/tless/models_eval/models_info.json'
         num_objects = 30
-    elif dataset == 'homebrewed':
-        mesh_info = '/home/stefan/data/BOP_datasets/hb/models_eval/models_info.json'
+        mesh_info = os.path.join(source, 'models_cad', 'models_info.json')
+        models_repo = os.path.join(source, 'models_eval')
+    elif dataset == 'hb':
         num_objects = 33
     elif dataset == 'icbin':
-        mesh_info = '/hdd/bop_datasets/icbin/models_eval/models_info.json'
         num_objects = 2
-    elif dataset == 'canister':
-        mesh_info = '/home/stefan/data/datasets/canister/models/models_info.json'
-        num_objects = 1
     else:
-        print('unknown dataset')
+        print('unknown dataset; cannot assign number of objects')
+
+    cp_str = 'cp ' + mesh_info + ' ' + os.path.join(target, 'annotations', 'models_info.json')
+    os.popen(cp_str)
+
+    cp_mesh = 'cp -r ' + models_repo + ' ' + os.path.join(target, 'meshes')
+    os.popen(cp_mesh)
 
     threeD_boxes = np.ndarray((num_objects + 1, 8, 3), dtype=np.float32)
     sym_cont = np.ndarray((num_objects + 1, 3), dtype=np.float32)
@@ -297,6 +314,10 @@ if __name__ == "__main__":
             gtjson = json.load(streamINFO)
 
         for samp in os.listdir(rgbPath):
+
+            count+=1
+            print(count)
+            continue
 
             BOP_im_id = str(samp[:-4])
 
