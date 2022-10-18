@@ -691,8 +691,8 @@ def main(args=None):
 
     training_model.fit(
         x=dataset,
-        steps_per_epoch=train_samples / args.batch_size,
-        #steps_per_epoch=10,
+        #steps_per_epoch=train_samples / args.batch_size,
+        steps_per_epoch=100,
         epochs=args.epochs,
         #epochs=1,
         verbose=1,

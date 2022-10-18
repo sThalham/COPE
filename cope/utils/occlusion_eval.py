@@ -748,7 +748,7 @@ def evaluate_occlusion(generator, model, data_path, threshold=0.5):
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name, image_rows)
         #cv2.imwrite(name, image_raw)
-        if index % 1 == 0:
+        if index % 10 == 0:
             name = '/home/stefan/PyraPose_viz/' + 'lmo_raw_' + str(index) + '.png'
             cv2.imwrite(name, image_raw)
             name = '/home/stefan/PyraPose_viz/' + 'lmo_box_' + str(index) + '.png'

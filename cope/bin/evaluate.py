@@ -233,11 +233,13 @@ def create_generator(args):
         from ..preprocessing.data_custom import CustomDataset
 
         dataset = CustomDataset(args.custom_path, 'val', batch_size=1)
-        num_classes = 1
+        num_classes = 7
         mesh_info = os.path.join(args.custom_path, 'annotations', 'models_info' + '.json')
         correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
         sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
         for key, value in json.load(open(mesh_info)).items():
+            if int(key) > 6:
+                key = int(key) - 1
             x_minus = value['min_x']
             y_minus = value['min_y']
             z_minus = value['min_z']
@@ -411,7 +413,7 @@ def main(args=None):
 
     # optionally convert the model
     if args.convert_model:
-        model = models.convert_model(model, diameters=obj_diameters, classes=num_classes)
+        model = models.convert_model(model, diameters=obj_diameters, classes=num_classes, intrinsics=intrinsics)
 
     # print model summary
     print(model.summary())

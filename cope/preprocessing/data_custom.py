@@ -28,6 +28,7 @@ import copy
 import cv2
 import time
 import imgaug.augmenters as iaa
+import transforms3d as tf3d
 
 import tensorflow.keras as keras
 import tensorflow as tf
@@ -263,7 +264,22 @@ class CustomDataset(tf.data.Dataset):
             img_path = image_paths[image_index]
             scene_id = np.array([int(img_path[-15:-9])])
 
-            yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
+            #yield scene_id, anno[0], x_t, anno[1], anno[2], anno[3], anno[4]
+            gt_labels = np.array([2.0])
+
+            #anno_pose = np.eye(4)
+            #anno_pose[:3, :3] = tf3d.quaternions.quat2mat(anno[3][0][3:])
+            #anno_pose[:3, 3] = anno[3][0][:3]
+            #corr_pose = np.eye(4)
+            #corr_pose[:3, :3] = tf3d.euler.euler2mat(0.0, 0.0, np.pi*0.5, 'sxyz')
+            #corr_pose[:3, 3] = [-12.0, 0.0, 6.0]
+            #anno_pose = anno_pose @ corr_pose
+            #anno_corrected = np.concatenate([anno_pose[:3, 3], tf3d.quaternions.mat2quat(anno_pose[:3, :3])], axis=0)
+
+            #new_corr = np.empty((0, 7))
+            #anno_pose = np.concatenate([new_corr, anno_corrected[np.newaxis, :]], axis=0)
+
+            yield scene_id, anno[0], x_t, gt_labels, anno[2], anno[3], anno[4]
 
     def _generate(data_dir, set_name, batch_size=8, transform_generator=None, image_min_side=480,
                          image_max_side=640):
