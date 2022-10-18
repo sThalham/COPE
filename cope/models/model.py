@@ -185,6 +185,10 @@ def cope(
         name='cope'
 ):
     fx, fy, cx, cy = tf.split(inputs[1], num_or_size_splits=4, axis=1)
+    fx = tf.squeeze(fx, axis=1)
+    fy = tf.squeeze(fy, axis=1)
+    cx = tf.squeeze(cx, axis=1)
+    cy = tf.squeeze(cy, axis=1)
 
     regression_branch = default_regression_model(16)
     detections_branch = default_regression_model(4)
@@ -222,8 +226,11 @@ def cope(
     regression_tiled = regression_tiled * rep_object_diameters
 
     destd_boxes = layers.DenormRegression(name='DenormRegression')([regression_tiled, locations_tiled])
-    destd_boxes_x = tf.math.subtract(destd_boxes[:, :, :, ::2], cx)
-    destd_boxes_y = tf.math.subtract(destd_boxes[:, :, :, 1::2], cy)
+    destd_boxes = tf.transpose(destd_boxes, perm=[1, 2, 3, 0])
+    destd_boxes_x = tf.math.subtract(destd_boxes[:, :, ::2, :], cx)
+    destd_boxes_y = tf.math.subtract(destd_boxes[:, :, 1::2, :], cy)
+    destd_boxes_x = tf.transpose(destd_boxes_x, perm=[3, 0, 1, 2])
+    destd_boxes_y = tf.transpose(destd_boxes_y, perm=[3, 0, 1, 2])
     destd_boxes = tf.concat([destd_boxes_x[:, :, :, :, tf.newaxis], destd_boxes_y[:, :, :, :, tf.newaxis]], axis=4)
     destd_boxes = tf.reshape(destd_boxes, shape=[tf.shape(regression)[0], tf.shape(regression)[1], num_classes, 16]) * 0.01 # factor for scaling
 
@@ -249,10 +256,13 @@ def cope(
     box3d = tf.transpose(box3d, perm=[0, 1, 2, 4, 3])
     box3d = tf.math.add(box3d, trans)
 
-    projected_boxes_x = box3d[:, :, :, :, 0] * fx
-    projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, :, 2])
-    projected_boxes_y = box3d[:, :, :, :, 1] * fy
-    projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, :, 2])
+    box3d = tf.transpose(box3d, perm=[1, 2, 3, 4, 0])
+    projected_boxes_x = box3d[:, :, :, 0, :] * fx
+    projected_boxes_x = tf.math.divide_no_nan(projected_boxes_x, box3d[:, :, :, 2, :])
+    projected_boxes_x = tf.transpose(projected_boxes_x, perm=[3, 0, 1, 2])
+    projected_boxes_y = box3d[:, :, :, 1, :] * fy
+    projected_boxes_y = tf.math.divide_no_nan(projected_boxes_y, box3d[:, :, :, 2, :])
+    projected_boxes_y = tf.transpose(projected_boxes_y, perm=[3, 0, 1, 2])
     pro_boxes = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
     pro_boxes = tf.reshape(pro_boxes, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16]) * 0.01 # factor for scaling
 
@@ -265,8 +275,12 @@ def cope(
     pyramids.append(consistency)
 
     # standardized reprojection
+    projected_boxes_y = tf.transpose(projected_boxes_y, perm=[1, 2, 3, 0])
+    projected_boxes_x = tf.transpose(projected_boxes_x, perm=[1, 2, 3, 0])
     projected_boxes_y = tf.math.add(projected_boxes_y, cy)
     projected_boxes_x = tf.math.add(projected_boxes_x, cx)
+    projected_boxes_y = tf.transpose(projected_boxes_y, perm=[3, 0, 1, 2])
+    projected_boxes_x = tf.transpose(projected_boxes_x, perm=[3, 0, 1, 2])
     projection = tf.stack([projected_boxes_x, projected_boxes_y], axis=4)
     projection = tf.reshape(projection, shape=[tf.shape(location)[0], tf.shape(location)[1], num_classes, 16])
     projection= layers.NormRegression(name='NormProjection')([projection, locations_tiled])
