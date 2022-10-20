@@ -255,7 +255,8 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         t_img = 0
         n_img = 0
 
-        scores, labels, poses, mask, boxes = model.predict_on_batch((np.expand_dims(image, axis=0), np.expand_dims(np.array(fx, fy, cx, cy), axis=0)))
+        print(np.expand_dims(np.array([fx, fy, cx, cy]), axis=0).shape, np.expand_dims(np.array([fx, fy, cx, cy]), axis=0))
+        scores, labels, poses, mask, boxes = model.predict_on_batch((np.expand_dims(image, axis=0), np.expand_dims(np.array([fx, fy, cx, cy]), axis=0)))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]

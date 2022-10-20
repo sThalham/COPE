@@ -83,7 +83,7 @@ class GeneratorDataset(tf.data.Dataset):
         set_name = set_name.decode("utf-8")
         batch_size = batch_size
         path = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
-        mesh_info = os.path.join(data_dir, 'annotations', 'models_info' + '.json')
+        mesh_info = os.path.join(data_dir, 'meshes', 'models_info' + '.json')
 
         with open(path, 'r') as js:
             data = json.load(js)
@@ -174,7 +174,11 @@ class GeneratorDataset(tf.data.Dataset):
                 CHECK DONE HERE: Annotations + images correct
             """
             ids = image_ids[image_index]
-            image_num = int(str(ids)[1:])
+            #print(ids)
+            #print(str(ids))
+            #print(int(str(ids)[1:]))
+
+            image_num = int(str(ids))#[1:])
 
             # lists = [imgToAnns[imgId] for imgId in ids if imgId in imgToAnns]
             # anns = list(itertools.chain.from_iterable(lists))

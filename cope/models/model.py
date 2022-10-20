@@ -331,7 +331,7 @@ def inference_model(
     classification = model.outputs[2]
     translations = model.outputs[3]
     rotations = model.outputs[4]
-    consistency = model.outputs[5] # gone for just reprojection
+    consistency = model.outputs[5]
 
     tf_diameter = tf.convert_to_tensor(object_diameters)
     rep_object_diameters = tf.tile(tf_diameter[tf.newaxis, tf.newaxis, :], [tf.shape(regression)[0], tf.shape(regression)[1], 1])
