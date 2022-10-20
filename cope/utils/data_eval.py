@@ -129,6 +129,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
     avg_dimension = np.ndarray((99), dtype=np.float32)
 
     num_classes = 0
+    max_class = 0
     for key, value in json.load(open(mesh_info)).items():
         fac = 0.001
         x_minus = value['min_x'] * fac
@@ -151,9 +152,11 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         model_dia[int(key)] = value['diameter'] * fac
         avg_dimension[int(key)] = ((value['size_x'] + value['size_y'] + value['size_z'])/3) * fac
         num_classes += 1
+        if int(key) > max_class:
+            max_class = int(key)
 
     mesh_path = os.path.join(data_path, "meshes")
-    meshes = [None] * (num_classes + 1)
+    meshes = [None] * (max_class + 1)
     for mesh_name in os.listdir(mesh_path):
         print(mesh_name)
         if mesh_name.endswith('.ply'):
@@ -162,13 +165,13 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             pc, mv, md = load_pcd(mesh_path, mesh_name[:-4])
             meshes[int(mesh_name[4:-4])] = mv
 
-    allPoses = np.zeros((num_classes+1), dtype=np.uint32)
-    truePoses = np.zeros((num_classes+1), dtype=np.uint32)
-    falsePoses = np.zeros((num_classes+1), dtype=np.uint32)
-    trueDets = np.zeros((num_classes+1), dtype=np.uint32)
-    falseDets = np.zeros((num_classes+1), dtype=np.uint32)
-    times = np.zeros((num_classes+1), dtype=np.float32)
-    times_count = np.zeros((num_classes+1), dtype=np.float32)
+    allPoses = np.zeros((max_class + 1), dtype=np.uint32)
+    truePoses = np.zeros((max_class + 1), dtype=np.uint32)
+    falsePoses = np.zeros((max_class + 1), dtype=np.uint32)
+    trueDets = np.zeros((max_class + 1), dtype=np.uint32)
+    falseDets = np.zeros((max_class + 1), dtype=np.uint32)
+    times = np.zeros((max_class + 1), dtype=np.float32)
+    times_count = np.zeros((max_class + 1), dtype=np.float32)
 
     colors_viz = np.random.randint(255, size=(num_classes, 3))
 
@@ -256,7 +259,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         n_img = 0
 
         print(np.expand_dims(np.array([fx, fy, cx, cy]), axis=0).shape, np.expand_dims(np.array([fx, fy, cx, cy]), axis=0))
-        scores, labels, poses, mask, boxes = model.predict_on_batch((np.expand_dims(image, axis=0), np.expand_dims(np.array([fx, fy, cx, cy]), axis=0)))
+        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(np.array([fx, fy, cx, cy]), axis=0)))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]
