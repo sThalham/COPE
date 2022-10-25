@@ -258,8 +258,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         t_img = 0
         n_img = 0
 
-        print(np.expand_dims(np.array([fx, fy, cx, cy]), axis=0).shape, np.expand_dims(np.array([fx, fy, cx, cy]), axis=0))
-        scores, labels, poses, mask, boxes = model.predict_on_batch(np.expand_dims(image, axis=0))#, np.expand_dims(np.array([fx, fy, cx, cy]), axis=0)))
+        scores, labels, poses, mask, boxes = model.predict_on_batch((np.expand_dims(image, axis=0), np.expand_dims(np.array([fx, fy, cx, cy]), axis=0)))
         t_img = time.time() - start_t
 
         scores = scores[labels != -1]
@@ -391,7 +390,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #    times[n_img] += t_img
         #    times_count[n_img] += 1
 
-        name = '/home/stefan/PyraPose_viz/' + 'sample_' + str(index) + '.png'
+        name = '/home/stefan/debug_viz/' + 'sample_' + str(index) + '.png'
         name_box = '/home/stefan/PyraPose_viz/' + 'box_' + str(index) + '.png'
         #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
