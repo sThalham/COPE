@@ -224,13 +224,14 @@ class PoseEstimation:
         rospy.logdebug(self.model.summary())
 
         # create server
-        self._server = SimpleActionServer(name, LocateObjectAction, execute_cb=self.callback, auto_start=False)
-        self._server.start()
-        rospy.loginfo(f"[{name}] Action Server ready")
+        #self._server = SimpleActionServer(name, LocateObjectAction, execute_cb=self.callback, auto_start=False)
+        #self._server.start()
+        self.pose_srv = rospy.Service(name, get_poses, self.callback)
+        rospy.loginfo(f"[{name}] Server ready")
 
-        if rospy.get_param('/locateobject/publish_tf', True):
-            self._br = tf2_ros.TransformBroadcaster()
-            self._publish_tf()
+        #if rospy.get_param('/locateobject/publish_tf', True):
+        #    self._br = tf2_ros.TransformBroadcaster()
+        #    self._publish_tf()
 
     def _update_image(self, rgb, depth):
         self.rgb, self.depth = rgb, depth
@@ -242,7 +243,7 @@ class PoseEstimation:
 
         # Run inference
         det_objs, det_poses, det_confs, viz_img = run_estimation(
-            rgb_cv, self.model, self.threeD_boxes,
+                rgb_cv, self.model, self.threeD_boxes,
             self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy)
         msg = self.fill_msg(det_objs, det_poses, det_confs)
         self.viz_pose(viz_img)
