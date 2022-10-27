@@ -4,12 +4,13 @@ import sys
 
 import rospy
 import message_filters
-from std_msgs.msg import String
-from sensor_msgs.msg import Image, CameraInfo
-from geometry_msgs.msg import Pose, PoseStamped, Point, Point32, PolygonStamped
+import tf2_ros
 
-from scipy import ndimage, signal
-import argparse
+from actionlib import SimpleActionServer
+from geometry_msgs.msg import Pose, PoseArray, Quaternion, TransformStamped
+from sensor_msgs.msg import Image, CameraInfo
+from tracebot_msgs.msg import LocateObjectAction, LocateObjectResult
+
 import os
 import sys
 import math
@@ -17,38 +18,18 @@ import numpy as np
 import copy
 import transforms3d as tf3d
 import json
-import copy
 
-#import keras
 import tensorflow as tf
-import open3d
-import ros_numpy
 
-#print(sys.path)
-#sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
-sys.path.append("/cope/")
+sys.path.append("/cope/cope/")
 from cope import models
 
-from object_detector_msgs.srv import get_poses, get_posesResponse
-from object_detector_msgs.msg import PoseWithConfidence
-from geometry_msgs.msg import PoseArray, Pose
 ###################################
-##### Global Variable Space #######
-######## aka. death zone ##########
+######## Utils funcitons ##########
 ###################################
-
-LABEL_CLS_MAPPING = [
-    "BottleMedium",
-    "BottleSmall",
-    "Needle",
-    "NeedleCap",
-    "RedPlug",
-    "Canister",
-    "BottleLarge"
-]
 
 
 def preprocess_image(x, mode='caffe'):
@@ -65,6 +46,30 @@ def preprocess_image(x, mode='caffe'):
     return x
 
 
+def input_resize(image, target_size, intrinsics):
+    # image: [y, x, c] expected row major
+    # target_size: [y, x] expected row major
+    # instrinsics: [fx, fy, cx, cy]
+
+    intrinsics = np.asarray(intrinsics)
+    y_size, x_size, c_size = image.shape
+
+    if (y_size / x_size) < (target_size[0] / target_size[1]):
+        resize_scale = target_size[0] / y_size
+        crop = int((x_size - (target_size[1] / resize_scale)) * 0.5)
+        image = image[:, crop:(x_size-crop), :]
+        image = cv2.resize(image, (int(target_size[1]), int(target_size[0])))
+        intrinsics = intrinsics * resize_scale
+    else:
+        resize_scale = target_size[1] / x_size
+        crop = int((y_size - (target_size[0] / resize_scale)) * 0.5)
+        image = image[crop:(y_size-crop), :, :]
+        image = cv2.resize(image, (int(target_size[1]), int(target_size[0])))
+        intrinsics = intrinsics * resize_scale
+
+    return image, intrinsics
+
+
 def toPix_array(translation, fx, fy, cx, cy):
 
     xpix = ((translation[:, 0] * fx) / translation[:, 2]) + cx
@@ -72,6 +77,69 @@ def toPix_array(translation, fx, fy, cx, cy):
     #zpix = translation[2] * fxkin
 
     return np.stack((xpix, ypix), axis=1)
+
+
+def run_estimation(image, model, threeD_boxes,
+                   cam_fx, cam_fy, cam_cx, cam_cy):
+    obj_names = []
+    obj_poses = []
+    obj_confs = []
+
+    image, intrinsics = input_resize(image,
+                         [480, 640],
+                         [cam_fx, cam_fy, cam_cx, cam_cy])
+    image_raw = copy.deepcopy(image)
+    image = preprocess_image(image)
+    #image_mask = copy.deepcopy(image)
+
+    scores, labels, poses, mask, boxes = model.predict_on_batch((
+            np.expand_dims(image, axis=0),
+            np.expand_dims(np.array(intrinsics), axis=0)))
+    # scores, labels, poses, _, _ = model.predict_on_batch(np.expand_dims(image, axis=0))
+
+    scores = scores[labels != -1]
+    poses = poses[labels != -1]
+    labels = labels[labels != -1]
+
+    for odx, inv_cls in enumerate(labels):
+
+        true_cls = inv_cls + 1
+        score = scores[odx]
+        pose = poses[odx, :]
+
+        R_est = np.array(pose[:9]).reshape((3, 3)).T
+        t_est = np.array(pose[-3:]) * 0.001
+
+        ori_points = np.ascontiguousarray(threeD_boxes[inv_cls, :, :], dtype=np.float32)
+        eDbox = R_est.dot(ori_points.T).T
+        eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
+        est3D = toPix_array(eDbox, intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3])
+        eDbox = np.reshape(est3D, (16))
+        pose = eDbox.astype(np.uint16)
+        pose = np.where(pose < 3, 3, pose)
+        colEst = (50, 205, 50)
+
+        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+        image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+
+        est_pose = np.zeros((7), dtype=np.float32)
+        est_pose[:3] = t_est
+        est_pose[3:] = tf3d.quaternions.mat2quat(R_est)
+        obj_poses.append(est_pose)
+        obj_names.append(inv_cls)
+        obj_confs.append(score)
+
+    return obj_names, obj_poses, obj_confs, image_raw
 
 
 #################################
@@ -110,13 +178,22 @@ class PoseEstimation:
         self.pose_pub = rospy.Publisher("/locateobject/poses", PoseArray, queue_size=10)
         self.viz_pub = rospy.Publisher("/locateobject/debug_visualization", Image, queue_size=10)
 
+        self.object_models = [
+            "BottleMedium",
+            "BottleSmall",
+            "Needle",
+            "NeedleCap",
+            "RedPlug",
+            "Canister",
+            "BottleLarge"
+        ]
 
         with open(os.path.join(mesh_path, 'models_info.json')) as fp:
             mesh_info = json.load(fp)
 
         self.num_classes = len(mesh_info.keys())
         self.threeD_boxes = np.ndarray((self.num_classes, 8, 3), dtype=np.float32)
-        self.sphere_diameters = np.ndarray((self.num_classes), dtype=np.float32)
+        self.obj_diameters = np.ndarray((self.num_classes), dtype=np.float32)
 
         for key, value in mesh_info.items():
             fac = 0.001
@@ -136,175 +213,118 @@ class PoseEstimation:
                                    [x_minus, y_minus, z_minus],
                                    [x_minus, y_minus, z_plus]])
             self.threeD_boxes[int(key)-1, :, :] = three_box_solo
-            self.sphere_diameters[int(key)-1] = norm_pts
+            self.obj_diameters[int(key)-1] = norm_pts
             # self.num_classes += 1
 
-        self.model = load_model(model_path, self.sphere_diameters, self.num_classes)
+        # self.model = load_model(model_path, self.obj_diameters, self.num_classes)
+        self.model = models.load_model(model_path)
+        self.model = models.convert_model(self.model,
+                                          diameters=self.obj_diameters,
+                                          classes=self.num_classes)
+        rospy.logdebug(self.model.summary())
 
-        self.pose_srv = rospy.Service(name, get_poses, self.callback)
-        rospy.loginfo(f"[{name}] Server ready")
+        # create server
+        self._server = SimpleActionServer(name, LocateObjectAction, execute_cb=self.callback, auto_start=False)
+        self._server.start()
+        rospy.loginfo(f"[{name}] Action Server ready")
+
+        if rospy.get_param('/locateobject/publish_tf', True):
+            self._br = tf2_ros.TransformBroadcaster()
+            self._publish_tf()
 
     def _update_image(self, rgb, depth):
         self.rgb, self.depth = rgb, depth
 
-    def callback(self, req):
+    def _publish_tf(self):
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            if not hasattr(self, '_last_result'):
+                rate.sleep()
+                continue
+
+            object_types_count = {}
+            for idx, otype in enumerate(self._last_result.object_types):
+                ocount = object_types_count.get(otype, 1)
+                object_types_count[otype] = ocount + 1
+                opose = self._last_result.object_poses[idx]
+
+                # Create the TransformStamped message
+                t = TransformStamped()
+                t.header.stamp = rospy.Time.now()
+                t.header.frame_id = self.camera_info.header.frame_id
+                t.child_frame_id = f"{otype}_{ocount}"
+                t.transform.translation.x = opose.position.x
+                t.transform.translation.y = opose.position.y
+                t.transform.translation.z = opose.position.z
+                t.transform.rotation.x = opose.orientation.x
+                t.transform.rotation.y = opose.orientation.y
+                t.transform.rotation.z = opose.orientation.z
+                t.transform.rotation.w = opose.orientation.w
+
+                self._br.sendTransform(t)
+
+            rate.sleep()
+
+    def callback(self, goal):
         print("Received request")
-        rgb_cv = self.bridge.imgmsg_to_cv2(self.rgb, "8UC3")
-        rgb_cv = cv2.cvtColor(rgb_cv, cv2.COLOR_BGR2RGB)
+        if self.rgb is None or self.depth is None:
+            self._server.set_aborted(text=f"No synchronized camera image available for ({self.color_topic}, "
+                                          f"{self.depth_topic}) with max delay {self.slop:0.3f}s.")
+        elif goal.object_to_locate not in self.object_models + [""]:
+            self._server.set_aborted(text=f"Unknown object_to_locate='{goal.object_to_locate}'. "
+                                          f"Available objects are: {self.object_models}.")
+        else:
+            rgb_cv = self.bridge.imgmsg_to_cv2(self.rgb, "8UC3")
+            rgb_cv = cv2.cvtColor(rgb_cv, cv2.COLOR_BGR2RGB)
 
-        # Run inference
-        det_objs, det_poses, det_confs, viz_img = run_estimation(
-            rgb_cv, self.model, self.threeD_boxes,
-            self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy)
-        msg = self.fill_msg(det_objs, det_poses, det_confs)
-        self.viz_pose(viz_img)
-        return msg
+            # Run inference
+            det_objs, det_poses, det_confs, viz_img = run_estimation(
+                rgb_cv, self.model, self.threeD_boxes,
+                self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy)
 
-    def fill_msg(self, det_names, det_poses, det_confidences):
+            result = self.fill_msg(goal.object_to_locate, det_objs, det_poses, det_confs)
+            self.viz_pose(viz_img)
+
+            self._last_result = result
+            self._server.set_succeeded(result)
+
+    def fill_msg(self, object_to_locate, det_names, det_poses, det_confidences):
         msg = PoseArray()
 
         msg.header.frame_id = self.camera_info.header.frame_id
         msg.header.stamp = rospy.Time(0)
 
-        for idx in range(len(det_names)):
+        result = LocateObjectResult()
+        result.header = self.rgb.header
+        result.color_image = self.rgb
+        result.depth_image = self.depth
+        result.camera_info = self.camera_info
+        for det_name, det_pose, det_conf in zip(det_names, det_poses, det_confidences):
+            obj_name = self.object_models[det_name]
+            if object_to_locate != "" and obj_name != object_to_locate:
+                continue
             item = Pose()
-            item.position.x = det_poses[idx][0] 
-            item.position.y = det_poses[idx][1] 
-            item.position.z = det_poses[idx][2] 
-            item.orientation.w = det_poses[idx][3] 
-            item.orientation.x = det_poses[idx][4] 
-            item.orientation.y = det_poses[idx][5] 
-            item.orientation.z = det_poses[idx][6]
+            item.position.x = det_pose[0]
+            item.position.y = det_pose[1]
+            item.position.z = det_pose[2]
+            item.orientation.w = det_pose[3]
+            item.orientation.x = det_pose[4]
+            item.orientation.y = det_pose[5]
+            item.orientation.z = det_pose[6]
             msg.poses.append(item)
+            result.object_poses.append(item) # object_poses
+            result.object_types.append(obj_name) # object_types
+            result.confidences.append(det_conf) # confidences
+        
         self.pose_pub.publish(msg)
-
-        msg = get_posesResponse()
-        for idx in range(len(det_names)):
-            item = PoseWithConfidence()
-            item.name = det_names[idx] 
-            item.confidence = det_confidences[idx]
-            item.pose = Pose()
-            det_pose = det_poses[idx]
-            item.pose.position.x = det_pose[0]
-            item.pose.position.y = det_pose[1]
-            item.pose.position.z = det_pose[2]
-            item.pose.orientation.w = det_pose[3]
-            item.pose.orientation.x = det_pose[4]
-            item.pose.orientation.y = det_pose[5]
-            item.pose.orientation.z = det_pose[6]
-            msg.poses.append(item)
-
-        return msg
-
-
+        return result
+    
     def viz_pose(self, image):
         msg = Image()
         msg.header.frame_id = self.camera_info.header.frame_id
-        msg.header.stamp = rospy.Time(0)
+        msg.header.stamp = self.camera_info.header.stamp
         data = self.bridge.cv2_to_imgmsg(image, "passthrough")
         self.viz_pub.publish(data)
-
-        
-#################################
-########## RetNetPose ###########
-#################################
-def get_session():
-    """ Construct a modified tf session.
-    """
-    config = tf.ConfigProto()
-    #config.gpu_options.allow_growth = True
-    config.gpu_options.per_process_gpu_memory_fraction = 0.5
-    return tf.Session(config=config)
-
-
-def parse_args(args):
-
-    parser     = argparse.ArgumentParser(description='Evaluation script for a RetinaNet network.')
-    parser.add_argument('model',              help='Path to RetinaNet model.')
-    parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--config',           help='Path to a configuration parameters .ini file (only used with --convert-model).')
-
-    return parser.parse_args(args)
-
-
-def load_model(model_path, sphere_diameters, num_classes):
-
-
-    #if args.gpu:
-    #    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    #keras.backend.tensorflow_backend.set_session(get_session())
-
-    anchor_params = None
-    backbone = 'resnet101'
-
-    print('Loading model, this may take a second...')
-    print(model_path)
-    model = models.load_model(model_path, backbone_name=backbone)
-    #graph = tf.compat.v1.get_default_graph()
-    # model = models.convert_model(model, anchor_params=anchor_params) # convert model
-    model = models.convert_model(model, diameters=sphere_diameters, classes=num_classes) # TODO diameter and classes
-    # print model summary
-    print(model.summary())
-
-    return model#, graph
-
-
-def run_estimation(image, model, threeD_boxes,
-                   cam_fx, cam_fy, cam_cx, cam_cy):
-    obj_names = []
-    obj_poses = []
-    obj_confs = []
-
-    image_raw = copy.deepcopy(image)
-    image = preprocess_image(image)
-    #image_mask = copy.deepcopy(image)
-
-    scores, labels, poses, _, _ = model.predict_on_batch(np.expand_dims(image, axis=0))
-
-    scores = scores[labels != -1]
-    poses = poses[labels != -1]
-    labels = labels[labels != -1]
-
-    for odx, inv_cls in enumerate(labels):
-
-        true_cls = inv_cls + 1
-        score = scores[odx]
-        pose = poses[odx, :]
-
-        R_est = np.array(pose[:9]).reshape((3, 3)).T
-        t_est = np.array(pose[-3:]) * 0.001
-
-        ori_points = np.ascontiguousarray(threeD_boxes[inv_cls, :, :], dtype=np.float32)
-        eDbox = R_est.dot(ori_points.T).T
-        eDbox = eDbox + np.repeat(t_est[np.newaxis, :], 8, axis=0)  # * 0.001
-        est3D = toPix_array(eDbox, cam_fx, cam_fy, cam_cx, cam_cy)
-        eDbox = np.reshape(est3D, (16))
-        pose = eDbox.astype(np.uint16)
-        pose = np.where(pose < 3, 3, pose)
-        colEst = (50, 205, 50)
-
-        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-        image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-    
-        est_pose = np.zeros((7), dtype=np.float32)
-        est_pose[:3] = t_est
-        est_pose[3:] = tf3d.quaternions.mat2quat(R_est)
-        obj_poses.append(est_pose)
-        obj_names.append(LABEL_CLS_MAPPING[inv_cls])
-        obj_confs.append(score)
-
-    return obj_names, obj_poses, obj_confs, image_raw
-
 
 if __name__ == '__main__':
     rospy.init_node('locate_object')
