@@ -74,8 +74,6 @@ RUN pip3 install cython pillow matplotlib transforms3d Geometry glumpy
 RUN pip3 install --ignore-installed PyYAML
 RUN pip3 install open3d PyOpenGL
 
-#RUN git clone https://github.com/sThalham/PyraPoseAF.git /PyraPoseAF
-
 # ROS
 #RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
 #RUN echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list
@@ -97,7 +95,7 @@ RUN rosdep init && \
 
 # install python packages
 RUN pip3 install --upgrade pip setuptools rospkg catkin_pkg opencv-contrib-python
-RUN pip3 uninstall opencv-python==4.4.0.40 && pip3 install opencv-python==4.4.0.40 tensorflow-addons
+RUN pip3 uninstall opencv-python==4.4.0.40 && pip3 install opencv-python==4.4.0.40
 # for ros environments
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 # Prepare catkin build

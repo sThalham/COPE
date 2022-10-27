@@ -28,6 +28,7 @@ RUN pip install glumpy
 RUN pip install open3d==0.13.0
 RUN pip install PyOpenGL
 RUN pip install imgaug
+RUN pip install tensorflow-addons
 
 RUN git clone https://github.com/sThalham/COPE.git /cope
 

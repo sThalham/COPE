@@ -24,7 +24,7 @@ import tensorflow as tf
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
-sys.path.append("/cope/cope/")
+sys.path.append("/cope/")
 from cope import models
 
 ###################################
@@ -148,7 +148,7 @@ def run_estimation(image, model, threeD_boxes,
 class PoseEstimation:
     def __init__(self, name):
         # COPE
-        mesh_path = rospy.get_param('/locateobject/mesh_path', "/data/tracebot_objects_V1")
+        mesh_path = rospy.get_param('/locateobject/meshes_path', "/data/tracebot_objects_V1")
         model_path = rospy.get_param('/locateobject/model_path', "/data/cope_tracebot_120.h5")
         self._score_th = rospy.get_param("/locateobject/detection_threshold", 0.5)
 
@@ -216,11 +216,11 @@ class PoseEstimation:
             self.obj_diameters[int(key)-1] = norm_pts
             # self.num_classes += 1
 
-        # self.model = load_model(model_path, self.obj_diameters, self.num_classes)
         self.model = models.load_model(model_path)
         self.model = models.convert_model(self.model,
                                           diameters=self.obj_diameters,
-                                          classes=self.num_classes)
+                                          classes=self.num_classes,
+                                          intrinsics=np.array([self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy]))
         rospy.logdebug(self.model.summary())
 
         # create server
@@ -235,7 +235,7 @@ class PoseEstimation:
     def _update_image(self, rgb, depth):
         self.rgb, self.depth = rgb, depth
 
-   def callback(self, req):
+    def callback(self, req):
         print("Received request")
         rgb_cv = self.bridge.imgmsg_to_cv2(self.rgb, "8UC3")
         rgb_cv = cv2.cvtColor(rgb_cv, cv2.COLOR_BGR2RGB)
