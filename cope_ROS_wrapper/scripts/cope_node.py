@@ -9,7 +9,7 @@ import tf2_ros
 from actionlib import SimpleActionServer
 from geometry_msgs.msg import Pose, PoseArray, Quaternion, TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
-from tracebot_msgs.msg import LocateObjectAction, LocateObjectResult
+#from tracebot_msgs.msg import LocateObjectAction, LocateObjectResult
 
 import os
 import sys
@@ -235,58 +235,18 @@ class PoseEstimation:
     def _update_image(self, rgb, depth):
         self.rgb, self.depth = rgb, depth
 
-    def _publish_tf(self):
-        rate = rospy.Rate(1)
-        while not rospy.is_shutdown():
-            if not hasattr(self, '_last_result'):
-                rate.sleep()
-                continue
-
-            object_types_count = {}
-            for idx, otype in enumerate(self._last_result.object_types):
-                ocount = object_types_count.get(otype, 1)
-                object_types_count[otype] = ocount + 1
-                opose = self._last_result.object_poses[idx]
-
-                # Create the TransformStamped message
-                t = TransformStamped()
-                t.header.stamp = rospy.Time.now()
-                t.header.frame_id = self.camera_info.header.frame_id
-                t.child_frame_id = f"{otype}_{ocount}"
-                t.transform.translation.x = opose.position.x
-                t.transform.translation.y = opose.position.y
-                t.transform.translation.z = opose.position.z
-                t.transform.rotation.x = opose.orientation.x
-                t.transform.rotation.y = opose.orientation.y
-                t.transform.rotation.z = opose.orientation.z
-                t.transform.rotation.w = opose.orientation.w
-
-                self._br.sendTransform(t)
-
-            rate.sleep()
-
-    def callback(self, goal):
+   def callback(self, req):
         print("Received request")
-        if self.rgb is None or self.depth is None:
-            self._server.set_aborted(text=f"No synchronized camera image available for ({self.color_topic}, "
-                                          f"{self.depth_topic}) with max delay {self.slop:0.3f}s.")
-        elif goal.object_to_locate not in self.object_models + [""]:
-            self._server.set_aborted(text=f"Unknown object_to_locate='{goal.object_to_locate}'. "
-                                          f"Available objects are: {self.object_models}.")
-        else:
-            rgb_cv = self.bridge.imgmsg_to_cv2(self.rgb, "8UC3")
-            rgb_cv = cv2.cvtColor(rgb_cv, cv2.COLOR_BGR2RGB)
+        rgb_cv = self.bridge.imgmsg_to_cv2(self.rgb, "8UC3")
+        rgb_cv = cv2.cvtColor(rgb_cv, cv2.COLOR_BGR2RGB)
 
-            # Run inference
-            det_objs, det_poses, det_confs, viz_img = run_estimation(
-                rgb_cv, self.model, self.threeD_boxes,
-                self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy)
-
-            result = self.fill_msg(goal.object_to_locate, det_objs, det_poses, det_confs)
-            self.viz_pose(viz_img)
-
-            self._last_result = result
-            self._server.set_succeeded(result)
+        # Run inference
+        det_objs, det_poses, det_confs, viz_img = run_estimation(
+            rgb_cv, self.model, self.threeD_boxes,
+            self.cam_fx, self.cam_fy, self.cam_cx, self.cam_cy)
+        msg = self.fill_msg(det_objs, det_poses, det_confs)
+        self.viz_pose(viz_img)
+        return msg
 
     def fill_msg(self, object_to_locate, det_names, det_poses, det_confidences):
         msg = PoseArray()
