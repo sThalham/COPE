@@ -226,7 +226,7 @@ class PoseEstimation:
         # create server
         #self._server = SimpleActionServer(name, LocateObjectAction, execute_cb=self.callback, auto_start=False)
         #self._server.start()
-        self.pose_srv = rospy.Service(name, get_poses, self.callback)
+        self.pose_srv = rospy.Service(name + '/get_poses', get_poses, self.callback)
         rospy.loginfo(f"[{name}] Server ready")
 
         #if rospy.get_param('/locateobject/publish_tf', True):

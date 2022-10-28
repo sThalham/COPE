@@ -95,7 +95,7 @@ RUN rosdep init && \
 
 # install python packages
 RUN pip3 install --upgrade pip setuptools rospkg catkin_pkg opencv-contrib-python
-RUN pip3 uninstall opencv-python==4.4.0.40 && pip3 install opencv-python==4.4.0.40
+RUN pip3 uninstall opencv-python==4.4.0.40 && pip3 install opencv-python==4.4.0.40 tensorflow-addons
 # for ros environments
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 # Prepare catkin build
