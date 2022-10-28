@@ -115,6 +115,7 @@ class GeneratorDataset(tf.data.Dataset):
 
         classes, labels, labels_inverse, labels_rev = load_classes(cats)
         num_classes = len(classes)
+        #num_classes = max(classes)
 
         # load 3D boxes
         TDboxes = np.ndarray((num_classes + 1, 8, 3), dtype=np.float32)
@@ -362,6 +363,7 @@ class GeneratorDataset(tf.data.Dataset):
                                        [x_minus, y_plus, z_minus],
                                        [x_minus, y_minus, z_minus],
                                        [x_minus, y_minus, z_plus]])
+
             TDboxes[int(key), :, :] = three_box_solo
             #sphere_diameters[int(key)] = value['diameter']
             sphere_diameters[int(key)] = norm_pts

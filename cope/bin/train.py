@@ -127,7 +127,8 @@ def create_generators(args):
     from ..preprocessing.data_generator import GeneratorDataset
 
     mesh_info = os.path.join(args.data_path, 'meshes', 'models_info' + '.json')
-    num_classes = len(json.load(open(mesh_info)).items())
+    #num_classes = len(json.load(open(mesh_info)).items())
+    num_classes = 7
     train_samples = 50000
     dataset = GeneratorDataset(args.data_path, 'train', num_classes=num_classes, batch_size=args.batch_size)
     dataset = tf.data.Dataset.range(args.workers).interleave(
@@ -138,6 +139,7 @@ def create_generators(args):
     dataset = dataset.shuffle(1, reshuffle_each_iteration=True)
     correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)
     sphere_diameters = np.ndarray((num_classes), dtype=np.float32)
+
     for key, value in json.load(open(mesh_info)).items():
         x_minus = value['min_x']
         y_minus = value['min_y']
@@ -247,8 +249,7 @@ def main(args=None):
 
     training_model.fit(
         x=dataset,
-        #steps_per_epoch=train_samples / args.batch_size,
-        steps_per_epoch=100,
+        steps_per_epoch=train_samples / args.batch_size,
         epochs=args.epochs,
         #epochs=1,
         verbose=1,
