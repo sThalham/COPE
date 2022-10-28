@@ -9,7 +9,8 @@ import tf2_ros
 from actionlib import SimpleActionServer
 from geometry_msgs.msg import Pose, PoseArray, Quaternion, TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
-#from tracebot_msgs.msg import LocateObjectAction, LocateObjectResult
+from object_detector_msgs.srv import get_poses, get_posesResponse
+from object_detector_msgs.msg import PoseWithConfidence
 
 import os
 import sys
@@ -92,9 +93,8 @@ def run_estimation(image, model, threeD_boxes,
     image = preprocess_image(image)
     #image_mask = copy.deepcopy(image)
 
-    scores, labels, poses, mask, boxes = model.predict_on_batch((
-            np.expand_dims(image, axis=0),
-            np.expand_dims(np.array(intrinsics), axis=0)))
+    scores, labels, poses, mask, boxes = model.predict_on_batch(
+            np.expand_dims(image, axis=0))#,np.expand_dims(np.array(intrinsics), axis=0)))
     # scores, labels, poses, _, _ = model.predict_on_batch(np.expand_dims(image, axis=0))
 
     scores = scores[labels != -1]
@@ -226,7 +226,7 @@ class PoseEstimation:
         # create server
         #self._server = SimpleActionServer(name, LocateObjectAction, execute_cb=self.callback, auto_start=False)
         #self._server.start()
-        self.pose_srv = rospy.Service(name + '/get_poses', get_poses, self.callback)
+        self.pose_srv = rospy.Service(name + '/call_poses', get_poses, self.callback)
         rospy.loginfo(f"[{name}] Server ready")
 
         #if rospy.get_param('/locateobject/publish_tf', True):
