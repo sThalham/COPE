@@ -255,25 +255,33 @@ class PoseEstimation:
         msg.header.frame_id = self.camera_info.header.frame_id
         msg.header.stamp = rospy.Time(0)
 
-        result = LocateObjectResult()
-        result.header = self.rgb.header
-        result.color_image = self.rgb
-        result.depth_image = self.depth
-        result.camera_info = self.camera_info
-        for det_name, det_pose, det_conf in zip(det_names, det_poses, det_confidences):
-            obj_name = self.object_models[det_name]
+        for idx in range(len(det_names)):
             item = Pose()
-            item.position.x = det_pose[0]
-            item.position.y = det_pose[1]
-            item.position.z = det_pose[2]
-            item.orientation.w = det_pose[3]
-            item.orientation.x = det_pose[4]
-            item.orientation.y = det_pose[5]
-            item.orientation.z = det_pose[6]
+            item.position.x = det_poses[idx][0] 
+            item.position.y = det_poses[idx][1] 
+            item.position.z = det_poses[idx][2] 
+            item.orientation.w = det_poses[idx][3] 
+            item.orientation.x = det_poses[idx][4] 
+            item.orientation.y = det_poses[idx][5] 
+            item.orientation.z = det_poses[idx][6]
             msg.poses.append(item)
-            result.object_poses.append(item) # object_poses
-            result.object_types.append(obj_name) # object_types
-            result.confidences.append(det_conf) # confidences
+        self.pose_pub.publish(msg)
+
+        msg = get_posesResponse()
+        for idx in range(len(det_names)):
+            item = PoseWithConfidence()
+            item.name = det_names[idx] 
+            item.confidence = det_confidences[idx]
+            item.pose = Pose()
+            det_pose = det_poses[idx]
+            item.pose.position.x = det_pose[0]
+            item.pose.position.y = det_pose[1]
+            item.pose.position.z = det_pose[2]
+            item.pose.orientation.w = det_pose[3]
+            item.pose.orientation.x = det_pose[4]
+            item.pose.orientation.y = det_pose[5]
+            item.pose.orientation.z = det_pose[6]
+            msg.poses.append(item)
         
         self.pose_pub.publish(msg)
         return result
