@@ -270,7 +270,7 @@ class PoseEstimation:
         msg = get_posesResponse()
         for idx in range(len(det_names)):
             item = PoseWithConfidence()
-            item.name = det_names[idx] 
+            item.name = str(det_names[idx]) 
             item.confidence = det_confidences[idx]
             item.pose = Pose()
             det_pose = det_poses[idx]
