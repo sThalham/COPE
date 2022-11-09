@@ -283,8 +283,7 @@ class PoseEstimation:
             item.pose.orientation.z = det_pose[6]
             msg.poses.append(item)
         
-        self.pose_pub.publish(msg)
-        return result
+        return msg
     
     def viz_pose(self, image):
         msg = Image()
