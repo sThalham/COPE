@@ -249,7 +249,7 @@ class PoseEstimation:
         self.viz_pose(viz_img)
         return msg
 
-    def fill_msg(self, object_to_locate, det_names, det_poses, det_confidences):
+    def fill_msg(self, det_names, det_poses, det_confidences):
         msg = PoseArray()
 
         msg.header.frame_id = self.camera_info.header.frame_id
@@ -262,8 +262,6 @@ class PoseEstimation:
         result.camera_info = self.camera_info
         for det_name, det_pose, det_conf in zip(det_names, det_poses, det_confidences):
             obj_name = self.object_models[det_name]
-            if object_to_locate != "" and obj_name != object_to_locate:
-                continue
             item = Pose()
             item.position.x = det_pose[0]
             item.position.y = det_pose[1]
