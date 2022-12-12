@@ -44,10 +44,10 @@ def anchor_targets_bbox(
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
 
-        image_raw = image
-        image_raw[..., 0] += 103.939
-        image_raw[..., 1] += 116.779
-        image_raw[..., 2] += 123.68
+        #image_raw = image
+        #image_raw[..., 0] += 103.939
+        #image_raw[..., 1] += 116.779
+        #image_raw[..., 2] += 123.68
         #is_there_sym = False
         #raw_images = []
         #raw_images.append(copy.deepcopy(image_raw))
@@ -57,7 +57,7 @@ def anchor_targets_bbox(
         #image_raw_P3 = copy.deepcopy(image_raw)
         #image_raw_P4 = copy.deepcopy(image_raw)
         #image_raw_P5 = copy.deepcopy(image_raw)
-        randex = str(np.random.randint(1000))
+        #randex = str(np.random.randint(1000))
 
         image_locations = locations_for_shape(image.shape)
         image_locations_rep = np.repeat(image_locations[:, np.newaxis, :], repeats=8, axis=1)
@@ -220,46 +220,46 @@ def anchor_targets_bbox(
                 #reprojection_batch[index, locations_positive_obj, cls, 16:] = 1
                 reprojection_batch[index, locations_positive_obj, cls] = 1
 
-                est_box = annotations['bboxes'][idx]
-                image_raw = cv2.rectangle(image_raw, (int(est_box[0]), int(est_box[1])),
-                                    (int(est_box[2]), int(est_box[3])), (42, 205, 50), 2)
+                #est_box = annotations['bboxes'][idx]
+                #image_raw = cv2.rectangle(image_raw, (int(est_box[0]), int(est_box[1])),
+                #                    (int(est_box[2]), int(est_box[3])), (42, 205, 50), 2)
 
                 # font
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                org = (int(est_box[2]), int(est_box[3]))
-                fontScale = 1
-                color = (255, 0, 0)
-                thickness = 2
-                image_raw = cv2.putText(image_raw, str(cls), org, font,
-                                    fontScale, color, thickness, cv2.LINE_AA)
+                #font = cv2.FONT_HERSHEY_SIMPLEX
+                #org = (int(est_box[2]), int(est_box[3]))
+                #fontScale = 1
+                #color = (255, 0, 0)
+                #thickness = 2
+                #image_raw = cv2.putText(image_raw, str(cls), org, font,
+                #                    fontScale, color, thickness, cv2.LINE_AA)
 
-                pose = box3D.astype(np.uint16)
+                #pose = box3D.astype(np.uint16)
 #
-                colR = 250
-                colG = 25
-                colB = 175
-                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), (130, 245, 13), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), (50, 112, 220), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), (50, 112, 220), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), (50, 112, 220), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), (colR, colG, colB),
-                               2)
-                image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()),
-                               (colR, colG, colB), 2)
-                image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()),
-                               (colR, colG, colB), 2)
+                #colR = 250
+                #colG = 25
+                #colB = 175
+                #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), (130, 245, 13), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), (50, 112, 220), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), (50, 112, 220), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), (50, 112, 220), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), (colR, colG, colB),
+                #               2)
+                #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()),
+                #               (colR, colG, colB), 2)
+                #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()),
+                #               (colR, colG, colB), 2)
 
-    cv2.imwrite('/home/stefan/debug_viz/' + randex + 'image.png', image_raw)
+    #cv2.imwrite('/home/stefan/debug_viz/' + randex + 'image.png', image_raw)
     #cv2.imwrite('/home/stefan/debug_viz/' + randex + 'P4.png', image_raw_P4)
     #cv2.imwrite('/home/stefan/debug_viz/' + randex + 'P5.png', image_raw_P5)
 
