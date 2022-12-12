@@ -223,6 +223,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             tDbox = tDbox.astype(np.uint16)
             tDbox = np.where(tDbox < 3, 3, tDbox)
 
+            '''
             colGT = (245, 102, 65)
 
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
@@ -251,6 +252,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             image_raw = cv2.line(image_raw, tuple(tDbox[14:16].ravel()), tuple(tDbox[8:10].ravel()),
                                  colGT,
                                  2)
+            '''
 
         # run network
         start_t = time.time()
@@ -267,6 +269,9 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         labels = labels[labels != -1]
 
         for odx, inv_cls in enumerate(labels):
+
+            if inv_cls != 2:
+                continue
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]

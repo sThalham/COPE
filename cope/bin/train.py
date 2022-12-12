@@ -128,8 +128,8 @@ def create_generators(args):
 
     mesh_info = os.path.join(args.data_path, 'meshes', 'models_info' + '.json')
     #num_classes = len(json.load(open(mesh_info)).items())
-    num_classes = 7
-    train_samples = 50000
+    num_classes = 6
+    train_samples = 19409
     dataset = GeneratorDataset(args.data_path, 'train', num_classes=num_classes, batch_size=args.batch_size)
     dataset = tf.data.Dataset.range(args.workers).interleave(
         lambda _: dataset,
