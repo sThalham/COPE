@@ -176,8 +176,18 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
     colors_viz = np.random.randint(255, size=(num_classes, 3))
 
     eval_img = []
+    #for index, sample in enumerate(generator):
+
+    generator = os.listdir(os.path.join(data_path, 'rgb'))
     for index, sample in enumerate(generator):
 
+        image = cv2.imread(os.path.join(data_path, 'rgb', sample))
+        image = image.astype(np.float32)
+        image[..., 0] -= 103.939
+        image[..., 1] -= 116.779
+        image[..., 2] -= 123.68
+
+        '''
         scene_id = sample[0].numpy()
         image_id = sample[1].numpy()
         image = sample[2]
@@ -194,8 +204,25 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         fy = gt_calib[0, 1]
         cx = gt_calib[0, 2]
         cy = gt_calib[0, 3]
-
+        
         image_raw = image.numpy()
+        '''
+        #K = np.array([
+        #    [461.4741947965802, 0, 330.7884216308594],
+        #    [0, 434.7884216308594, 245.88177490234375],
+        #    [0, 0, 1]
+        #])
+
+        # k4r version 1: all 6 objects
+        fx = 461.4741947965802
+        fy = 434.7884216308594
+        # k4r version 2: 5 objects (-lemon fresh cartridge)
+        #fx = 611.345458984375
+        #fy = 611.1278076171875
+        cx = 323.0461120605469
+        cy = 230.98667907714844
+
+        image_raw = image
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
@@ -207,6 +234,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         image_box = copy.deepcopy(image_raw)
         image_poses = copy.deepcopy(image_raw)
 
+        '''
         for obj in range(gt_labels.shape[0]):
             allPoses[int(gt_labels[obj]) + 1] += 1
 
@@ -223,7 +251,6 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             tDbox = tDbox.astype(np.uint16)
             tDbox = np.where(tDbox < 3, 3, tDbox)
 
-            '''
             colGT = (245, 102, 65)
 
             image_raw = cv2.line(image_raw, tuple(tDbox[0:2].ravel()), tuple(tDbox[2:4].ravel()), colGT, 2)
@@ -270,8 +297,8 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
         for odx, inv_cls in enumerate(labels):
 
-            if inv_cls != 2:
-                continue
+            #if inv_cls != 2:
+            #    continue
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
@@ -284,6 +311,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
+            '''
             eval_line = []
             sc_id = int(scene_id[0])
             eval_line.append(sc_id)
@@ -334,6 +362,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
+            '''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -347,18 +376,18 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (0, 39, 236)
 
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
             # font
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -376,20 +405,21 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             image_box = cv2.rectangle(image_box, (int(est_box[0]), int(est_box[1])), (int(est_box[2]), int(est_box[3])), (42, 205, 50), 2)
 
 
-            #colEst = (50, 205, 50)
+            colEst = (50, 205, 50)
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (25, 119, 242)
 
-            #pts = model_vsd["pts"]
-            #proj_pts = R_est.dot(pts.T).T
-            #proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
-            #proj_pts = toPix_array(proj_pts, fxkin, fykin, cxkin, cykin)
-            #proj_pts = proj_pts.astype(np.uint16)
-            #proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
-            #proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
-            #proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
-            #proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            #image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            model_vsd = meshes[true_cls]
+            pts = model_vsd['pts']
+            proj_pts = R_est.dot(pts.T).T
+            proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
+            proj_pts = toPix_array(proj_pts, fx, fy, cx, cy)
+            proj_pts = proj_pts.astype(np.uint16)
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
+            proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
+            proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
+            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
         #if index > 0:
         #    times[n_img] += t_img
@@ -397,11 +427,11 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
         name = '/home/stefan/debug_viz/' + 'sample_' + str(index) + '.png'
         name_box = '/home/stefan/PyraPose_viz/' + 'box_' + str(index) + '.png'
-        #image_row1 = np.concatenate([image_ori, image_raw], axis=1)
+        image_row1 = np.concatenate([image_ori, image_box, image_raw], axis=1)
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name_box, image_box)
-        cv2.imwrite(name, image_raw)
+        cv2.imwrite(name, image_row1)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
