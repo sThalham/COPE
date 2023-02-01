@@ -381,10 +381,12 @@ class GeneratorDataset(tf.data.Dataset):
             #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
-            min_translation=(0.0, 0.0),
-            max_translation=(0.0, 0.0),
-            min_scaling=(0.95, 0.95),
-            max_scaling=(1.05, 1.05),
+            min_translation=(-0.25, -0.25),
+            max_translation=(0.25, 0.25),
+            min_scaling=(0.75, 0.75),
+            max_scaling=(1.33, 1.33),
+            #min_rotation=-np.pi*0.25,
+            #max_rotation=np.pi*0.25,
         )
 
         def load_image(image_index):
@@ -469,7 +471,12 @@ class GeneratorDataset(tf.data.Dataset):
             # randomly transform both image and annotations
             if transform is not None or transform_generator:
                 if transform is None:
-                    next_transform = next(transform_generator)
+                    #next_transform = next(transform_generator)
+                    next_transform, geo_aug_parameter = next(transform_generator)
+                    # geo_aug_parameter
+                    # 2D parameters
+                    # [min_t, max_t, min_s, max_s, min_r, max_r
+                    #print('transform parameters: ', geo_aug_parameter)
                     transform = adjust_transform_for_image(next_transform, image,
                                                            transform_parameters.relative_translation)
                     transform_mask = adjust_transform_for_mask(next_transform, annotations['mask'],
@@ -479,8 +486,8 @@ class GeneratorDataset(tf.data.Dataset):
                 annotations['mask'] = apply_transform2mask(transform_mask, annotations['mask'], transform_parameters)
 
                 for index in range(annotations['poses'].shape[0]):
-                    annotations['poses'][index, :] = adjust_pose_annotation(transform, annotations['poses'][index, :],
-                                                                            annotations['cam_params'][index, :])
+                    annotations['poses'][index, :], annotations['cam_params'][index, :] = adjust_pose_annotation(geo_aug_parameter, annotations['poses'][index, :],
+                                                                            annotations['cam_params'][index, :], image.shape)
                     annotations['bboxes'][index, :] = transform_aabb(transform, annotations['bboxes'][index, :])
 
             return image, annotations

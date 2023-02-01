@@ -183,17 +183,45 @@ def augment_image(image, sequential):
     return image
 
 
-def adjust_pose_annotation(matrix, pose, cpara):
-    # requires image and optical center to be aligned
+def adjust_pose_annotation(matrix, pose, cpara, image_shape):
 
-    trans_noaug = np.array([pose[0], pose[1], pose[2]])
+    # x = (pix * z) / f
+    translation_x = matrix[0][0, 2]
+    translation_y = matrix[0][1, 2]
+    scale = matrix[1][0, 0]
+    rotation = np.arccos(matrix[2][0,0])
 
-    #x = (pix * z) / f
-    scale = matrix[0, 0]
+    # scale
+    cpara[0] = cpara[0] * scale
+    cpara[1] = cpara[1] * scale
+    # translate
+    cpara[2] = cpara[2] + (translation_x * image_shape[1])
+    cpara[3] = cpara[3] + (translation_y * image_shape[0])
 
-    pose[2] = pose[2] / scale
-    pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
-    pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
+    #trans_cam = np.eye(4)
+    #trans_pose = np.eye(4)
+    #trans_cam[:3, :3] = tf3d.euler.euler2mat(rotation, 0.0, 0.0)#, 'sxyz')
+    #trans_pose[:3, :3] = tf3d.quaternions.quat2mat(pose[3:])
+    #trans_pose[:3, 3] = pose[:3]
+    #print('rotation: ', rot_cam)
+    #print('pose:  ', rot_pose)
+    #aug_trans = np.linalg.inv(np.linalg.inv(trans_pose) @ trans_cam)
+    #aug_trans = np.linalg.inv(np.linalg.inv(trans_cam) @ trans_pose)
+    #pose[3:] = tf3d.quaternions.mat2quat(aug_trans[:3, :3])
+    #pose[:3] = aug_trans[:3, 3]
+
+    #print(matrix)
+
+    #cpara[0] = cpara[0] * scale
+    #cpara[1] = cpara[1] * scale
+    #cpara[2] = cpara[2] + matrix[0, 2] # * scale
+    #cpara[3] = cpara[3] + matrix[1, 2] # * scale
+    #cpara[2] = matrix[0, 2]
+    #cpara[3] = matrix[1, 2]
+
+    #pose[2] = pose[2] / scale
+    #pose[0] = pose[0] + ((matrix[0, 2] + ((cpara[2] * matrix[0, 0]) - cpara[2])) * pose[2]) / cpara[0]
+    #pose[1] = pose[1] + ((matrix[1, 2] + ((cpara[3] * matrix[0, 0]) - cpara[3])) * pose[2]) / cpara[1]
 
     #trans_aug = np.array([pose[0], pose[1], pose[2]])
     #R_2naug = lookAt(trans_noaug, np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
@@ -204,27 +232,7 @@ def adjust_pose_annotation(matrix, pose, cpara):
     #R_aug = np.linalg.inv(np.linalg.inv(tf3d.quaternions.quat2mat(pose[3:7])) @ R_rel)
     #pose[3:] = tf3d.quaternions.mat2quat(R_aug)
 
-    return pose#, cpara
-
-
-def lookAt(obj, origin, up):
-
-    a3 = obj - origin
-    a3 = a3/np.linalg.norm(a3)
-
-    a1 = np.cross(up, a3)
-    a1 = a1/np.linalg.norm(a1)
-    a2 = np.cross(a3, a1)
-    a2 = a2/np.linalg.norm(a1)
-
-    m = np.zeros((4, 4), dtype=np.float32)
-    m[:3, 0] = a1
-    m[:3, 1] = a2
-    m[:3, 2] = a3
-    m[:, 3] = [obj[0], obj[1], obj[2], 1]
-
-    #return np.linalg.inv(m)
-    return m
+    return pose, cpara
 
 
 def compute_resize_scale(image_shape, min_side=480, max_side=640):
