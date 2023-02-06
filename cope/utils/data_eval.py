@@ -178,16 +178,16 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
     eval_img = []
     #for index, sample in enumerate(generator):
 
-    generator = os.listdir(os.path.join(data_path, 'rgb'))
+    #generator = os.listdir(os.path.join(data_path, 'rgb'))
     for index, sample in enumerate(generator):
 
-        image = cv2.imread(os.path.join(data_path, 'rgb', sample))
-        image = image.astype(np.float32)
-        image[..., 0] -= 103.939
-        image[..., 1] -= 116.779
-        image[..., 2] -= 123.68
+        #image = cv2.imread(os.path.join(data_path, 'rgb', sample))
+        #image = image.astype(np.float32)
+        #image[..., 0] -= 103.939
+        #image[..., 1] -= 116.779
+        #image[..., 2] -= 123.68
 
-        '''
+        
         scene_id = sample[0].numpy()
         image_id = sample[1].numpy()
         image = sample[2]
@@ -206,7 +206,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         cy = gt_calib[0, 3]
         
         image_raw = image.numpy()
-        '''
+    
         #K = np.array([
         #    [461.4741947965802, 0, 330.7884216308594],
         #    [0, 434.7884216308594, 245.88177490234375],
@@ -214,15 +214,15 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #])
 
         # k4r version 1: all 6 objects
-        fx = 461.4741947965802
-        fy = 434.7884216308594
+        #fx = 461.4741947965802
+        #fy = 434.7884216308594
         # k4r version 2: 5 objects (-lemon fresh cartridge)
         #fx = 611.345458984375
         #fy = 611.1278076171875
-        cx = 323.0461120605469
-        cy = 230.98667907714844
+        #cx = 323.0461120605469
+        #cy = 230.98667907714844
 
-        image_raw = image
+        #image_raw = image
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
@@ -297,21 +297,21 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
         for odx, inv_cls in enumerate(labels):
 
-            #if inv_cls != 2:
+            #if inv_cls == 1:
             #    continue
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
             box = boxes[odx, :]
 
-            #if inv_cls not in gt_labels:
-            #    continue
+            if inv_cls not in gt_labels:
+                continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
-            '''
+            #'''
             eval_line = []
             sc_id = int(scene_id[0])
             eval_line.append(sc_id)
@@ -345,7 +345,9 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
                 t_gt = np.array(gt_pose[:3], dtype=np.float32)
                 t_gt = t_gt * 0.001
 
-                model_vsd = meshes[true_cls - 1]
+                print('true_cls: ', true_cls)
+
+                model_vsd = meshes[true_cls]
 
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
 
@@ -362,7 +364,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
-            '''
+            #'''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -431,7 +433,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name_box, image_box)
-        cv2.imwrite(name, image_row1)
+        #cv2.imwrite(name, image_row1)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
