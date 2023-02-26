@@ -30,7 +30,7 @@ RUN pip install PyOpenGL
 RUN pip install imgaug
 RUN pip install tensorflow-addons
 
-RUN git clone https://github.com/sThalham/COPE.git /cope
+RUN git clone --branch cope_WACV https://github.com/sThalham/COPE.git /cope
 
 WORKDIR /cope
 
