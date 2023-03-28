@@ -41,7 +41,9 @@ def create_generator(args):
 
     mesh_info = os.path.join(args.data_path, 'meshes', 'models_info' + '.json')
     #num_classes = len(json.load(open(mesh_info)).items())
+
     num_classes = 7
+
     #dataset = args.data_path + 'rgb' # for loading images w/o annotation
     dataset = GeneratorDataset(args.data_path, 'val', num_classes=num_classes, batch_size=1)
     correspondences = np.ndarray((num_classes, 8, 3), dtype=np.float32)

@@ -187,7 +187,6 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #image[..., 1] -= 116.779
         #image[..., 2] -= 123.68
 
-
         scene_id = sample[0].numpy()
         image_id = sample[1].numpy()
         image = sample[2]
@@ -206,6 +205,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         cy = gt_calib[0, 3]
         
         image_raw = image.numpy()
+
         #K = np.array([
         #    [461.4741947965802, 0, 330.7884216308594],
         #    [0, 434.7884216308594, 245.88177490234375],
@@ -296,21 +296,21 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
         for odx, inv_cls in enumerate(labels):
 
-            #if inv_cls != 2:
+            #if inv_cls == 1:
             #    continue
 
             true_cls = inv_cls + 1
             pose = poses[odx, :]
             box = boxes[odx, :]
 
-            #if inv_cls not in gt_labels:
-            #    continue
+            if inv_cls not in gt_labels:
+                continue
             n_img += 1
 
             R_est = np.array(pose[:9]).reshape((3, 3)).T
             t_est = np.array(pose[-3:]) * 0.001
 
-            '''
+            #'''
             eval_line = []
             sc_id = int(scene_id[0])
             eval_line.append(sc_id)
@@ -344,7 +344,9 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
                 t_gt = np.array(gt_pose[:3], dtype=np.float32)
                 t_gt = t_gt * 0.001
 
-                model_vsd = meshes[true_cls - 1]
+                print('true_cls: ', true_cls)
+
+                model_vsd = meshes[true_cls]
 
                 err_add = add(R_est, t_est, R_gt, t_gt, model_vsd["pts"])
 
@@ -361,7 +363,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
 
                 print(' ')
                 print('error: ', err_add, 'threshold', model_dia[true_cls] * 0.1)
-            '''
+            #'''
 
             ori_points = np.ascontiguousarray(threeD_boxes[true_cls, :, :], dtype=np.float32)
             eDbox = R_est.dot(ori_points.T).T
@@ -430,7 +432,7 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #image_row2 = np.concatenate([image_mask, image_poses], axis=1)
         #image_rows = np.concatenate([image_row1, image_row2], axis=0)
         #cv2.imwrite(name_box, image_box)
-        cv2.imwrite(name, image_row1)
+        #cv2.imwrite(name, image_row1)
 
         #name = '/home/stefan/PyraPose_viz/' + 'ori_' + str(index) + '.png'
         #cv2.imwrite(name, image_ori)
