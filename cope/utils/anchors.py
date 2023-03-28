@@ -234,7 +234,7 @@ def anchor_targets_bbox(
                 #                    fontScale, color, thickness, cv2.LINE_AA)
 
                 #pose = box3D.astype(np.uint16)
-#
+
                 #colR = 250
                 #colG = 25
                 #colB = 175

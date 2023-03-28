@@ -178,16 +178,16 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
     eval_img = []
     #for index, sample in enumerate(generator):
 
-    generator = os.listdir(os.path.join(data_path, 'rgb'))
+    #generator = os.listdir(os.path.join(data_path, 'rgb'))
     for index, sample in enumerate(generator):
 
-        image = cv2.imread(os.path.join(data_path, 'rgb', sample))
-        image = image.astype(np.float32)
-        image[..., 0] -= 103.939
-        image[..., 1] -= 116.779
-        image[..., 2] -= 123.68
+        #image = cv2.imread(os.path.join(data_path, 'rgb', sample))
+        #image = image.astype(np.float32)
+        #image[..., 0] -= 103.939
+        #image[..., 1] -= 116.779
+        #image[..., 2] -= 123.68
 
-        '''
+
         scene_id = sample[0].numpy()
         image_id = sample[1].numpy()
         image = sample[2]
@@ -206,7 +206,6 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         cy = gt_calib[0, 3]
         
         image_raw = image.numpy()
-        '''
         #K = np.array([
         #    [461.4741947965802, 0, 330.7884216308594],
         #    [0, 434.7884216308594, 245.88177490234375],
@@ -214,15 +213,15 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
         #])
 
         # k4r version 1: all 6 objects
-        fx = 461.4741947965802
-        fy = 434.7884216308594
+        #fx = 461.4741947965802
+        #fy = 434.7884216308594
         # k4r version 2: 5 objects (-lemon fresh cartridge)
         #fx = 611.345458984375
         #fy = 611.1278076171875
-        cx = 323.0461120605469
-        cy = 230.98667907714844
+        #cx = 323.0461120605469
+        #cy = 230.98667907714844
 
-        image_raw = image
+        #image_raw = image
         image_raw[..., 0] += 103.939
         image_raw[..., 1] += 116.779
         image_raw[..., 2] += 123.68
@@ -376,18 +375,18 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (0, 39, 236)
 
-            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
-            #image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[2:4].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[4:6].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[6:8].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[0:2].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[0:2].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[2:4].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[4:6].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[6:8].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[8:10].ravel()), tuple(pose[10:12].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[10:12].ravel()), tuple(pose[12:14].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[12:14].ravel()), tuple(pose[14:16].ravel()), colEst, 2)
+            image_raw = cv2.line(image_raw, tuple(pose[14:16].ravel()), tuple(pose[8:10].ravel()), colEst, 2)
 
             # font
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -409,17 +408,17 @@ def evaluate_data(generator, model, dataset_name, data_path, threshold=0.3):
             #if err_add > model_dia[true_cls] * 0.1:
             #    colEst = (25, 119, 242)
 
-            model_vsd = meshes[true_cls]
-            pts = model_vsd['pts']
-            proj_pts = R_est.dot(pts.T).T
-            proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
-            proj_pts = toPix_array(proj_pts, fx, fy, cx, cy)
-            proj_pts = proj_pts.astype(np.uint16)
-            proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
-            proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
-            proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
-            proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
-            image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
+            #model_vsd = meshes[true_cls]
+            #pts = model_vsd['pts']
+            #proj_pts = R_est.dot(pts.T).T
+            #proj_pts = proj_pts + np.repeat(t_est[np.newaxis, :], pts.shape[0], axis=0)
+            #proj_pts = toPix_array(proj_pts, fx, fy, cx, cy)
+            #proj_pts = proj_pts.astype(np.uint16)
+            #proj_pts[:, 0] = np.where(proj_pts[:, 0] > 639, 0, proj_pts[:, 0])
+            #proj_pts[:, 0] = np.where(proj_pts[:, 0] < 0, 0, proj_pts[:, 0])
+            #proj_pts[:, 1] = np.where(proj_pts[:, 1] > 479, 0, proj_pts[:, 1])
+            #proj_pts[:, 1] = np.where(proj_pts[:, 1] < 0, 0, proj_pts[:, 1])
+            #image_raw[proj_pts[:, 1], proj_pts[:, 0], :] = colEst
 
         #if index > 0:
         #    times[n_img] += t_img

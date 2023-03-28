@@ -381,10 +381,10 @@ class GeneratorDataset(tf.data.Dataset):
             #    sym_cont[int(key), :, :] = np.zeros((2, 3))
 
         transform_generator = random_transform_generator(
-            min_translation=(-0.25, -0.25),
-            max_translation=(0.25, 0.25),
-            min_scaling=(0.75, 0.75),
-            max_scaling=(1.33, 1.33),
+            #min_translation=(-0.2, -0.2),
+            #max_translation=(0.2, 0.2),
+            #min_scaling=(0.8, 0.8),
+            #max_scaling=(1.2, 1.8),
             #min_rotation=-np.pi*0.25,
             #max_rotation=np.pi*0.25,
         )
