@@ -553,6 +553,10 @@ class GeneratorDataset(tf.data.Dataset):
                 # filter annotations
                 for index, (image, annotations) in enumerate(zip(x_s, y_s)):
 
+                    if x_s[index] is None or y_s[index]['mask'] is None:
+                        x_s[index] = np.zeros((480, 640, 3), dtype=np.uint8)
+                        y_s[index]['mask'] = np.zeros((480, 640), dtype=np.uint8)
+
                     x_s[index] = augment_image(x_s[index], seq)
 
                     # transform a single group entry

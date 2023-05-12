@@ -36,7 +36,7 @@ def anchor_targets_bbox(
 
     regression_batch = np.zeros((batch_size, location_shape, num_classes, 8, 16 + 1), dtype=keras.backend.floatx())
     detections_batch = np.zeros((batch_size, location_shape, num_classes, 4 + 1), dtype=keras.backend.floatx())
-    labels_batch = np.zeros((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx())
+    labels_batch = np.ones((batch_size, location_shape, num_classes + 1), dtype=keras.backend.floatx()) * -1
     locations_batch = np.zeros((batch_size, location_shape, num_classes, 3 + 1), dtype=keras.backend.floatx())
     rotations_batch = np.zeros((batch_size, location_shape, num_classes, 8, 6 + 1), dtype=keras.backend.floatx())
     reprojection_batch = np.zeros((batch_size, location_shape, num_classes), dtype=keras.backend.floatx())
